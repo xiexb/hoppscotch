@@ -30,10 +30,12 @@ export default defineConfig({
     "process.platform": '"browser"',
   },
   server: {
-    port: 3000,
+    port: 3003,
+    host: '0.0.0.0',
   },
   preview: {
-    port: 3000,
+    port: 3003,
+    host: '0.0.0.0',
   },
   publicDir: path.resolve(__dirname, "../hoppscotch-common/public"),
   build: {

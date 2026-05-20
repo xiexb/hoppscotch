@@ -261,6 +261,7 @@ import { getDefaultRESTRequest } from "~/helpers/rest/default"
 import { RESTHistoryEntry, restHistory$ } from "~/newstore/history"
 import { platform } from "~/platform"
 import { HoppRESTRequest } from "@hoppscotch/data"
+import { HoppRESTPathParam } from "@hoppscotch/data"
 import { useService } from "dioc/vue"
 import { InspectionService } from "~/services/inspection"
 import { HoppTab } from "~/services/tab"
@@ -486,6 +487,11 @@ onUnmounted(() => {
     .value.some((tab) => tab.id === currentTabID)
 
   if (isCurrentTabRemoved) cancelRequest()
+
+  // Clean up path params debounce timer
+  if (pathParamsDebounceTimer) {
+    clearTimeout(pathParamsDebounceTimer)
+  }
 })
 
 const cancelRequest = () => {
@@ -683,4 +689,44 @@ const isCustomMethod = computed(() => {
 const COLUMN_LAYOUT = useSetting("COLUMN_LAYOUT")
 
 const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
+
+// Auto-detect path variables from URL (e.g., <<varName>> patterns)
+let pathParamsDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(
+  () => tab.value.document.request.endpoint,
+  (newEndpoint) => {
+    if (pathParamsDebounceTimer) {
+      clearTimeout(pathParamsDebounceTimer)
+    }
+    pathParamsDebounceTimer = setTimeout(() => {
+      const regex = /<<([^>]+)>>/g
+      const detectedVars: string[] = []
+      let match: RegExpExecArray | null
+      while ((match = regex.exec(newEndpoint)) !== null) {
+        detectedVars.push(match[1])
+      }
+
+      if (detectedVars.length > 0) {
+        const currentPathParams = tab.value.document.request.pathParams
+        const existingKeys = new Set(currentPathParams.map((p) => p.key))
+        const newParams: HoppRESTPathParam[] = detectedVars
+          .filter((varName) => !existingKeys.has(varName))
+          .map((varName) => ({
+            key: varName,
+            value: "",
+            active: true,
+            description: "",
+          }))
+
+        if (newParams.length > 0) {
+          tab.value.document.request.pathParams = [
+            ...currentPathParams,
+            ...newParams,
+          ]
+        }
+      }
+    }, 300)
+  }
+)
 </script>

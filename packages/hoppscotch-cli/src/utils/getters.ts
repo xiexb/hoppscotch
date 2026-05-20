@@ -3,6 +3,7 @@ import {
   HoppCollectionVariable,
   HoppRESTHeader,
   HoppRESTParam,
+  HoppRESTPathParams,
   HoppRESTRequestVariables,
   parseTemplateStringE,
 } from "@hoppscotch/data";
@@ -271,13 +272,30 @@ export const getResourceContents = async (
  * @param {HoppRESTRequestVariables} requestVariables - Incoming request variables.
  * @param {EnvironmentVariable[]} environmentVariables - Incoming environment variables.
  * @param {HoppCollectionVariable[]} collectionVariables - Optional collection variables to be included.
+ * @param {HoppRESTPathParams} pathParams - Optional path params to be included with highest priority.
  * @returns {EnvironmentVariable[]} The resolved list of variables that conforms to the shape of environment variables.
  */
 export const getResolvedVariables = (
   requestVariables: HoppRESTRequestVariables,
   environmentVariables: EnvironmentVariable[],
-  collectionVariables: HoppCollectionVariable[] = []
+  collectionVariables: HoppCollectionVariable[] = [],
+  pathParams: HoppRESTPathParams = []
 ): EnvironmentVariable[] => {
+  // Convert active pathParams to EnvironmentVariable format so they override
+  // same-named environment variables during template string resolution.
+  // pathParams are placed FIRST in the merged array so they take priority.
+  const activePathParams: EnvironmentVariable[] = (pathParams ?? [])
+    .filter(({ key, active }) => key !== "" && active)
+    .map(({ key, value }) => ({
+      key,
+      value,
+      initialValue: value,
+      currentValue: value,
+      secret: false,
+    }));
+
+  const pathParamKeys = activePathParams.map(({ key }) => key);
+
   // Transforming request variables to the shape of environment variables
   const activeRequestVariables = requestVariables
     .filter(({ active, value }) => active && value)
@@ -292,17 +310,17 @@ export const getResolvedVariables = (
 
   // Request variables have higher priority, hence filtering out collection variables with the same keys
   const filteredCollectionVariables = collectionVariables.filter(
-    ({ key }) => !requestVariableKeys.includes(key)
+    ({ key }) => ![...pathParamKeys, ...requestVariableKeys].includes(key)
   );
 
   const collectionVariableKeys = filteredCollectionVariables.map(
     ({ key }) => key
   );
 
-  // Filtering out environment variables that have keys present in request or collection variables
+  // Filtering out environment variables that have keys present in pathParams, request or collection variables
   const filteredEnvironmentVariables = environmentVariables.filter(
     ({ key }) =>
-      ![...requestVariableKeys, ...collectionVariableKeys].includes(key)
+      ![...pathParamKeys, ...requestVariableKeys, ...collectionVariableKeys].includes(key)
   );
 
   // Setting currentValue to initialValue for environment variables
@@ -328,6 +346,7 @@ export const getResolvedVariables = (
   );
 
   return [
+    ...activePathParams,
     ...activeRequestVariables,
     ...processedCollectionVariables,
     ...processedEnvironmentVariables,

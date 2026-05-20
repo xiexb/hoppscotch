@@ -504,6 +504,10 @@
       "no_params": "No parameters defined",
       "title": "Parameters"
     },
+    "path_parameters": {
+      "no_params": "No path parameters defined",
+      "title": "Path Parameters"
+    },
     "percent_complete": "% complete",
     "processing_documentation": "Processing Documentation",
     "publish": {
@@ -605,6 +609,7 @@
     "invites": "Invite list is empty",
     "members": "Workspace is empty",
     "parameters": "This request does not have any parameters",
+    "path_parameters": "This request does not have any path parameters",
     "pending_invites": "There are no pending invites for this workspace",
     "profile": "Login to view your profile",
     "protocols": "Protocols are empty",
@@ -1203,6 +1208,7 @@
     "override_help": "Set <kbd>Content-Type</kbd> in Headers",
     "overriden": "Overridden",
     "parameter_list": "Query Parameters",
+    "path_parameter_list": "Path Parameters",
     "parameters": "Parameters",
     "path": "Path",
     "payload": "Payload",
@@ -1809,6 +1815,7 @@
     "history": "History",
     "mqtt": "MQTT",
     "parameters": "Parameters",
+    "path_params": "Path Params",
     "post_request_script": "Post-request Script",
     "pre_request_script": "Pre-request Script",
     "scripts": "Scripts",

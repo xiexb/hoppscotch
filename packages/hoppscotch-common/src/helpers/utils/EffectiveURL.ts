@@ -1,11 +1,13 @@
 import {
   Environment,
+  EnvironmentVariable,
   FormDataKeyValue,
   HoppRESTAuth,
   HoppRESTHeader,
   HoppRESTHeaders,
   HoppRESTParam,
   HoppRESTParams,
+  HoppRESTPathParams,
   HoppRESTReqBody,
   HoppRESTRequest,
   parseBodyEnvVariables,
@@ -41,6 +43,7 @@ export interface EffectiveHoppRESTRequest extends HoppRESTRequest {
   effectiveFinalParams: HoppRESTParams
   effectiveFinalBody: FormData | string | null | File | Blob
   effectiveFinalRequestVariables: { key: string; value: string }[]
+  effectiveFinalPathParams: HoppRESTPathParams
 }
 
 /**
@@ -365,9 +368,28 @@ export async function getEffectiveRESTRequest(
   showKeyIfSecret = false,
   showKeyIfNotFound = false
 ): Promise<EffectiveHoppRESTRequest> {
+  // Convert active pathParams to EnvironmentVariable format so they override
+  // same-named environment variables during template string resolution.
+  // pathParams are placed FIRST in the merged array so that
+  // variables.find(x => x.key === p1) returns the pathParam entry first.
+  const activePathParams: EnvironmentVariable[] = (request.pathParams ?? [])
+    .filter((p) => p.key !== "" && p.active)
+    .map((p) => ({
+      key: p.key,
+      value: p.value,
+      initialValue: p.value,
+      currentValue: p.value,
+      secret: false as const,
+    }))
+
+  const mergedEnvVars: Environment["variables"] = [
+    ...activePathParams,
+    ...environment.variables,
+  ]
+
   const effectiveFinalHeaders = pipe(
     (
-      await getComputedHeaders(request, environment.variables, showKeyIfSecret)
+      await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)
     ).map((h) => h.header),
     A.concat(request.headers),
     A.filter((x) => x.active && x.key !== ""),
@@ -375,13 +397,13 @@ export async function getEffectiveRESTRequest(
       active: true,
       key: parseTemplateString(
         x.key,
-        environment.variables,
+        mergedEnvVars,
         false,
         showKeyIfSecret
       ),
       value: parseTemplateString(
         x.value,
-        environment.variables,
+        mergedEnvVars,
         false,
         showKeyIfSecret
       ),
@@ -390,7 +412,7 @@ export async function getEffectiveRESTRequest(
   )
 
   const effectiveFinalParams = pipe(
-    (await getComputedParams(request, environment.variables)).map(
+    (await getComputedParams(request, mergedEnvVars)).map(
       (p) => p.param
     ),
     A.concat(request.params),
@@ -399,13 +421,13 @@ export async function getEffectiveRESTRequest(
       active: true,
       key: parseTemplateString(
         x.key,
-        environment.variables,
+        mergedEnvVars,
         false,
         showKeyIfSecret
       ),
       value: parseTemplateString(
         x.value,
-        environment.variables,
+        mergedEnvVars,
         false,
         showKeyIfSecret
       ),
@@ -418,14 +440,18 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(x.key, environment.variables),
-      value: parseTemplateString(x.value, environment.variables),
+      key: parseTemplateString(x.key, mergedEnvVars),
+      value: parseTemplateString(x.value, mergedEnvVars),
     }))
+  )
+
+  const effectiveFinalPathParams = (request.pathParams ?? []).filter(
+    (x) => x.active && x.key !== ""
   )
 
   const effectiveFinalBody = getFinalBodyFromRequest(
     request,
-    environment.variables,
+    mergedEnvVars,
     showKeyIfSecret
   )
 
@@ -433,7 +459,7 @@ export async function getEffectiveRESTRequest(
     ...request,
     effectiveFinalURL: parseTemplateString(
       request.endpoint,
-      environment.variables,
+      mergedEnvVars,
       false,
       showKeyIfSecret,
       showKeyIfNotFound
@@ -442,6 +468,7 @@ export async function getEffectiveRESTRequest(
     effectiveFinalParams,
     effectiveFinalBody,
     effectiveFinalRequestVariables,
+    effectiveFinalPathParams,
   }
 }
 

@@ -264,6 +264,7 @@ export const processRequest =
       effectiveFinalBody: null,
       effectiveFinalHeaders: [],
       effectiveFinalParams: [],
+      effectiveFinalPathParams: [],
       effectiveFinalURL: "",
     };
 
@@ -423,6 +424,9 @@ export const preProcessRequest = (
   }
   if (!tempRequest.params) {
     tempRequest.params = [];
+  }
+  if (!tempRequest.pathParams) {
+    tempRequest.pathParams = [];
   }
 
   if (parentHeaders?.length) {

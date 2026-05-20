@@ -13,6 +13,14 @@
       <HttpParameters v-model="request.params" :envs="envs" />
     </HoppSmartTab>
     <HoppSmartTab
+      v-if="properties?.includes('pathParams') ?? true"
+      :id="'pathParams'"
+      :label="`${t('tab.path_params')}`"
+      :info="`${newActivePathParamsCount}`"
+    >
+      <HttpPathParams v-model="request.pathParams" :envs="envs" />
+    </HoppSmartTab>
+    <HoppSmartTab
       v-if="properties?.includes('bodyParams') ?? true"
       :id="'bodyParams'"
       :label="`${t('tab.body')}`"
@@ -107,9 +115,11 @@ import { defineActionHandler } from "~/helpers/actions"
 import { hasActualScript } from "@hoppscotch/js-sandbox/scripting"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import { AggregateEnvironment } from "~/newstore/environments"
+import HttpPathParams from "./PathParams.vue"
 
 const _VALID_OPTION_TABS = [
   "params",
+  "pathParams",
   "bodyParams",
   "headers",
   "authorization",
@@ -161,6 +171,14 @@ const changeOptionTab = (e: RESTOptionTabs) => {
 
 const newActiveParamsCount = computed(() => {
   const count = request.value.params.filter(
+    (x) => x.active && (x.key || x.value)
+  ).length
+
+  return count ? count : null
+})
+
+const newActivePathParamsCount = computed(() => {
+  const count = request.value.pathParams.filter(
     (x) => x.active && (x.key || x.value)
   ).length
 
