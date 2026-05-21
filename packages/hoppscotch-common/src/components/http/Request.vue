@@ -692,11 +692,15 @@ const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
 
 // Auto-detect path variables from URL (e.g., <<varName>> patterns)
 // Syncs pathParams with detected variables: adds new ones, removes stale ones
+// Runs on mount (immediate) to detect params from persisted URLs on first load
 let pathParamsDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
   () => tab.value.document.request.endpoint,
   (newEndpoint) => {
+    // Guard against undefined/empty endpoint (tab loading, blank field)
+    if (!newEndpoint) return
+
     if (pathParamsDebounceTimer) {
       clearTimeout(pathParamsDebounceTimer)
     }
@@ -741,6 +745,7 @@ watch(
         tab.value.document.request.pathParams = finalParams
       }
     }, 300)
-  }
+  },
+  { immediate: true }
 )
 </script>
