@@ -503,5 +503,66 @@ describe("getters", () => {
         getResolvedVariables(requestVariables, environmentVariables)
       ).toEqual(expected);
     });
+
+    test("PathParams take highest priority, overriding both request variables and environment variables", () => {
+      const pathParams = [
+        { key: "SHARED_KEY_I", value: "path-param-value-I", active: true, description: "" },
+        { key: "PATH_PARAM_II", value: "path-param-value-II", active: true, description: "" },
+        { key: "INACTIVE_PATH", value: "inactive-value", active: false, description: "" },
+        { key: "", value: "empty-key-value", active: true, description: "" },
+      ];
+
+      const expected = [
+        // pathParams first (active, non-empty key)
+        {
+          key: "SHARED_KEY_I",
+          currentValue: "path-param-value-I",
+          initialValue: "path-param-value-I",
+          secret: false,
+        },
+        {
+          key: "PATH_PARAM_II",
+          currentValue: "path-param-value-II",
+          initialValue: "path-param-value-II",
+          secret: false,
+        },
+        // request variables (SHARED_KEY_I filtered out because pathParam has same key)
+        {
+          key: "REQUEST_VAR_III",
+          currentValue: "request-variable-value-III",
+          initialValue: "request-variable-value-III",
+          secret: false,
+        },
+        // environment variables (SHARED_KEY_I filtered out)
+        {
+          key: "SHARED_KEY_II",
+          currentValue: "environment-variable-shared-value-II",
+          initialValue: "environment-variable-shared-value-II",
+          secret: false,
+        },
+        {
+          key: "ENV_VAR_III",
+          currentValue: "environment-variable-value-III",
+          initialValue: "environment-variable-value-III",
+          secret: false,
+        },
+        {
+          key: "ENV_VAR_IV",
+          currentValue: "environment-variable-value-IV",
+          initialValue: "environment-variable-value-IV",
+          secret: false,
+        },
+        {
+          key: "ENV_VAR_V",
+          currentValue: "environment-variable-value-V",
+          initialValue: "environment-variable-value-V",
+          secret: false,
+        },
+      ];
+
+      expect(
+        getResolvedVariables(requestVariables, environmentVariables, [], pathParams)
+      ).toEqual(expected);
+    });
   });
 });

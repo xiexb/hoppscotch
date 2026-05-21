@@ -69,6 +69,10 @@
         :params="request?.params || []"
       />
 
+      <CollectionsDocumentationSectionsPathParams
+        :path-params="request?.pathParams || []"
+      />
+
       <CollectionsDocumentationSectionsVariables
         :variables="request?.requestVariables || []"
       />
