@@ -1,17 +1,9 @@
 import { z } from "zod"
 import { defineVersion } from "verzod"
-import { V17_SCHEMA } from "./17"
+import { V17_SCHEMA } from "../17"
+import { HoppRESTPathParams } from "./params"
 
-export const HoppRESTPathParams = z.array(
-  z.object({
-    key: z.string().catch(""),
-    value: z.string().catch(""),
-    active: z.boolean().catch(true),
-    description: z.string().catch(""),
-  })
-)
-
-export type HoppRESTPathParams = z.infer<typeof HoppRESTPathParams>
+export { HoppRESTPathParams } from "./params"
 
 export const V18_SCHEMA = V17_SCHEMA.extend({
   v: z.literal("18"),
