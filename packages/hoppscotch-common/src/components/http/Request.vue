@@ -691,6 +691,7 @@ const COLUMN_LAYOUT = useSetting("COLUMN_LAYOUT")
 const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
 
 // Auto-detect path variables from URL (e.g., <<varName>> patterns)
+// Syncs pathParams with detected variables: adds new ones, removes stale ones
 let pathParamsDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
@@ -707,24 +708,37 @@ watch(
         detectedVars.push(match[1])
       }
 
-      if (detectedVars.length > 0) {
-        const currentPathParams = tab.value.document.request.pathParams ?? []
-        const existingKeys = new Set(currentPathParams.map((p) => p.key))
-        const newParams: HoppRESTPathParam[] = detectedVars
-          .filter((varName) => !existingKeys.has(varName))
-          .map((varName) => ({
-            key: varName,
-            value: "",
-            active: true,
-            description: "",
-          }))
+      const currentPathParams = tab.value.document.request.pathParams ?? []
+      const detectedSet = new Set(detectedVars)
 
-        if (newParams.length > 0) {
-          tab.value.document.request.pathParams = [
-            ...currentPathParams,
-            ...newParams,
-          ]
-        }
+      // Remove path params whose key is no longer in the URL
+      const syncedParams = currentPathParams.filter((p) =>
+        detectedSet.has(p.key)
+      )
+
+      // Add new path params for newly detected variables
+      const existingKeys = new Set(syncedParams.map((p) => p.key))
+      const newParams: HoppRESTPathParam[] = detectedVars
+        .filter((varName) => !existingKeys.has(varName))
+        .map((varName) => ({
+          key: varName,
+          value: "",
+          active: true,
+          description: "",
+        }))
+
+      const finalParams = [...syncedParams, ...newParams]
+
+      // Only update if changed to avoid unnecessary reactivity triggers
+      if (
+        finalParams.length !== currentPathParams.length ||
+        finalParams.some(
+          (p, i) =>
+            p.key !== currentPathParams[i]?.key ||
+            p.value !== currentPathParams[i]?.value
+        )
+      ) {
+        tab.value.document.request.pathParams = finalParams
       }
     }, 300)
   }

@@ -388,19 +388,14 @@ export async function getEffectiveRESTRequest(
   ]
 
   const effectiveFinalHeaders = pipe(
-    (
-      await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)
-    ).map((h) => h.header),
+    (await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)).map(
+      (h) => h.header
+    ),
     A.concat(request.headers),
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(
-        x.key,
-        mergedEnvVars,
-        false,
-        showKeyIfSecret
-      ),
+      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
       value: parseTemplateString(
         x.value,
         mergedEnvVars,
@@ -412,19 +407,12 @@ export async function getEffectiveRESTRequest(
   )
 
   const effectiveFinalParams = pipe(
-    (await getComputedParams(request, mergedEnvVars)).map(
-      (p) => p.param
-    ),
+    (await getComputedParams(request, mergedEnvVars)).map((p) => p.param),
     A.concat(request.params),
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(
-        x.key,
-        mergedEnvVars,
-        false,
-        showKeyIfSecret
-      ),
+      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
       value: parseTemplateString(
         x.value,
         mergedEnvVars,

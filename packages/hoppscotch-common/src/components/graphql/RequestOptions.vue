@@ -113,7 +113,18 @@ const emit = defineEmits<{
   (e: "update:response", value: GQLResponseEvent[]): void
 }>()
 
-const selectedOptionTab = useVModel(props, "optionTab", emit)
+const selectedOptionTabRaw = useVModel(props, "optionTab", emit)
+
+// Ensure selectedOptionTab always has a valid string value.
+// When optionTabPreference is undefined (e.g. restored from old localStorage
+// data that lacked this field), useVModel returns undefined, which breaks
+// HoppSmartTabs because it does strict === comparison with tab IDs.
+const selectedOptionTab = computed({
+  get: () => selectedOptionTabRaw.value ?? ("query" as GQLOptionTabs),
+  set: (val: GQLOptionTabs) => {
+    selectedOptionTabRaw.value = val
+  },
+})
 
 const request = useVModel(props, "modelValue", emit)
 

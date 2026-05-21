@@ -10,14 +10,30 @@
       :info="`${newActiveParamsCount}`"
     >
       <HttpParameters v-model="request.params" :envs="envs" />
-    </HoppSmartTab>
-    <HoppSmartTab
-      v-if="properties?.includes('pathParams') ?? true"
-      :id="'pathParams'"
-      :label="`${t('tab.path_params')}`"
-      :info="`${newActivePathParamsCount}`"
-    >
-      <HttpPathParams v-model="request.pathParams" :envs="envs" />
+      <div v-if="hasPathParams" class="flex flex-col">
+        <div
+          class="flex flex-shrink-0 items-center justify-between overflow-x-auto border-t border-dividerLight bg-primary pl-4 pr-2"
+        >
+          <label class="truncate py-2 font-semibold text-secondaryLight">
+            {{ t("request.path_parameter_list") }}
+          </label>
+          <div class="flex">
+            <HoppButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              :title="t('action.clear_all')"
+              :icon="IconTrash2"
+              @click="clearPathParams"
+            />
+            <HoppButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              :title="t('add.new')"
+              :icon="IconPlus"
+              @click="addPathParam"
+            />
+          </div>
+        </div>
+        <HttpPathParams v-model="request.pathParams" :envs="envs" hide-header />
+      </div>
     </HoppSmartTab>
     <HoppSmartTab
       v-if="properties?.includes('bodyParams') ?? true"
@@ -115,10 +131,11 @@ import { hasActualScript } from "@hoppscotch/js-sandbox/scripting"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import { AggregateEnvironment } from "~/newstore/environments"
 import HttpPathParams from "./PathParams.vue"
+import IconTrash2 from "~icons/lucide/trash-2"
+import IconPlus from "~icons/lucide/plus"
 
 const _VALID_OPTION_TABS = [
   "params",
-  "pathParams",
   "bodyParams",
   "headers",
   "authorization",
@@ -151,7 +168,23 @@ const emit = defineEmits<{
 }>()
 
 const request = useVModel(props, "modelValue", emit)
-const selectedOptionTab = useVModel(props, "optionTab", emit)
+const selectedOptionTabRaw = useVModel(props, "optionTab", emit)
+
+// Ensure selectedOptionTab always has a valid string value.
+// When optionTabPreference is undefined (e.g. restored from old localStorage
+// data that lacked this field), useVModel returns undefined, which breaks
+// HoppSmartTabs because it does strict === comparison with tab IDs.
+// Also handle legacy 'pathParams' tab value (now merged into 'params').
+const selectedOptionTab = computed({
+  get: () => {
+    const val = selectedOptionTabRaw.value
+    if (!val || val === "pathParams") return "params" as RESTOptionTabs
+    return val
+  },
+  set: (val: RESTOptionTabs) => {
+    selectedOptionTabRaw.value = val
+  },
+})
 
 const showPreRequestScriptTab = computed(() => {
   return (
@@ -169,20 +202,33 @@ const changeOptionTab = (e: RESTOptionTabs) => {
 }
 
 const newActiveParamsCount = computed(() => {
-  const count = request.value.params.filter(
+  const paramsCount = request.value.params.filter(
     (x) => x.active && (x.key || x.value)
   ).length
 
-  return count ? count : null
-})
-
-const newActivePathParamsCount = computed(() => {
-  const count = (request.value.pathParams ?? []).filter(
+  const pathParamsCount = (request.value.pathParams ?? []).filter(
     (x) => x.active && (x.key || x.value)
   ).length
 
-  return count ? count : null
+  const total = paramsCount + pathParamsCount
+  return total ? total : null
 })
+
+const hasPathParams = computed(() => {
+  return (request.value.pathParams ?? []).length > 0
+})
+
+const clearPathParams = () => {
+  request.value.pathParams = []
+}
+
+const addPathParam = () => {
+  const current = request.value.pathParams ?? []
+  request.value.pathParams = [
+    ...current,
+    { key: "", value: "", active: true, description: "" },
+  ]
+}
 
 const newActiveHeadersCount = computed(() => {
   const count = request.value.headers.filter(

@@ -1,6 +1,7 @@
 <template>
   <div class="flex flex-1 flex-col">
     <div
+      v-if="!hideHeader"
       class="sticky top-upperMobileSecondaryStickyFold z-10 flex flex-shrink-0 items-center justify-between overflow-x-auto border-b border-dividerLight bg-primary pl-4 sm:top-upperSecondaryStickyFold"
     >
       <label class="truncate font-semibold text-secondaryLight">
@@ -173,6 +174,7 @@ useCodemirror(
 const props = defineProps<{
   modelValue: HoppRESTPathParam[]
   envs?: AggregateEnvironment[]
+  hideHeader?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -312,7 +314,10 @@ const addParam = () => {
   })
 }
 
-const updateParam = (index: number, param: HoppRESTPathParam & { id: number }) => {
+const updateParam = (
+  index: number,
+  param: HoppRESTPathParam & { id: number }
+) => {
   workingParams.value = workingParams.value.map((h, i) =>
     i === index ? param : h
   )
