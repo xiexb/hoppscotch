@@ -43,6 +43,14 @@
       />
     </HoppSmartTab>
     <HoppSmartTab
+      v-if="actualSentRequest"
+      id="actual-request"
+      :label="t('response.actual_request')"
+      class="flex flex-1 flex-col"
+    >
+      <LensesActualRequestRenderer :actual-request="actualSentRequest" />
+    </HoppSmartTab>
+    <HoppSmartTab
       v-if="requestHeaders"
       id="req-headers"
       :label="t('response.request_headers')"
@@ -76,6 +84,7 @@ import {
   Lens,
 } from "~/helpers/lenses/lenses"
 import { HoppRequestDocument } from "~/helpers/rest/document"
+import { ActualSentRequest } from "~/helpers/types/HoppRESTResponse"
 import { ConsoleEntry } from "../console/Panel.vue"
 
 const props = defineProps<{
@@ -147,6 +156,13 @@ const requestHeaders = computed(() => {
   return doc.value.response?.req.headers || doc.value.request.headers
 })
 
+const actualSentRequest = computed((): ActualSentRequest | null => {
+  const response = doc.value.response
+  if (!response) return null
+  if (response.type !== "success" && response.type !== "fail") return null
+  return response.actualSentRequest ?? null
+})
+
 const validLenses = computed(() => {
   if (!doc.value.response) return []
   return getSuitableLenses(doc.value.response)
@@ -185,6 +201,7 @@ watch(
       ...newLenses.map((x) => x.renderer),
       "headers",
       "results",
+      "actual-request",
     ]
 
     const { responseTabPreference } = doc.value

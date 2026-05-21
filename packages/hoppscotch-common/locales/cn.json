@@ -1260,7 +1260,8 @@
     "generate_data_schema": "生成数据结构",
     "data_schema": "数据结构",
     "saved": "响应已保存",
-    "invalid_name": "请为响应提供名称"
+    "invalid_name": "请为响应提供名称",
+    "actual_request": "实际请求"
   },
   "settings": {
     "accent_color": "强调色",

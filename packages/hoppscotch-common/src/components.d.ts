@@ -278,6 +278,7 @@ declare module 'vue' {
     ImportExportImportExportStepsMyCollectionImport: typeof import('./components/importExport/ImportExportSteps/MyCollectionImport.vue')['default']
     ImportExportImportExportStepsUrlImport: typeof import('./components/importExport/ImportExportSteps/UrlImport.vue')['default']
     InstanceSwitcher: typeof import('./components/instance/Switcher.vue')['default']
+    LensesActualRequestRenderer: typeof import('./components/lenses/ActualRequestRenderer.vue')['default']
     LensesHeadersRenderer: typeof import('./components/lenses/HeadersRenderer.vue')['default']
     LensesHeadersRendererEntry: typeof import('./components/lenses/HeadersRendererEntry.vue')['default']
     LensesRenderersAudioLensRenderer: typeof import('./components/lenses/renderers/AudioLensRenderer.vue')['default']

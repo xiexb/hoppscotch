@@ -659,7 +659,8 @@
     "title": "回應",
     "video": "視訊",
     "waiting_for_connection": "等待連線",
-    "xml": "XML"
+    "xml": "XML",
+    "actual_request": "實際請求"
   },
   "settings": {
     "accent_color": "強調色",
