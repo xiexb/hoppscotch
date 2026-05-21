@@ -7,7 +7,7 @@
       <label class="truncate font-semibold text-secondaryLight">
         {{ t("request.path_parameter_list") }}
       </label>
-      <div class="flex">
+      <div v-if="!readOnlyKeys" class="flex">
         <HoppButtonSecondary
           v-tippy="{ theme: 'tooltip' }"
           to="https://docs.hoppscotch.io/documentation/features/rest-api-testing"
@@ -45,7 +45,10 @@
         />
       </div>
     </div>
-    <div v-if="bulkMode" class="h-full relative flex flex-col flex-1">
+    <div
+      v-if="bulkMode && !readOnlyKeys"
+      class="h-full relative flex flex-col flex-1"
+    >
       <div ref="bulkEditor" class="absolute inset-0"></div>
     </div>
     <div v-else>
@@ -54,7 +57,7 @@
         item-key="id"
         animation="250"
         handle=".draggable-handle"
-        draggable=".draggable-content"
+        :draggable="readOnlyKeys ? '.no-drag' : '.draggable-content'"
         ghost-class="cursor-move"
         chosen-class="bg-primaryLight"
         drag-class="cursor-grabbing"
@@ -74,6 +77,8 @@
             :entity-active="param.active"
             :envs="envs"
             :is-active="param.hasOwnProperty('active')"
+            :name-read-only="readOnlyKeys"
+            :delete-disabled="readOnlyKeys"
             :inspection-key-result="
               getInspectorResult(parameterKeyResults, index)
             "
@@ -91,7 +96,7 @@
         :alt="`${t('empty.path_parameters')}`"
         :text="t('empty.path_parameters')"
       >
-        <template #body>
+        <template v-if="!readOnlyKeys" #body>
           <HoppButtonSecondary
             :label="`${t('add.new')}`"
             :icon="IconPlus"
@@ -175,6 +180,7 @@ const props = defineProps<{
   modelValue: HoppRESTPathParam[]
   envs?: AggregateEnvironment[]
   hideHeader?: boolean
+  readOnlyKeys?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -190,7 +196,9 @@ if (!params.value) {
 }
 
 // The UI representation of the parameters list (has the empty end param)
-const workingParams = ref<Array<HoppRESTPathParam & { id: number }>>([
+// In readOnlyKeys mode, skip the empty trailing row since users cannot add params manually
+const workingParams = ref<Array<HoppRESTPathParam & { id: number }>>(
+  props.readOnlyKeys ? [] : [
   {
     id: idTicker.value++,
     key: "",
@@ -201,7 +209,9 @@ const workingParams = ref<Array<HoppRESTPathParam & { id: number }>>([
 ])
 
 // Rule: Working Params always have last element is always an empty param
+// (except in readOnlyKeys mode where params are auto-managed from URL)
 watch(workingParams, (paramsList) => {
+  if (props.readOnlyKeys) return
   if (paramsList.length > 0 && paramsList[paramsList.length - 1].key !== "") {
     workingParams.value.push({
       id: idTicker.value++,

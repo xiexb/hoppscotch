@@ -2,7 +2,7 @@
   <div
     class="flex border-b divide-x draggable-content group divide-dividerLight border-dividerLight"
   >
-    <span>
+    <span v-if="!deleteDisabled">
       <HoppButtonSecondary
         v-tippy="{
           theme: 'tooltip',
@@ -18,7 +18,15 @@
         tabindex="-1"
       />
     </span>
+    <div
+      v-if="nameReadOnly"
+      class="flex flex-1 items-center px-4 text-secondaryDark truncate"
+      :class="{ 'opacity-50': !entityActive }"
+    >
+      <span class="truncate">{{ name }}</span>
+    </div>
     <SmartEnvInput
+      v-else
       :class="{ 'opacity-50': !entityActive }"
       :model-value="name"
       :placeholder="t('count.key')"
@@ -26,6 +34,7 @@
       :auto-complete-env="autoCompleteEnv"
       :envs="envs"
       :inspection-results="inspectionKeyResult"
+      :read-only="nameReadOnly"
       @update:model-value="emit('update:name', $event)"
       @change="
         updateEntity(index, {
@@ -76,7 +85,7 @@
         })
       "
     />
-    <span>
+    <span v-if="!deleteDisabled">
       <HoppButtonSecondary
         v-tippy="{ theme: 'tooltip' }"
         :title="
@@ -105,7 +114,7 @@
         "
       />
     </span>
-    <span>
+    <span v-if="!deleteDisabled">
       <HoppButtonSecondary
         v-tippy="{ theme: 'tooltip' }"
         :title="t('action.remove')"
@@ -152,6 +161,8 @@ withDefaults(
     envs?: AggregateEnvironment[]
     autoCompleteEnv?: boolean
     keyAutoCompleteSource?: string[]
+    nameReadOnly?: boolean
+    deleteDisabled?: boolean
   }>(),
   {
     showDescription: true,
@@ -161,6 +172,8 @@ withDefaults(
     envs: () => [],
     autoCompleteEnv: true,
     keyAutoCompleteSource: () => [],
+    nameReadOnly: false,
+    deleteDisabled: false,
   }
 )
 

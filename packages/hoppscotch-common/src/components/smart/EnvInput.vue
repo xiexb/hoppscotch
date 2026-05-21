@@ -544,6 +544,7 @@ const getExtensions = (readonly: boolean): Extension => {
       }
     }),
     EditorState.changeFilter.of(() => !readonly),
+    EditorState.readOnly.of(readonly),
     readonly
       ? EditorView.theme({
           ".cm-content": {
@@ -676,6 +677,27 @@ onMounted(() => {
     if (props.selectTextOnMount) triggerTextSelection()
     if (props.focus) view.value?.focus()
     platform.ui?.onCodemirrorInstanceMount?.(editor.value)
+
+    // Re-apply readonly state if needed, since the immediate watch in setup()
+    // fires before view.value exists and silently does nothing.
+    if (props.readonly && view.value) {
+      view.value.dispatch({
+        effects: readOnly.reconfigure([
+          EditorView.theme({
+            ".cm-content": {
+              caretColor: "var(--secondary-dark-color)",
+              color: "var(--secondary-dark-color)",
+              backgroundColor: "var(--divider-color)",
+              opacity: 0.25,
+            },
+          }),
+          EditorState.changeFilter.of(() => false),
+          EditorState.readOnly.of(true),
+        ]),
+      })
+      view.value.contentDOM.setAttribute("inputmode", "none")
+      view.value.contentDOM.setAttribute("contenteditable", "false")
+    }
   }
 })
 

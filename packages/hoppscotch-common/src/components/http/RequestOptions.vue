@@ -10,29 +10,20 @@
       :info="`${newActiveParamsCount}`"
     >
       <HttpParameters v-model="request.params" :envs="envs" />
-      <div v-if="hasPathParams" class="flex flex-col">
+      <div class="flex flex-col">
         <div
-          class="flex flex-shrink-0 items-center justify-between overflow-x-auto border-t border-dividerLight bg-primary pl-4 pr-2"
+          class="flex flex-shrink-0 items-center justify-between overflow-x-auto border-t border-dividerLight bg-primary pl-4"
         >
           <label class="truncate py-2 font-semibold text-secondaryLight">
             {{ t("request.path_parameter_list") }}
           </label>
-          <div class="flex">
-            <HoppButtonSecondary
-              v-tippy="{ theme: 'tooltip' }"
-              :title="t('action.clear_all')"
-              :icon="IconTrash2"
-              @click="clearPathParams"
-            />
-            <HoppButtonSecondary
-              v-tippy="{ theme: 'tooltip' }"
-              :title="t('add.new')"
-              :icon="IconPlus"
-              @click="addPathParam"
-            />
-          </div>
         </div>
-        <HttpPathParams v-model="request.pathParams" :envs="envs" hide-header />
+        <HttpPathParams
+          v-model="pathParams"
+          :envs="envs"
+          :hide-header="true"
+          :read-only-keys="true"
+        />
       </div>
     </HoppSmartTab>
     <HoppSmartTab
@@ -131,8 +122,6 @@ import { hasActualScript } from "@hoppscotch/js-sandbox/scripting"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import { AggregateEnvironment } from "~/newstore/environments"
 import HttpPathParams from "./PathParams.vue"
-import IconTrash2 from "~icons/lucide/trash-2"
-import IconPlus from "~icons/lucide/plus"
 
 const _VALID_OPTION_TABS = [
   "params",
@@ -193,6 +182,15 @@ const showPreRequestScriptTab = computed(() => {
   )
 })
 
+// Ensure pathParams is never undefined (v17 schema tabs lack this field)
+// Must be a writable computed to work with v-model
+const pathParams = computed({
+  get: () => request.value.pathParams ?? [],
+  set: (val) => {
+    request.value.pathParams = val
+  },
+})
+
 const showTestsTab = computed(() => {
   return props.properties?.includes("tests") ?? "testScript" in request.value
 })
@@ -213,22 +211,6 @@ const newActiveParamsCount = computed(() => {
   const total = paramsCount + pathParamsCount
   return total ? total : null
 })
-
-const hasPathParams = computed(() => {
-  return (request.value.pathParams ?? []).length > 0
-})
-
-const clearPathParams = () => {
-  request.value.pathParams = []
-}
-
-const addPathParam = () => {
-  const current = request.value.pathParams ?? []
-  request.value.pathParams = [
-    ...current,
-    { key: "", value: "", active: true, description: "" },
-  ]
-}
 
 const newActiveHeadersCount = computed(() => {
   const count = request.value.headers.filter(

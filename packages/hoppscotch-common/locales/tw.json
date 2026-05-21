@@ -294,7 +294,8 @@
     "teams": "團隊為空",
     "tests": "沒有針對該請求的測試",
     "access_tokens": "Access tokens are empty",
-    "shortcodes": "Shortcodes 為空"
+    "shortcodes": "Shortcodes 為空",
+    "path_parameters": "此請求沒有任何路徑參數"
   },
   "environment": {
     "add_to_global": "新增至全域",
@@ -634,7 +635,8 @@
     "url_placeholder": "Enter a URL or paste a cURL command",
     "variables": "變數",
     "view_my_links": "檢視我的連結",
-    "copy_link": "複製連結"
+    "copy_link": "複製連結",
+    "path_parameter_list": "路徑參數"
   },
   "response": {
     "audio": "音訊",
@@ -979,7 +981,8 @@
     "tests": "測試",
     "types": "類型",
     "variables": "變數",
-    "websocket": "WebSocket"
+    "websocket": "WebSocket",
+    "path_params": "路徑參數"
   },
   "team": {
     "already_member": "您已經是這個團隊的成員了。請聯絡您的團隊擁有者。",
