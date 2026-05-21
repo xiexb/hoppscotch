@@ -20,12 +20,11 @@ const DEFAULT_ENV = <Environment>{
 };
 
 const DEFAULT_REQUEST = <HoppRESTRequest>{
-  v: "18",
+  v: "1",
   name: "name",
   method: "GET",
   endpoint: "https://example.com",
   params: [],
-  pathParams: [],
   headers: [],
   preRequestScript: "",
   testScript: "",
@@ -37,8 +36,6 @@ const DEFAULT_REQUEST = <HoppRESTRequest>{
     contentType: null,
     body: null,
   },
-  requestVariables: [],
-  responses: {},
 };
 
 describe("getEffectiveRESTRequest", () => {
@@ -148,60 +145,6 @@ describe("getEffectiveRESTRequest", () => {
       ],
       effectiveFinalURL: vars[4].value,
       effectiveFinalBody: vars[3].value,
-      effectiveFinalPathParams: [],
-    });
-  });
-
-  test("PathParams are resolved in the endpoint URL.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
-    SAMPLE_REQUEST.pathParams = [
-      { key: "USER_ID", value: "42", active: true, description: "" },
-    ];
-
-    expect(
-      getEffectiveRESTRequest(SAMPLE_REQUEST, DEFAULT_ENV)
-    ).toSubsetEqualRight(<EffectiveHoppRESTRequest>{
-      effectiveFinalURL: "https://example.com/42/posts",
-      effectiveFinalPathParams: [
-        { key: "USER_ID", value: "42", active: true, description: "" },
-      ],
-    });
-  });
-
-  test("PathParams take priority over environment variables.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
-    SAMPLE_REQUEST.pathParams = [
-      { key: "USER_ID", value: "42", active: true, description: "" },
-    ];
-
-    const ENV_WITH_SAME_KEY = <Environment>{
-      name: "name",
-      variables: [
-        { key: "USER_ID", value: "99" },
-      ],
-    };
-
-    expect(
-      getEffectiveRESTRequest(SAMPLE_REQUEST, ENV_WITH_SAME_KEY)
-    ).toSubsetEqualRight(<EffectiveHoppRESTRequest>{
-      effectiveFinalURL: "https://example.com/42/posts",
-      effectiveFinalPathParams: [
-        { key: "USER_ID", value: "42", active: true, description: "" },
-      ],
-    });
-  });
-
-  test("Inactive pathParams are ignored.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
-    SAMPLE_REQUEST.pathParams = [
-      { key: "USER_ID", value: "42", active: false, description: "" },
-    ];
-
-    expect(
-      getEffectiveRESTRequest(SAMPLE_REQUEST, DEFAULT_ENV)
-    ).toSubsetEqualRight(<EffectiveHoppRESTRequest>{
-      effectiveFinalURL: "https://example.com//posts",
-      effectiveFinalPathParams: [],
     });
   });
 });

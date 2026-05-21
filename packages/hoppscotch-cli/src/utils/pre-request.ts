@@ -156,8 +156,7 @@ export async function getEffectiveRESTRequest(
   const resolvedVariables = getResolvedVariables(
     request.requestVariables,
     envVariables,
-    collectionVariables,
-    request.pathParams ?? []
+    collectionVariables
   );
 
   // Parsing final headers with applied ENVs.
@@ -480,11 +479,6 @@ export async function getEffectiveRESTRequest(
     }
   }
 
-  // Compute effectiveFinalPathParams (active, non-empty-key path params)
-  const effectiveFinalPathParams = (request.pathParams ?? []).filter(
-    ({ key, active }) => key !== "" && active
-  );
-
   return E.right({
     effectiveRequest: {
       ...request,
@@ -493,7 +487,6 @@ export async function getEffectiveRESTRequest(
       effectiveFinalHeaders,
       effectiveFinalParams,
       effectiveFinalBody,
-      effectiveFinalPathParams,
     },
     updatedEnvs: { global: [], selected: resolvedVariables },
   });

@@ -28,7 +28,6 @@ import V16_VERSION from "./v/16"
 import { HoppRESTRequestResponses } from "../rest-request-response"
 import { generateUniqueRefId } from "../utils/collection"
 import V17_VERSION from "./v/17"
-import V18_VERSION, { HoppRESTPathParams } from "./v/18"
 
 export * from "./content-types"
 
@@ -68,8 +67,6 @@ export {
   OAuth2AuthRequestParam,
 } from "./v/15/auth"
 
-export { HoppRESTPathParams } from "./v/18"
-
 export {
   HoppRESTRequestResponse,
   HoppRESTRequestResponses,
@@ -81,7 +78,7 @@ const versionedObject = z.object({
 })
 
 export const HoppRESTRequest = createVersionedEntity({
-  latestVersion: 18,
+  latestVersion: 17,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
@@ -101,7 +98,6 @@ export const HoppRESTRequest = createVersionedEntity({
     15: V15_VERSION,
     16: V16_VERSION,
     17: V17_VERSION,
-    18: V18_VERSION,
   },
   getVersion(data) {
     // For V1 onwards we have the v string storing the number
@@ -133,10 +129,6 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
     (arr) => arr.filter((p: any) => p.key !== "" && p.value !== ""),
     lodashIsEqualEq
   ),
-  pathParams: mapThenEq(
-    (arr) => arr.filter((p: any) => p.key !== "" && p.value !== ""),
-    lodashIsEqualEq
-  ),
   method: S.Eq,
   name: S.Eq,
   preRequestScript: S.Eq,
@@ -150,13 +142,12 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
   description: lodashIsEqualEq,
 })
 
-export const RESTReqSchemaVersion = "18"
+export const RESTReqSchemaVersion = "17"
 
 export type HoppRESTParam = HoppRESTRequest["params"][number]
 export type HoppRESTHeader = HoppRESTRequest["headers"][number]
 export type HoppRESTRequestVariable =
   HoppRESTRequest["requestVariables"][number]
-export type HoppRESTPathParam = HoppRESTRequest["pathParams"][number]
 
 export const isEqualHoppRESTRequest = HoppRESTRequestEq.equals
 
@@ -233,17 +224,8 @@ export function safelyExtractRESTRequest(
       }
     }
 
-    if ("pathParams" in x) {
-      const result = HoppRESTPathParams.safeParse(x.pathParams)
-
-      if (result.success) {
-        req.pathParams = result.data
-      }
-    }
-
     if ("responses" in x) {
       const result = HoppRESTRequestResponses.safeParse(x.responses)
-
       if (result.success) {
         req.responses = result.data
       }
@@ -274,7 +256,6 @@ export function getDefaultRESTRequest(): HoppRESTRequest {
     endpoint: "https://echo.hoppscotch.io",
     name: "Untitled",
     params: [],
-    pathParams: [],
     headers: [],
     method: "GET",
     auth: {
