@@ -48,6 +48,12 @@ export type InspectorLocation =
       index?: number
     }
   | {
+      type: "pathParam"
+      position: "key" | "value"
+      key?: string
+      index?: number
+    }
+  | {
       type: "body"
       key: string
       index: number

@@ -198,15 +198,18 @@ if (!params.value) {
 // The UI representation of the parameters list (has the empty end param)
 // In readOnlyKeys mode, skip the empty trailing row since users cannot add params manually
 const workingParams = ref<Array<HoppRESTPathParam & { id: number }>>(
-  props.readOnlyKeys ? [] : [
-  {
-    id: idTicker.value++,
-    key: "",
-    value: "",
-    active: true,
-    description: "",
-  },
-])
+  props.readOnlyKeys
+    ? []
+    : [
+        {
+          id: idTicker.value++,
+          key: "",
+          value: "",
+          active: true,
+          description: "",
+        },
+      ]
+)
 
 // Rule: Working Params always have last element is always an empty param
 // (except in readOnlyKeys mode where params are auto-managed from URL)
@@ -392,13 +395,16 @@ const inspectionService = useService(InspectionService)
 const parameterKeyResults = inspectionService.getResultViewFor(
   tabs.currentTabID.value,
   (result) =>
-    result.locations.type === "parameter" && result.locations.position === "key"
+    (result.locations.type === "parameter" ||
+      result.locations.type === "pathParam") &&
+    result.locations.position === "key"
 )
 
 const parameterValueResults = inspectionService.getResultViewFor(
   tabs.currentTabID.value,
   (result) =>
-    result.locations.type === "parameter" &&
+    (result.locations.type === "parameter" ||
+      result.locations.type === "pathParam") &&
     result.locations.position === "value"
 )
 

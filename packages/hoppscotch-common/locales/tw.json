@@ -487,6 +487,10 @@
       "empty_value": "Environment value is empty for the variable '{variable}' ",
       "not_found": "找不到環境變數 “{environment}”。"
     },
+    "path_param": {
+      "empty_value": "路徑參數“{variable}”未設定值。",
+      "set_value": "設定值"
+    },
     "header": {
       "cookie": "瀏覽器不允許 Hoppscotch 設定 Cookie 標頭。在我們推出 Hoppscotch 桌面版前，請先使用 Authorization 標頭。"
     },

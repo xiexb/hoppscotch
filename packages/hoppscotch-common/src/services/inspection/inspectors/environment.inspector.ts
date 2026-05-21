@@ -8,9 +8,11 @@ import {
 import { Service } from "dioc"
 import { Ref, markRaw, computed } from "vue"
 import IconPlusCircle from "~icons/lucide/plus-circle"
+import IconAlertTriangle from "~icons/lucide/alert-triangle"
 import {
   HoppRESTRequest,
   HoppRESTResponseOriginalRequest,
+  HoppRESTPathParam,
 } from "@hoppscotch/data"
 import {
   AggregateEnvironment,
@@ -68,7 +70,8 @@ export class EnvironmentInspectorService extends Service implements Inspector {
    */
   private validateEnvironmentVariables = (
     target: string[],
-    locations: InspectorLocation
+    locations: InspectorLocation,
+    pathParamKeys: Set<string> = new Set()
   ) => {
     const newErrors: InspectorResult[] = []
     const currentTab = this.restTabs.currentActiveTab.value
@@ -128,6 +131,8 @@ export class EnvironmentInspectorService extends Service implements Inspector {
           index,
           key: element,
         }
+
+        if (pathParamKeys.has(formattedExEnv)) return
 
         if (!envKeysSet.has(formattedExEnv)) {
           newErrors.push({
@@ -197,7 +202,8 @@ export class EnvironmentInspectorService extends Service implements Inspector {
    */
   private validateEmptyEnvironmentVariables = (
     target: string[],
-    locations: InspectorLocation
+    locations: InspectorLocation,
+    pathParamKeys: Set<string> = new Set()
   ) => {
     const newErrors: InspectorResult[] = []
 
@@ -206,6 +212,9 @@ export class EnvironmentInspectorService extends Service implements Inspector {
       const matches = element.match(HOPP_ENVIRONMENT_REGEX)
       matches?.forEach((exEnv) => {
         const formattedExEnv = exEnv.slice(2, -2)
+
+        if (pathParamKeys.has(formattedExEnv)) return
+
         const currentSelectedEnvironment = getCurrentEnvironment()
         const currentTab = this.restTabs.currentActiveTab.value
 
@@ -347,6 +356,55 @@ export class EnvironmentInspectorService extends Service implements Inspector {
   }
 
   /**
+   * Validates that path params in the request have values set.
+   * Reports path params with empty values.
+   * @param pathParams The path params array from the request
+   * @returns The results array containing the results of the validation
+   */
+  private validatePathParams = (pathParams: HoppRESTPathParam[]) => {
+    const newErrors: InspectorResult[] = []
+
+    pathParams?.forEach((param, index) => {
+      if (param.active && param.key !== "" && param.value === "") {
+        newErrors.push({
+          id: `path-param-empty-${index}`,
+          text: {
+            type: "text",
+            text: this.t("inspections.path_param.empty_value", {
+              variable: `<<${param.key}>>`,
+            }),
+          },
+          icon: markRaw(IconAlertTriangle),
+          action: {
+            text: this.t("inspections.path_param.set_value"),
+            apply: () => {
+              const currentTab = this.restTabs.currentActiveTab.value
+              if (currentTab.document.type === "request") {
+                currentTab.document.optionTabPreference = "params"
+              }
+            },
+            showAction: true,
+          },
+          severity: 2,
+          isApplicable: true,
+          locations: {
+            type: "pathParam",
+            position: "value",
+            index,
+            key: param.key,
+          },
+          doc: {
+            text: this.t("action.learn_more"),
+            link: "https://docs.hoppscotch.io/documentation/features/inspections",
+          },
+        })
+      }
+    })
+
+    return newErrors
+  }
+
+  /**
    * Runs all inspections for a given request and returns a computed list of results.
    */
   getInspections(
@@ -358,10 +416,24 @@ export class EnvironmentInspectorService extends Service implements Inspector {
 
       const { endpoint, headers, params } = req.value
 
+      const pathParams: HoppRESTPathParam[] =
+        (req.value as any).pathParams ?? []
+      const pathParamKeys = new Set<string>(
+        pathParams.filter((p) => p.active && p.key !== "").map((p) => p.key)
+      )
+
       // URL check
       results.push(
-        ...this.validateEnvironmentVariables([endpoint], { type: "url" }),
-        ...this.validateEmptyEnvironmentVariables([endpoint], { type: "url" })
+        ...this.validateEnvironmentVariables(
+          [endpoint],
+          { type: "url" },
+          pathParamKeys
+        ),
+        ...this.validateEmptyEnvironmentVariables(
+          [endpoint],
+          { type: "url" },
+          pathParamKeys
+        )
       )
 
       // Header keys and values
@@ -369,22 +441,38 @@ export class EnvironmentInspectorService extends Service implements Inspector {
       const headerValues = Object.values(headers).map((h) => h.value)
 
       results.push(
-        ...this.validateEnvironmentVariables(headerKeys, {
-          type: "header",
-          position: "key",
-        }),
-        ...this.validateEmptyEnvironmentVariables(headerKeys, {
-          type: "header",
-          position: "key",
-        }),
-        ...this.validateEnvironmentVariables(headerValues, {
-          type: "header",
-          position: "value",
-        }),
-        ...this.validateEmptyEnvironmentVariables(headerValues, {
-          type: "header",
-          position: "value",
-        })
+        ...this.validateEnvironmentVariables(
+          headerKeys,
+          {
+            type: "header",
+            position: "key",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEmptyEnvironmentVariables(
+          headerKeys,
+          {
+            type: "header",
+            position: "key",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEnvironmentVariables(
+          headerValues,
+          {
+            type: "header",
+            position: "value",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEmptyEnvironmentVariables(
+          headerValues,
+          {
+            type: "header",
+            position: "value",
+          },
+          pathParamKeys
+        )
       )
 
       // Parameter keys and values
@@ -392,23 +480,42 @@ export class EnvironmentInspectorService extends Service implements Inspector {
       const paramValues = Object.values(params).map((p) => p.value)
 
       results.push(
-        ...this.validateEnvironmentVariables(paramKeys, {
-          type: "parameter",
-          position: "key",
-        }),
-        ...this.validateEmptyEnvironmentVariables(paramKeys, {
-          type: "parameter",
-          position: "key",
-        }),
-        ...this.validateEnvironmentVariables(paramValues, {
-          type: "parameter",
-          position: "value",
-        }),
-        ...this.validateEmptyEnvironmentVariables(paramValues, {
-          type: "parameter",
-          position: "value",
-        })
+        ...this.validateEnvironmentVariables(
+          paramKeys,
+          {
+            type: "parameter",
+            position: "key",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEmptyEnvironmentVariables(
+          paramKeys,
+          {
+            type: "parameter",
+            position: "key",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEnvironmentVariables(
+          paramValues,
+          {
+            type: "parameter",
+            position: "value",
+          },
+          pathParamKeys
+        ),
+        ...this.validateEmptyEnvironmentVariables(
+          paramValues,
+          {
+            type: "parameter",
+            position: "value",
+          },
+          pathParamKeys
+        )
       )
+
+      // Path param empty value check
+      results.push(...this.validatePathParams(pathParams))
 
       return results
     })

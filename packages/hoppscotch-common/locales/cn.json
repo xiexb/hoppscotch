@@ -965,6 +965,10 @@
       "empty_value": "环境变量“{variable}”的值为空",
       "not_found": "环境变量“{environment}”未找到。"
     },
+    "path_param": {
+      "empty_value": "路径参数“{variable}”未设置值。",
+      "set_value": "设置值"
+    },
     "header": {
       "cookie": "浏览器不允许 Hoppscotch 设置 Cookie 标头。当前我们正在开发 Hoppscotch 桌面应用程序（即将推出），与此同时请改用授权标头。"
     },
