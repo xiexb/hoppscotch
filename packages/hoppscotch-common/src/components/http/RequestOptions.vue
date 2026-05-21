@@ -2,7 +2,6 @@
   <HoppSmartTabs
     v-model="selectedOptionTab"
     styles="sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10"
-    render-inactive-tabs
   >
     <HoppSmartTab
       v-if="properties?.includes('params') ?? true"
