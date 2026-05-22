@@ -41,12 +41,23 @@
         </div>
       </div>
 
-      <!-- Header -->
+      <!-- Header List -->
       <div class="p-4">
         <div class="text-sm font-semibold text-secondaryLight mb-2">
           {{ t("request.header_list") }}:
         </div>
-        <div class="overflow-x-auto">
+
+        <!-- No headers at all -->
+        <div
+          v-if="
+            userHeaderEntries.length === 0 && systemHeaderEntries.length === 0
+          "
+          class="text-secondary italic text-xs"
+        >
+          {{ t("state.none") }}
+        </div>
+
+        <div v-else class="overflow-x-auto">
           <table class="w-full text-sm border-collapse">
             <thead>
               <tr class="border-b border-dividerLight">
@@ -63,12 +74,15 @@
               </tr>
             </thead>
             <tbody>
+              <!-- User-defined headers (expanded) -->
               <tr
-                v-for="(entry, index) in headerEntries"
-                :key="'h-' + index"
+                v-for="(entry, index) in userHeaderEntries"
+                :key="'uh-' + index"
                 class="border-b border-dividerLight"
               >
-                <td class="px-3 py-1 font-mono break-all text-primary text-xs">
+                <td
+                  class="px-3 py-1 font-mono break-all text-secondaryDark text-xs"
+                >
                   {{ entry[0] }}
                 </td>
                 <td
@@ -77,11 +91,56 @@
                   {{ entry[1] }}
                 </td>
               </tr>
-              <tr v-if="headerEntries.length === 0">
-                <td colspan="2" class="px-3 py-2 text-secondary italic text-xs">
-                  {{ t("state.none") }}
-                </td>
-              </tr>
+
+              <!-- System headers (collapsible) -->
+              <template v-if="systemHeaderEntries.length > 0">
+                <!-- Collapsed: summary row -->
+                <tr
+                  v-if="!systemHeadersExpanded"
+                  class="border-b border-dividerLight cursor-pointer hover:bg-primaryLight"
+                  @click="systemHeadersExpanded = true"
+                >
+                  <td colspan="2" class="px-3 py-1.5 text-xs">
+                    <span class="text-secondaryLight flex items-center gap-1">
+                      <icon-lucide-chevron-right class="w-3 h-3 inline-block" />
+                      System Headers ({{ systemHeaderEntries.length }})
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Expanded: system header rows -->
+                <template v-else>
+                  <tr
+                    class="border-b border-dividerLight cursor-pointer hover:bg-primaryLight"
+                    @click="systemHeadersExpanded = false"
+                  >
+                    <td colspan="2" class="px-3 py-1.5 text-xs">
+                      <span class="text-secondaryLight flex items-center gap-1">
+                        <icon-lucide-chevron-down
+                          class="w-3 h-3 inline-block"
+                        />
+                        System Headers ({{ systemHeaderEntries.length }})
+                      </span>
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="(entry, index) in systemHeaderEntries"
+                    :key="'sh-' + index"
+                    class="border-b border-dividerLight bg-primaryLight/50"
+                  >
+                    <td
+                      class="px-3 py-1 font-mono break-all text-secondaryLight text-xs"
+                    >
+                      {{ entry[0] }}
+                    </td>
+                    <td
+                      class="px-3 py-1 font-mono break-all text-secondary text-xs"
+                    >
+                      {{ entry[1] }}
+                    </td>
+                  </tr>
+                </template>
+              </template>
             </tbody>
           </table>
         </div>
@@ -114,7 +173,7 @@ import { refAutoReset } from "@vueuse/core"
 import { copyToClipboard } from "~/helpers/utils/clipboard"
 import { useI18n } from "@composables/i18n"
 import { useToast } from "@composables/toast"
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import type { ActualSentRequest } from "~/helpers/types/HoppRESTResponse"
 
 const t = useI18n()
@@ -129,10 +188,21 @@ const copyIcon = refAutoReset<typeof IconCopy | typeof IconCheck>(
   1000
 )
 
-const TEMPLATE_RE = /<<[^>]*>>/g
+/** Environment variable template: <<variable>> */
+const ENV_TEMPLATE_RE = /<<[^>]*>>/g
+/** Path parameter template: {variable} */
+const PATH_PARAM_RE = /\{[^}]+\}/g
 
-const headerEntries = computed(() => {
-  const entries = Object.entries(props.actualRequest.headers)
+/** Check if a string contains unresolved templates */
+const hasTemplate = (s: string): boolean =>
+  ENV_TEMPLATE_RE.test(s) || PATH_PARAM_RE.test(s)
+
+const userHeaderEntries = computed(() => {
+  return props.actualRequest.headers.user
+})
+
+const systemHeaderEntries = computed(() => {
+  const entries = [...props.actualRequest.headers.system]
   const hostIdx = entries.findIndex(([k]) => k.toLowerCase() === "host")
   if (hostIdx > 0) {
     const [hostEntry] = entries.splice(hostIdx, 1)
@@ -140,6 +210,8 @@ const headerEntries = computed(() => {
   }
   return entries
 })
+
+const systemHeadersExpanded = ref(false)
 
 const hasBody = computed(
   () => props.actualRequest.body !== null && props.actualRequest.body !== ""
@@ -159,20 +231,23 @@ const fullURL = computed(() => {
 })
 
 const hasUnresolvedTemplates = computed(() => {
-  if (TEMPLATE_RE.test(props.actualRequest.url)) return true
+  if (hasTemplate(props.actualRequest.url)) return true
   for (const [k, v] of props.actualRequest.params) {
-    if (TEMPLATE_RE.test(k) || TEMPLATE_RE.test(v)) return true
+    if (hasTemplate(k) || hasTemplate(v)) return true
   }
-  for (const [k, v] of headerEntries.value) {
-    if (TEMPLATE_RE.test(k) || TEMPLATE_RE.test(v)) return true
+  for (const [k, v] of userHeaderEntries.value) {
+    if (hasTemplate(k) || hasTemplate(v)) return true
   }
-  if (props.actualRequest.body && TEMPLATE_RE.test(props.actualRequest.body))
+  for (const [k, v] of systemHeaderEntries.value) {
+    if (hasTemplate(k) || hasTemplate(v)) return true
+  }
+  if (props.actualRequest.body && hasTemplate(props.actualRequest.body))
     return true
   return false
 })
 
 const warningText = computed(() => {
-  return "Unresolved <<variable>> templates detected. Configure environment variables."
+  return "Unresolved templates detected: <<variable>> = environment variable, {variable} = path parameter. Configure before sending."
 })
 
 const methodColorClass = computed(() => {
@@ -207,9 +282,10 @@ const copyRequest = () => {
     const qs = props.actualRequest.params.map(([k, v]) => `${k}=${v}`).join("&")
     lines[0] += `?${qs}`
   }
-  if (headerEntries.value.length > 0) {
+  const allHeaders = [...userHeaderEntries.value, ...systemHeaderEntries.value]
+  if (allHeaders.length > 0) {
     lines.push("")
-    for (const [key, value] of headerEntries.value) {
+    for (const [key, value] of allHeaders) {
       lines.push(`${key}: ${value}`)
     }
   }

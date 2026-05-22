@@ -387,11 +387,10 @@ export async function getEffectiveRESTRequest(
     ...environment.variables,
   ]
 
-  const effectiveFinalHeaders = pipe(
+  const computedHeaders = pipe(
     (await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)).map(
       (h) => h.header
     ),
-    A.concat(request.headers),
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
@@ -404,6 +403,27 @@ export async function getEffectiveRESTRequest(
       ),
       description: x.description,
     }))
+  )
+
+  const userHeaders = pipe(
+    request.headers,
+    A.filter((x) => x.active && x.key !== ""),
+    A.map((x) => ({
+      active: true,
+      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
+      value: parseTemplateString(
+        x.value,
+        mergedEnvVars,
+        false,
+        showKeyIfSecret
+      ),
+      description: x.description,
+    }))
+  )
+
+  const effectiveFinalHeaders = pipe(
+    computedHeaders,
+    A.concat(userHeaders)
   )
 
   const effectiveFinalParams = pipe(

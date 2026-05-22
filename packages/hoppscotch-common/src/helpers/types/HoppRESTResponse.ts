@@ -12,7 +12,12 @@ export type HoppRESTResponseHeader = { key: string; value: string }
 export type ActualSentRequest = {
   method: string
   url: string
-  headers: Record<string, string>
+  headers: {
+    /** User-defined headers (manually added in Headers tab) */
+    user: [string, string][]
+    /** System-generated headers (auth + body computed by Hoppscotch) */
+    system: [string, string][]
+  }
   /** Query params as key-value tuples (filterActiveParams returns array, not Record) */
   params: [string, string][]
   body: string | null
@@ -35,8 +40,13 @@ function normalizeParams(
 /**
  * Converts a RelayRequest to an ActualSentRequest for display purposes.
  * Extracts readable body content from the kernel ContentType format.
+ * Headers are categorized into user-defined and system-generated groups.
  */
-export function relayRequestToActualSent(req: RelayRequest): ActualSentRequest {
+export function relayRequestToActualSent(
+  req: RelayRequest,
+  userHeaders: [string, string][] = [],
+  systemHeaders: [string, string][] = []
+): ActualSentRequest {
   let body: string | null = null
   let bodyMediaType: string | null = null
 
@@ -82,7 +92,10 @@ export function relayRequestToActualSent(req: RelayRequest): ActualSentRequest {
   return {
     method: req.method,
     url: req.url,
-    headers: req.headers ?? {},
+    headers: {
+      user: userHeaders,
+      system: systemHeaders,
+    },
     params: normalizeParams(req.params),
     body,
     bodyMediaType,
