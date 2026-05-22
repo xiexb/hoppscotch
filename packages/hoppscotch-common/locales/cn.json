@@ -1174,6 +1174,52 @@
   "remove": {
     "star": "移除星标"
   },
+  "request_mode": {
+    "debug": "调试",
+    "design_tab": "设计",
+    "testcases_tab": "测试用例",
+    "design": {
+      "description": "描述",
+      "description_placeholder": "在此添加API描述...",
+      "no_params": "暂无参数",
+      "no_headers": "暂无请求头",
+      "no_body": "暂无请求体",
+      "param_description": "描述...",
+      "header_description": "描述...",
+      "auth_inherit": "继承自父级",
+      "auth_none": "无认证",
+      "no_response_models": "暂未定义返回模型，点击 + 添加",
+      "response_model": {
+        "title": "返回模型",
+        "add": "添加返回模型",
+        "description_placeholder": "描述...",
+        "headers": "响应头",
+        "add_header": "添加响应头",
+        "schema": "数据结构",
+        "schema_placeholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": { \"type\": \"integer\" },\n    \"name\": { \"type\": \"string\" }\n  }\n}",
+        "example": "返回示例",
+        "example_placeholder": "{\n  \"id\": 1,\n  \"name\": \"示例\"\n}",
+        "import_from_response": "从已保存响应导入"
+      }
+    },
+    "testcases": {
+      "add": "添加测试用例",
+      "add_first": "添加第一个测试用例",
+      "run_all": "全部运行",
+      "count": "个测试用例",
+      "empty": "暂无测试用例，创建一个来验证你的API",
+      "name": "名称",
+      "description": "描述",
+      "assertions": "断言",
+      "expect_status": "期望状态码",
+      "expect_body_contains": "Body包含",
+      "add_body_contains": "添加Body包含检查",
+      "expect_header_exists": "Header存在",
+      "add_header_exists": "添加Header存在检查",
+      "expect_json_path": "JSON Path断言",
+      "add_json_path": "添加JSON Path断言"
+    }
+  },
   "request": {
     "added": "已添加请求",
     "add": "添加请求",

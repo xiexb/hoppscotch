@@ -29,6 +29,8 @@ import { HoppRESTRequestResponses } from "../rest-request-response"
 import { generateUniqueRefId } from "../utils/collection"
 import V17_VERSION from "./v/17"
 import V18_VERSION, { HoppRESTPathParams } from "./v/18"
+import V19_VERSION from "./v/19"
+import V20_VERSION from "./v/20"
 
 export * from "./content-types"
 
@@ -71,6 +73,24 @@ export {
 export { HoppRESTPathParams } from "./v/18"
 
 export {
+  HoppRESTResponseModel,
+  HoppRESTTestCase,
+  HoppRESTTestCaseExpectations,
+  HoppRESTJSONPathAssertion,
+  HoppRESTAssertionOperator,
+} from "./v/19"
+
+export {
+  HoppRESTApiStatus,
+  HoppRESTSchemaNodeSchema,
+} from "./v/20"
+
+export type {
+  HoppRESTResponseModelV20,
+  HoppRESTSchemaNode,
+} from "./v/20"
+
+export {
   HoppRESTRequestResponse,
   HoppRESTRequestResponses,
 } from "../rest-request-response"
@@ -81,7 +101,7 @@ const versionedObject = z.object({
 })
 
 export const HoppRESTRequest = createVersionedEntity({
-  latestVersion: 18,
+  latestVersion: 20,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
@@ -102,6 +122,8 @@ export const HoppRESTRequest = createVersionedEntity({
     16: V16_VERSION,
     17: V17_VERSION,
     18: V18_VERSION,
+    19: V19_VERSION,
+    20: V20_VERSION,
   },
   getVersion(data) {
     // For V1 onwards we have the v string storing the number
@@ -148,9 +170,17 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
   responses: lodashIsEqualEq,
   _ref_id: undefinedEq(S.Eq),
   description: lodashIsEqualEq,
+  responseModels: lodashIsEqualEq,
+  testCases: lodashIsEqualEq,
+  // v20 documentation fields
+  apiTitle: S.Eq,
+  apiStatus: S.Eq,
+  tags: lodashIsEqualEq,
+  responsibility: S.Eq,
+  inheritedBaseUrl: S.Eq,
 })
 
-export const RESTReqSchemaVersion = "18"
+export const RESTReqSchemaVersion = "20"
 
 export type HoppRESTParam = HoppRESTRequest["params"][number]
 export type HoppRESTHeader = HoppRESTRequest["headers"][number]
@@ -254,6 +284,35 @@ export function safelyExtractRESTRequest(
     if ("description" in x && typeof x.description === "string") {
       req.description = x.description
     }
+
+    if ("responseModels" in x && Array.isArray(x.responseModels)) {
+      req.responseModels = x.responseModels
+    }
+
+    if ("testCases" in x && Array.isArray(x.testCases)) {
+      req.testCases = x.testCases
+    }
+
+    // v20 documentation fields
+    if ("apiTitle" in x && typeof x.apiTitle === "string") {
+      req.apiTitle = x.apiTitle
+    }
+
+    if ("apiStatus" in x && typeof x.apiStatus === "string") {
+      req.apiStatus = x.apiStatus as HoppRESTRequest["apiStatus"]
+    }
+
+    if ("tags" in x && Array.isArray(x.tags)) {
+      req.tags = x.tags.filter((t: unknown) => typeof t === "string")
+    }
+
+    if ("responsibility" in x && typeof x.responsibility === "string") {
+      req.responsibility = x.responsibility
+    }
+
+    if ("inheritedBaseUrl" in x && typeof x.inheritedBaseUrl === "string") {
+      req.inheritedBaseUrl = x.inheritedBaseUrl
+    }
   }
 
   return req
@@ -293,6 +352,14 @@ export function getDefaultRESTRequest(): HoppRESTRequest {
     responses: {},
     _ref_id: ref_id,
     description: null,
+    responseModels: [],
+    testCases: [],
+    // v20 documentation fields
+    apiTitle: "",
+    apiStatus: "developing",
+    tags: [],
+    responsibility: "",
+    inheritedBaseUrl: "",
   }
 }
 

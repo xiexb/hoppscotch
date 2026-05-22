@@ -1,0 +1,179 @@
+<template>
+  <div>
+    <div
+      class="flex items-center gap-1.5 py-1.5 px-2 border-b border-dividerLight hover:bg-primaryLight/50 transition-colors"
+      :style="{ paddingLeft: `${(depth + 1) * 16 + 8}px` }"
+    >
+      <!-- Expand/collapse for object/array -->
+      <button
+        v-if="hasChildren"
+        class="text-secondary transition-transform"
+        :class="{ 'rotate-90': expanded }"
+        @click="expanded = !expanded"
+      >
+        <IconChevronRight class="w-3 h-3" />
+      </button>
+      <span v-else class="w-3" />
+
+      <!-- Field name -->
+      <input
+        :value="node.name"
+        class="text-xs font-mono text-accent bg-transparent outline-none w-28 min-w-[60px]"
+        placeholder="字段名"
+        @input="onField('name', $event)"
+      />
+
+      <!-- Type selector -->
+      <select
+        :value="node.type"
+        class="text-xs text-accent bg-transparent outline-none w-20"
+        @change="onField('type', $event)"
+      >
+        <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+      </select>
+
+      <!-- Mock -->
+      <input
+        :value="node.mock"
+        class="text-xs bg-transparent outline-none w-20 min-w-[50px] text-secondaryDark placeholder:text-secondaryLight"
+        placeholder="Mock"
+        @input="onField('mock', $event)"
+      />
+
+      <!-- Display name -->
+      <input
+        :value="node.displayName"
+        class="text-xs bg-transparent outline-none w-24 min-w-[50px] text-secondaryDark placeholder:text-secondaryLight"
+        placeholder="中文名"
+        @input="onField('displayName', $event)"
+      />
+
+      <!-- Description -->
+      <input
+        :value="node.description"
+        class="text-xs bg-transparent outline-none flex-1 min-w-[60px] text-secondaryDark placeholder:text-secondaryLight"
+        placeholder="说明"
+        @input="onField('description', $event)"
+      />
+
+      <!-- Actions -->
+      <div class="flex items-center gap-1 ml-2 shrink-0">
+        <button
+          v-if="canAddChild"
+          class="text-secondaryLight hover:text-accent transition-colors"
+          title="添加子字段"
+          @click="addChild"
+        >
+          <IconPlus class="w-3 h-3" />
+        </button>
+        <button
+          class="text-secondaryLight hover:text-red-400 transition-colors"
+          title="删除"
+          @click="emit('delete')"
+        >
+          <IconTrash class="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Children (recursive) -->
+    <div v-if="hasChildren && expanded">
+      <SchemaTreeRow
+        v-for="(child, index) in node.children"
+        :key="index"
+        :node="child"
+        :depth="depth + 1"
+        @update="(updated) => updateChild(index, updated)"
+        @delete="removeChild(index)"
+        @add-child="() => addChildToChild(index)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from "vue"
+import type { HoppRESTSchemaNode } from "@hoppscotch/data"
+import IconChevronRight from "~icons/lucide/chevron-right"
+import IconPlus from "~icons/lucide/plus"
+import IconTrash from "~icons/lucide/trash-2"
+
+const props = defineProps<{
+  node: HoppRESTSchemaNode
+  depth: number
+}>()
+
+const emit = defineEmits<{
+  (e: "update", val: HoppRESTSchemaNode): void
+  (e: "delete"): void
+  (e: "add-child"): void
+}>()
+
+const expanded = ref(true)
+
+const typeOptions = [
+  "object",
+  "string",
+  "integer",
+  "number",
+  "boolean",
+  "array",
+  "file",
+]
+
+const hasChildren = computed(
+  () =>
+    (props.node.type === "object" || props.node.type === "array") &&
+    (props.node.children?.length ?? 0) > 0
+)
+
+const canAddChild = computed(
+  () => props.node.type === "object" || props.node.type === "array"
+)
+
+function onField(field: string, event: Event) {
+  const target = event.target as HTMLInputElement | HTMLSelectElement
+  const updated = { ...props.node, [field]: target.value }
+  // If type changed to object/array, ensure children array exists
+  if (field === "type" && (target.value === "object" || target.value === "array")) {
+    updated.children = updated.children ?? []
+  }
+  emit("update", updated)
+}
+
+function addChild() {
+  emit("add-child")
+}
+
+function updateChild(index: number, updated: HoppRESTSchemaNode) {
+  const children = [...(props.node.children ?? [])]
+  children[index] = updated
+  emit("update", { ...props.node, children })
+}
+
+function removeChild(index: number) {
+  const children = [...(props.node.children ?? [])]
+  children.splice(index, 1)
+  emit("update", { ...props.node, children })
+}
+
+function addChildToChild(index: number) {
+  const children = [...(props.node.children ?? [])]
+  const child = { ...children[index] }
+  child.children = [
+    ...(child.children ?? []),
+    {
+      name: "childField",
+      type: "string" as const,
+      mock: "",
+      displayName: "",
+      description: "",
+      required: true,
+      children: [],
+    },
+  ]
+  child.type = child.type === "array" ? "array" : "object"
+  children[index] = child
+  emit("update", { ...props.node, children })
+}
+</script>

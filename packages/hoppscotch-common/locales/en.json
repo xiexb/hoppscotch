@@ -1179,6 +1179,52 @@
   "remove": {
     "star": "Remove star"
   },
+  "request_mode": {
+    "debug": "Debug",
+    "design_tab": "Design",
+    "testcases_tab": "Test Cases",
+    "design": {
+      "description": "Description",
+      "description_placeholder": "Add API description here...",
+      "no_params": "No parameters",
+      "no_headers": "No headers",
+      "no_body": "No request body",
+      "param_description": "Description...",
+      "header_description": "Description...",
+      "auth_inherit": "Inherit from parent",
+      "auth_none": "No authentication",
+      "no_response_models": "No response models defined. Click + to add one.",
+      "response_model": {
+        "title": "Response Model",
+        "add": "Add Response Model",
+        "description_placeholder": "Description...",
+        "headers": "Response Headers",
+        "add_header": "Add Header",
+        "schema": "Data Schema",
+        "schema_placeholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": { \"type\": \"integer\" },\n    \"name\": { \"type\": \"string\" }\n  }\n}",
+        "example": "Response Example",
+        "example_placeholder": "{\n  \"id\": 1,\n  \"name\": \"Example\"\n}",
+        "import_from_response": "Import from saved response"
+      }
+    },
+    "testcases": {
+      "add": "Add Test Case",
+      "add_first": "Add your first test case",
+      "run_all": "Run All",
+      "count": "test cases",
+      "empty": "No test cases yet. Create one to validate your API.",
+      "name": "Name",
+      "description": "Description",
+      "assertions": "Assertions",
+      "expect_status": "Expect Status Code",
+      "expect_body_contains": "Body Contains",
+      "add_body_contains": "Add body contains check",
+      "expect_header_exists": "Header Exists",
+      "add_header_exists": "Add header exists check",
+      "expect_json_path": "JSON Path Assertion",
+      "add_json_path": "Add JSON path assertion"
+    }
+  },
   "request": {
     "added": "Request added",
     "add": "Add Request",

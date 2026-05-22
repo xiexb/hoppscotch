@@ -22,6 +22,7 @@ export class RESTTabService extends TabService<HoppTabDocument> {
         request: getDefaultRESTRequest(),
         isDirty: false,
         optionTabPreference: "params",
+        modePreference: "debug",
       },
     })
 

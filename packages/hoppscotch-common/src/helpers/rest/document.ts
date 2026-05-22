@@ -234,6 +234,12 @@ export type HoppRequestDocument = {
   optionTabPreference?: RESTOptionTabs
 
   /**
+   * Mode preference for the current tab's document
+   * "debug" = normal request editing, "design" = API documentation, "testcases" = test cases
+   */
+  modePreference?: "debug" | "design" | "testcases"
+
+  /**
    * The inherited properties from the parent collection
    * (if any)
    */

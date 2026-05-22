@@ -71,7 +71,7 @@ const slots = useSlots()
 const persistenceService = useService(PersistenceService)
 
 const hasSidebar = computed(() => !!slots.sidebar)
-const hasSecondary = computed(() => !!slots.secondary)
+const hasSecondary = computed(() => !!slots.secondary && !props.hideSecondary)
 
 const props = defineProps({
   layoutId: {
@@ -83,6 +83,10 @@ const props = defineProps({
     default: false,
   },
   forceColumnLayout: {
+    type: Boolean,
+    default: false,
+  },
+  hideSecondary: {
     type: Boolean,
     default: false,
   },

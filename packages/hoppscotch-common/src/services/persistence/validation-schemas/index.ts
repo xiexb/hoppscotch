@@ -608,6 +608,9 @@ export const REST_TAB_STATE_SCHEMA = z
             testResults: z.optional(z.nullable(HoppTestResultSchema)),
             responseTabPreference: z.optional(z.string()),
             optionTabPreference: z.optional(z.enum(validRestOperations)),
+            modePreference: z.optional(
+              z.enum(["debug", "design", "testcases"])
+            ),
             inheritedProperties: z.optional(HoppInheritedPropertySchema),
             cancelFunction: z.optional(z.function()),
           }),
