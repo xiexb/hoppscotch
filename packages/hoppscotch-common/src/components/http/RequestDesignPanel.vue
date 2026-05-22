@@ -99,6 +99,7 @@ import StatusBadge from "./design/StatusBadge.vue"
 import DesignEditView from "./design/EditView.vue"
 import DesignPreviewView from "./design/PreviewView.vue"
 import HttpRequest from "./Request.vue"
+import { invokeAction } from "~/helpers/actions"
 
 const props = withDefaults(
   defineProps<{
@@ -147,6 +148,6 @@ function onStatusChange(val: ApiStatus) {
 }
 
 function onSave() {
-  subMode.value = "preview"
+  invokeAction("request-response.save")
 }
 </script>
