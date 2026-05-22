@@ -42,6 +42,7 @@
     <DesignEditView
       v-if="subMode === 'edit'"
       :request="request"
+      :inherited-properties="inheritedProperties"
       @update:request="onRequestUpdate"
       @save="onSave"
       @debug="emit('switchToDebug')"
@@ -60,14 +61,21 @@
 import { ref } from "vue"
 import { useVModel } from "@vueuse/core"
 import type { HoppRESTRequest } from "@hoppscotch/data"
+import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import IconEdit from "~icons/lucide/edit-3"
 import IconEye from "~icons/lucide/eye"
 import DesignEditView from "./design/EditView.vue"
 import DesignPreviewView from "./design/PreviewView.vue"
 
-const props = defineProps<{
-  modelValue: HoppRESTRequest
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: HoppRESTRequest
+    inheritedProperties?: HoppInheritedProperty
+  }>(),
+  {
+    inheritedProperties: undefined,
+  }
+)
 
 const emit = defineEmits<{
   (e: "update:modelValue", val: HoppRESTRequest): void

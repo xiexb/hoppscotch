@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
     <!-- Area 1: Title bar (editable name + status + Method + URL + debug button) -->
-    <div class="border-b border-dividerLight p-4 space-y-3">
+    <div class="border-b border-dividerLight p-4 space-y-3 shrink-0">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3 flex-1 min-w-0">
           <input
@@ -18,7 +18,6 @@
             />
           </div>
         </div>
-        <!-- Only debug button -->
         <div class="flex items-center gap-2 shrink-0 ml-4">
           <button
             class="px-4 py-1.5 text-xs font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
@@ -49,10 +48,12 @@
       @update:request="emit('update:request', $event)"
     />
 
-    <!-- Area 3: Request Parameters -->
-    <RequestParamsSection
-      :request="request"
-      @update:request="emit('update:request', $event)"
+    <!-- Area 3: Request Parameters — reuse debug mode's RequestOptions exactly -->
+    <HttpRequestOptions
+      v-model="localRequest"
+      v-model:option-tab="optionTab"
+      :properties="designProperties"
+      :inherited-properties="inheritedProperties"
     />
 
     <!-- Area 4: Response Section -->
@@ -64,23 +65,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import type { HoppRESTRequest } from "@hoppscotch/data"
+import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import type { ApiStatus } from "./StatusBadge.vue"
+import type { RESTOptionTabs } from "../RequestOptions.vue"
 import StatusBadge from "./StatusBadge.vue"
 import MetaInfoSection from "./MetaInfoSection.vue"
-import RequestParamsSection from "./RequestParamsSection.vue"
 import ResponseSection from "./ResponseSection.vue"
+import HttpRequestOptions from "../RequestOptions.vue"
 
-const props = defineProps<{
-  request: HoppRESTRequest
-}>()
+const props = withDefaults(
+  defineProps<{
+    request: HoppRESTRequest
+    inheritedProperties?: HoppInheritedProperty
+  }>(),
+  {
+    inheritedProperties: undefined,
+  }
+)
 
 const emit = defineEmits<{
   (e: "update:request", val: HoppRESTRequest): void
   (e: "save"): void
   (e: "debug"): void
 }>()
+
+// Only show auth/params/body/headers in design mode (no scripts, no variables)
+const designProperties = ["authorization", "params", "bodyParams", "headers"]
+
+const optionTab = ref<RESTOptionTabs>("params")
 
 const apiTitle = computed(() => props.request.apiTitle ?? "")
 const apiStatus = computed(() => (props.request.apiStatus ?? "developing") as ApiStatus)
@@ -101,6 +115,13 @@ const methodClass = computed(() => {
     case "PATCH": return "bg-teal-500/20 text-teal-500"
     default: return "bg-secondaryLight/20 text-secondaryLight"
   }
+})
+
+// Bridge: RequestOptions uses v-model on the request directly,
+// so we proxy changes back up to the parent
+const localRequest = computed({
+  get: () => props.request,
+  set: (val: HoppRESTRequest) => emit("update:request", val),
 })
 
 function onTitleInput(event: Event) {

@@ -34,6 +34,7 @@
     <HttpRequestDesignPanel
       v-if="currentMode === 'design'"
       v-model="tab.document.request"
+      :inherited-properties="tab.document.inheritedProperties"
       @switch-to-debug="currentMode = 'debug'"
     />
     <HttpRequestTestCasesPanel
