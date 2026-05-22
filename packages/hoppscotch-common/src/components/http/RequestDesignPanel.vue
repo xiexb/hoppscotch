@@ -4,11 +4,11 @@
     <div class="border-b border-dividerLight px-4 py-3 bg-primary shrink-0">
       <div class="flex items-center gap-3">
         <!-- Title + Status badge (inline, status right after title) -->
-        <div class="flex items-center gap-2 flex-1 min-w-0">
+        <div class="flex items-center gap-2 min-w-0">
           <input
             v-if="subMode === 'edit'"
             :value="apiTitle || request.name"
-            class="text-lg font-bold bg-transparent outline-none min-w-0 text-secondaryDark placeholder:text-secondaryLight"
+            class="text-lg font-bold bg-transparent outline-none max-w-[20rem] text-secondaryDark placeholder:text-secondaryLight"
             placeholder="接口名称"
             @input="onTitleInput"
           />
@@ -23,8 +23,10 @@
           />
         </div>
 
+        <div class="flex-1" />
+
         <!-- Divider -->
-        <div class="w-px h-5 bg-dividerLight mx-1" />
+        <div class="w-px h-5 bg-dividerLight" />
 
         <!-- Mode indicator -->
         <span
@@ -39,20 +41,18 @@
         </span>
 
         <!-- Action button -->
-        <button
+        <HoppButtonPrimary
           v-if="subMode === 'edit'"
-          class="px-3 py-1 text-xs font-semibold text-white bg-purple-500 hover:bg-purple-600 rounded transition-colors shrink-0"
+          :label="'保存'"
+          class="shrink-0"
           @click="onSave"
-        >
-          保存
-        </button>
-        <button
+        />
+        <HoppButtonSecondary
           v-else
-          class="px-3 py-1 text-xs font-semibold text-accent bg-accentLight/15 hover:bg-accentLight/25 rounded transition-colors shrink-0"
+          :label="'编辑'"
+          class="shrink-0"
           @click="subMode = 'edit'"
-        >
-          编辑
-        </button>
+        />
       </div>
     </div>
 
