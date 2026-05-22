@@ -27,13 +27,23 @@
         预览
       </button>
 
-      <!-- Save button (only in edit mode) -->
-      <div v-if="subMode === 'edit'" class="ml-auto flex items-center gap-2">
+      <!-- Action button -->
+      <div class="ml-auto flex items-center gap-2">
+        <!-- Edit mode: "保存" → switch to preview -->
         <button
+          v-if="subMode === 'edit'"
           class="px-4 py-1.5 text-xs font-semibold text-white bg-purple-500 hover:bg-purple-600 rounded-md transition-colors"
           @click="onSave"
         >
           保存
+        </button>
+        <!-- Preview mode: "编辑" → switch to edit -->
+        <button
+          v-if="subMode === 'preview'"
+          class="px-4 py-1.5 text-xs font-semibold text-accent bg-accentLight/15 hover:bg-accentLight/25 rounded-md transition-colors"
+          @click="subMode = 'edit'"
+        >
+          编辑
         </button>
       </div>
     </div>
@@ -58,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, watch } from "vue"
 import { useVModel } from "@vueuse/core"
 import type { HoppRESTRequest } from "@hoppscotch/data"
 import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
@@ -71,19 +81,27 @@ const props = withDefaults(
   defineProps<{
     modelValue: HoppRESTRequest
     inheritedProperties?: HoppInheritedProperty
+    initialSubMode?: "edit" | "preview"
   }>(),
   {
     inheritedProperties: undefined,
+    initialSubMode: "preview",
   }
 )
 
 const emit = defineEmits<{
   (e: "update:modelValue", val: HoppRESTRequest): void
   (e: "switchToDebug"): void
+  (e: "update:subMode", val: "edit" | "preview"): void
 }>()
 
 const request = useVModel(props, "modelValue", emit)
-const subMode = ref<"edit" | "preview">("edit")
+const subMode = ref<"edit" | "preview">(props.initialSubMode)
+
+// Persist sub-mode changes
+watch(subMode, (val) => {
+  emit("update:subMode", val)
+})
 
 function onRequestUpdate(updated: HoppRESTRequest) {
   request.value = updated

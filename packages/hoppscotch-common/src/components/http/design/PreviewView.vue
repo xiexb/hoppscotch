@@ -25,12 +25,7 @@
         </div>
         <!-- Action buttons -->
         <div class="flex items-center gap-2">
-          <button
-            class="px-4 py-1.5 text-xs font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
-            @click="emit('debug')"
-          >
-            手动调试
-          </button>
+          <!-- 手动调试 button is now in the URL bar via RequestTab -->
         </div>
       </div>
 

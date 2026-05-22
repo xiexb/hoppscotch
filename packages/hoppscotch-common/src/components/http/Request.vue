@@ -71,12 +71,10 @@
       <HoppButtonPrimary
         id="send"
         v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
-        :title="`${t('action.send')} <kbd>${getSpecialKey()}</kbd><kbd>↩</kbd>`"
-        :label="`${
-          !isTabResponseLoading ? t('action.send') : t('action.cancel')
-        }`"
+        :title="props.sendLabel ? props.sendLabel : `${t('action.send')} <kbd>${getSpecialKey()}</kbd><kbd>↩</kbd>`"
+        :label="props.sendLabel ?? (!isTabResponseLoading ? t('action.send') : t('action.cancel'))"
         class="min-w-[5rem] flex-1 rounded-r-none"
-        @click="!isTabResponseLoading ? newSendRequest() : cancelRequest()"
+        @click="onSendClick"
       />
       <span class="flex">
         <tippy
@@ -292,8 +290,19 @@ const toast = useToast()
 
 const { subscribeToStream } = useStreamSubscriber()
 
-const props = defineProps<{ modelValue: HoppTab<HoppRequestDocument> }>()
-const emit = defineEmits(["update:modelValue"])
+const props = withDefaults(
+  defineProps<{
+    modelValue: HoppTab<HoppRequestDocument>
+    sendLabel?: string
+  }>(),
+  {
+    sendLabel: undefined,
+  }
+)
+const emit = defineEmits<{
+  (e: "update:modelValue", val: HoppTab<HoppRequestDocument>): void
+  (e: "sendAction"): void
+}>()
 
 const tab = useVModel(props, "modelValue", emit)
 
@@ -337,6 +346,14 @@ const inspectionService = useService(InspectionService)
 const tabs = useService(RESTTabService)
 
 const workspaceService = useService(WorkspaceService)
+
+const onSendClick = () => {
+  if (props.sendLabel) {
+    emit("sendAction")
+  } else {
+    !isTabResponseLoading.value ? newSendRequest() : cancelRequest()
+  }
+}
 
 const newSendRequest = async () => {
   if (newEndpoint.value === "" || /^\s+$/.test(newEndpoint.value)) {

@@ -31,12 +31,19 @@
       :model-value="currentMode"
       @update:model-value="onModeChange"
     />
-    <HttpRequest v-if="currentMode === 'design'" v-model="tab" />
+    <HttpRequest
+      v-if="currentMode === 'design'"
+      v-model="tab"
+      send-label="手动调试"
+      @send-action="onDesignSendAction"
+    />
     <HttpRequestDesignPanel
       v-if="currentMode === 'design'"
       v-model="tab.document.request"
       :inherited-properties="tab.document.inheritedProperties"
+      :initial-sub-mode="tab.document.designSubModePreference ?? 'preview'"
       @switch-to-debug="currentMode = 'debug'"
+      @update:sub-mode="onSubModeChange"
     />
     <HttpRequestTestCasesPanel
       v-if="currentMode === 'testcases'"
@@ -72,6 +79,15 @@ watch(currentMode, (newMode) => {
 
 function onModeChange(newMode: RequestMode) {
   currentMode.value = newMode
+}
+
+function onDesignSendAction() {
+  // "手动调试" button clicked in design mode → switch to debug mode
+  currentMode.value = "debug"
+}
+
+function onSubModeChange(val: "edit" | "preview") {
+  tab.value.document.designSubModePreference = val
 }
 
 // TODO: Come up with a better dirty check

@@ -1,34 +1,22 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
-    <!-- Area 1: Title bar (editable name + status + Method + URL + debug button) -->
-    <div class="border-b border-dividerLight p-4 space-y-3 shrink-0">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3 flex-1 min-w-0">
-          <input
-            :value="apiTitle || request.name"
-            class="text-xl font-bold bg-transparent outline-none flex-1 min-w-0 text-secondaryDark placeholder:text-secondaryLight"
-            placeholder="接口名称"
-            @input="onTitleInput"
+    <!-- Area 1: Title bar (editable name + status badge) -->
+    <div class="border-b border-dividerLight p-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <input
+          :value="apiTitle || request.name"
+          class="text-xl font-bold bg-transparent outline-none flex-1 min-w-0 text-secondaryDark placeholder:text-secondaryLight"
+          placeholder="接口名称"
+          @input="onTitleInput"
+        />
+        <div class="relative shrink-0">
+          <StatusBadge
+            :model-value="apiStatus"
+            :editable="true"
+            @update:model-value="onStatusChange"
           />
-          <div class="relative shrink-0">
-            <StatusBadge
-              :model-value="apiStatus"
-              :editable="true"
-              @update:model-value="onStatusChange"
-            />
-          </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 ml-4">
-          <button
-            class="px-4 py-1.5 text-xs font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
-            @click="emit('debug')"
-          >
-            手动调试
-          </button>
         </div>
       </div>
-
-      <!-- Method + URL row is now rendered by HttpRequest in RequestTab.vue -->
     </div>
 
     <!-- Area 2: Meta Info (description, tags, responsibility, base URL) -->
@@ -77,7 +65,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: "update:request", val: HoppRESTRequest): void
   (e: "save"): void
-  (e: "debug"): void
 }>()
 
 // Only show auth/params/body/headers in design mode (no scripts, no variables)

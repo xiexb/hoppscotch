@@ -240,6 +240,11 @@ export type HoppRequestDocument = {
   modePreference?: "debug" | "design" | "testcases"
 
   /**
+   * Design sub-mode preference (edit or preview)
+   */
+  designSubModePreference?: "edit" | "preview"
+
+  /**
    * The inherited properties from the parent collection
    * (if any)
    */
