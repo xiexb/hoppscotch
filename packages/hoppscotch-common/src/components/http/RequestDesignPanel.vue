@@ -60,8 +60,8 @@
       </div>
     </div>
 
-    <!-- URL bar (only in edit mode) -->
-    <div v-if="subMode === 'edit'" class="shrink-0">
+    <!-- URL bar (only visible in edit mode, but always mounted to keep action handlers alive) -->
+    <div v-show="subMode === 'edit'" class="shrink-0">
       <HttpRequest
         v-model="tabModel"
         send-label="手动调试"
@@ -83,6 +83,7 @@
       :request="request"
       @switch-to-debug="emit('switchToDebug')"
       @save="onSave"
+      @save-as="onSaveAs"
     />
   </div>
 </template>
@@ -149,5 +150,9 @@ function onStatusChange(val: ApiStatus) {
 
 function onSave() {
   invokeAction("request-response.save")
+}
+
+function onSaveAs() {
+  invokeAction("request.save-as")
 }
 </script>

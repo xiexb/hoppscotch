@@ -22,6 +22,11 @@
           class="shrink-0"
           @click="emit('save')"
         />
+        <HoppButtonSecondary
+          :label="'另存为'"
+          class="shrink-0"
+          @click="emit('saveAs')"
+        />
       </div>
     </div>
 
@@ -252,6 +257,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "switchToDebug"): void
   (e: "save"): void
+  (e: "saveAs"): void
 }>()
 
 const showAuth = ref(false)
