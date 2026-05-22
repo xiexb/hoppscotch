@@ -362,6 +362,26 @@ export function getFinalBodyFromRequest(
  *
  * @returns An object with extra fields defining a complete request
  */
+/** Regex for path parameter templates: {variable} */
+const REGEX_PATH_PARAM = /\{([^}]+)\}/g
+
+/**
+ * Replace {variable} path parameter templates in a string.
+ * Only replaces with active pathParams, leaves unmatched {var} as-is.
+ */
+function replacePathParams(
+  str: string,
+  pathParams: { key: string; value: string; active: boolean }[]
+): string {
+  if (!str) return str
+  const activeParams = pathParams.filter((p) => p.key !== "" && p.active)
+  if (activeParams.length === 0) return str
+  return str.replace(REGEX_PATH_PARAM, (match, key: string) => {
+    const param = activeParams.find((p) => p.key === key)
+    return param ? param.value : match
+  })
+}
+
 export async function getEffectiveRESTRequest(
   request: HoppRESTRequest,
   environment: Environment,
@@ -387,6 +407,8 @@ export async function getEffectiveRESTRequest(
     ...environment.variables,
   ]
 
+  const pathParamsList = request.pathParams ?? []
+
   const computedHeaders = pipe(
     (await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)).map(
       (h) => h.header
@@ -394,12 +416,15 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
-      value: parseTemplateString(
-        x.value,
-        mergedEnvVars,
-        false,
-        showKeyIfSecret
+      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      value: replacePathParams(
+        parseTemplateString(
+          x.value,
+          mergedEnvVars,
+          false,
+          showKeyIfSecret
+        ),
+        pathParamsList
       ),
       description: x.description,
     }))
@@ -410,12 +435,15 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
-      value: parseTemplateString(
-        x.value,
-        mergedEnvVars,
-        false,
-        showKeyIfSecret
+      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      value: replacePathParams(
+        parseTemplateString(
+          x.value,
+          mergedEnvVars,
+          false,
+          showKeyIfSecret
+        ),
+        pathParamsList
       ),
       description: x.description,
     }))
@@ -432,12 +460,15 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret),
-      value: parseTemplateString(
-        x.value,
-        mergedEnvVars,
-        false,
-        showKeyIfSecret
+      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      value: replacePathParams(
+        parseTemplateString(
+          x.value,
+          mergedEnvVars,
+          false,
+          showKeyIfSecret
+        ),
+        pathParamsList
       ),
       description: x.description,
     }))
@@ -448,12 +479,12 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: parseTemplateString(x.key, mergedEnvVars),
-      value: parseTemplateString(x.value, mergedEnvVars),
+      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars), pathParamsList),
+      value: replacePathParams(parseTemplateString(x.value, mergedEnvVars), pathParamsList),
     }))
   )
 
-  const effectiveFinalPathParams = (request.pathParams ?? []).filter(
+  const effectiveFinalPathParams = pathParamsList.filter(
     (x) => x.active && x.key !== ""
   )
 
@@ -465,12 +496,15 @@ export async function getEffectiveRESTRequest(
 
   return {
     ...request,
-    effectiveFinalURL: parseTemplateString(
-      request.endpoint,
-      mergedEnvVars,
-      false,
-      showKeyIfSecret,
-      showKeyIfNotFound
+    effectiveFinalURL: replacePathParams(
+      parseTemplateString(
+        request.endpoint,
+        mergedEnvVars,
+        false,
+        showKeyIfSecret,
+        showKeyIfNotFound
+      ),
+      request.pathParams ?? []
     ),
     effectiveFinalHeaders,
     effectiveFinalParams,
