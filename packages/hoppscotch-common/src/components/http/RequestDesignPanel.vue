@@ -3,23 +3,19 @@
     <!-- Header: Title + Status + mode indicator + action button -->
     <div class="border-b border-dividerLight px-4 py-3 bg-primary shrink-0">
       <div class="flex items-center gap-3">
-        <!-- Title -->
-        <input
-          v-if="subMode === 'edit'"
-          :value="apiTitle || request.name"
-          class="text-lg font-bold bg-transparent outline-none flex-1 min-w-0 text-secondaryDark placeholder:text-secondaryLight"
-          placeholder="接口名称"
-          @input="onTitleInput"
-        />
-        <h1
-          v-else
-          class="text-lg font-bold text-secondaryDark flex-1 min-w-0 truncate"
-        >
-          {{ apiTitle || request.name || "Untitled" }}
-        </h1>
+        <!-- Title + Status badge (inline, status right after title) -->
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <input
+            v-if="subMode === 'edit'"
+            :value="apiTitle || request.name"
+            class="text-lg font-bold bg-transparent outline-none min-w-0 text-secondaryDark placeholder:text-secondaryLight"
+            placeholder="接口名称"
+            @input="onTitleInput"
+          />
+          <h1 v-else class="text-lg font-bold text-secondaryDark truncate">
+            {{ apiTitle || request.name || "Untitled" }}
+          </h1>
 
-        <!-- Status badge -->
-        <div class="relative shrink-0">
           <StatusBadge
             :model-value="apiStatus"
             :editable="subMode === 'edit'"

@@ -1,32 +1,34 @@
 <template>
-  <span
-    class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full cursor-pointer select-none"
-    :class="badgeClass"
-    @click="toggleDropdown"
-  >
-    <span class="w-1.5 h-1.5 rounded-full" :class="dotClass" />
-    {{ label }}
-    <IconChevronDown v-if="editable" class="w-3 h-3 opacity-60" />
-  </span>
-
-  <!-- Dropdown -->
-  <div
-    v-if="showDropdown"
-    class="absolute z-50 mt-1 py-1 rounded-md border border-divider bg-popover shadow-lg min-w-[140px]"
-  >
-    <button
-      v-for="option in statusOptions"
-      :key="option.value"
-      class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-primaryLight transition-colors"
-      :class="modelValue === option.value ? 'font-bold' : ''"
-      @click="selectStatus(option.value)"
+  <div class="relative inline-block status-badge-wrapper">
+    <span
+      class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full select-none"
+      :class="[badgeClass, editable ? 'cursor-pointer' : 'cursor-default']"
+      @click="toggleDropdown"
     >
-      <span
-        class="w-1.5 h-1.5 rounded-full"
-        :class="getDotClass(option.value)"
-      />
-      {{ option.label }}
-    </button>
+      <span class="w-1.5 h-1.5 rounded-full" :class="dotClass" />
+      {{ label }}
+      <IconChevronDown v-if="editable" class="w-3 h-3 opacity-60" />
+    </span>
+
+    <!-- Dropdown -->
+    <div
+      v-if="showDropdown"
+      class="absolute z-50 mt-1 py-1 rounded-md border border-divider bg-popover shadow-lg min-w-[140px] left-0"
+    >
+      <button
+        v-for="option in statusOptions"
+        :key="option.value"
+        class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-primaryLight transition-colors"
+        :class="modelValue === option.value ? 'font-bold' : ''"
+        @click.stop="selectStatus(option.value)"
+      >
+        <span
+          class="w-1.5 h-1.5 rounded-full"
+          :class="getDotClass(option.value)"
+        />
+        {{ option.label }}
+      </button>
+    </div>
   </div>
 </template>
 
