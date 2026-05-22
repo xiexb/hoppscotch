@@ -1,7 +1,7 @@
 <template>
   <div class="border-b border-dividerLight p-4 space-y-4">
     <!-- Markdown Description -->
-    <div>
+    <div class="desc-editor">
       <DocumentationMarkdownEditor
         v-model="description"
         placeholder="接口说明，支持 Markdown 渲染"
@@ -114,3 +114,13 @@ function onTagsChange(val: string[]) {
   updateField("tags", val)
 }
 </script>
+
+<style scoped>
+.desc-editor :deep(.min-h-52) {
+  min-height: 80px !important;
+  padding: 0.5rem 0.75rem !important;
+}
+.desc-editor :deep(textarea) {
+  min-height: 80px !important;
+}
+</style>
