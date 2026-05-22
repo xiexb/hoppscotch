@@ -47,9 +47,9 @@
         <!-- Action button -->
         <HoppButtonPrimary
           v-if="subMode === 'edit'"
-          :label="'保存'"
+          :label="'预览'"
           class="shrink-0"
-          @click="onSave"
+          @click="subMode = 'preview'"
         />
         <HoppButtonSecondary
           v-else
