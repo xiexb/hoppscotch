@@ -33,7 +33,9 @@
       v-model="tab.document.request"
       v-model:tab="tab"
       :inherited-properties="tab.document.inheritedProperties"
+      :initial-sub-mode="tab.document.designSubModePreference ?? 'preview'"
       @switch-to-debug="currentMode = 'debug'"
+      @update:sub-mode="onSubModeChange"
     />
     <HttpRequestTestCasesPanel
       v-if="currentMode === 'testcases'"
@@ -69,6 +71,10 @@ watch(currentMode, (newMode) => {
 
 function onModeChange(newMode: RequestMode) {
   currentMode.value = newMode
+}
+
+function onSubModeChange(val: "edit" | "preview") {
+  tab.value.document.designSubModePreference = val
 }
 
 // TODO: Come up with a better dirty check
