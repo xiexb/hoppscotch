@@ -31,7 +31,6 @@
       :model-value="currentMode"
       @update:model-value="onModeChange"
     />
-    <HttpRequest v-model="tab" />
     <HttpRequestDesignPanel
       v-if="currentMode === 'design'"
       v-model="tab.document.request"
