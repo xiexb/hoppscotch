@@ -18,9 +18,9 @@
           @click="emit('switchToDebug')"
         />
         <HoppButtonSecondary
-          :label="'编辑'"
+          :label="'保存'"
           class="shrink-0"
-          @click="emit('switchToEdit')"
+          @click="emit('save')"
         />
       </div>
     </div>
@@ -251,7 +251,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "switchToDebug"): void
-  (e: "switchToEdit"): void
+  (e: "save"): void
 }>()
 
 const showAuth = ref(false)

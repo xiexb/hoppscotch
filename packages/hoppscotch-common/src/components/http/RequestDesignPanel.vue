@@ -82,7 +82,7 @@
       v-if="subMode === 'preview'"
       :request="request"
       @switch-to-debug="emit('switchToDebug')"
-      @switch-to-edit="subMode = 'edit'"
+      @save="onSave"
     />
   </div>
 </template>
