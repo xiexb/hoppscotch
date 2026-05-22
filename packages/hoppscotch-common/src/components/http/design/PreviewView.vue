@@ -1,5 +1,43 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
+    <!-- Area 1: Title bar (read-only name + status + method + URL) -->
+    <div class="border-b border-dividerLight p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-bold text-secondaryDark">
+            {{ apiTitle || request.name || "Untitled" }}
+          </h1>
+          <div class="relative">
+            <StatusBadge :model-value="apiStatus" />
+          </div>
+          <div class="flex items-center gap-1 ml-2">
+            <button class="text-secondaryLight hover:text-accent transition-colors p-1" title="收藏">
+              <IconStar class="w-4 h-4" />
+            </button>
+            <button class="text-secondaryLight hover:text-accent transition-colors p-1" title="分享">
+              <IconShare class="w-4 h-4" />
+            </button>
+            <button class="text-secondaryLight hover:text-secondary transition-colors p-1" title="更多">
+              <IconMoreHorizontal class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Method + URL row (read-only) -->
+      <div class="flex items-center gap-2">
+        <span
+          class="px-2 py-0.5 text-xs font-mono font-semibold rounded"
+          :class="methodClass"
+        >
+          {{ request.method }}
+        </span>
+        <span class="text-sm text-secondary font-mono break-all">
+          {{ fullEndpoint }}
+        </span>
+      </div>
+    </div>
+
     <!-- Meta info row -->
     <div class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-b border-dividerLight overflow-x-auto">
       <span v-if="responsibility">负责人: {{ responsibility }}</span>
@@ -159,8 +197,13 @@
 <script setup lang="ts">
 import { ref, computed } from "vue"
 import type { HoppRESTRequest, HoppRESTResponseModelV20, HoppRESTSchemaNode } from "@hoppscotch/data"
+import IconStar from "~icons/lucide/star"
+import IconShare from "~icons/lucide/share-2"
+import IconMoreHorizontal from "~icons/lucide/more-horizontal"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
+import StatusBadge from "./StatusBadge.vue"
+import type { ApiStatus } from "./StatusBadge.vue"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 
@@ -171,6 +214,8 @@ const props = defineProps<{
 const showAuth = ref(false)
 const activeResponseTab = ref(0)
 
+const apiTitle = computed(() => props.request.apiTitle ?? "")
+const apiStatus = computed(() => (props.request.apiStatus ?? "developing") as ApiStatus)
 const tags = computed(() => props.request.tags ?? [])
 const responsibility = computed(() => props.request.responsibility ?? "")
 const description = computed(() => props.request.description ?? "")
@@ -187,6 +232,30 @@ const responseModels = computed(
   () => (props.request.responseModels ?? []) as HoppRESTResponseModelV20[]
 )
 const currentResponse = computed(() => responseModels.value[activeResponseTab.value] ?? null)
+
+const fullEndpoint = computed(() => {
+  const base = props.request.inheritedBaseUrl || ""
+  const endpoint = props.request.endpoint || ""
+  if (endpoint.startsWith("http")) return endpoint
+  return base + endpoint
+})
+
+const methodClass = computed(() => {
+  switch (props.request.method) {
+    case "GET":
+      return "bg-green-500/20 text-green-500"
+    case "POST":
+      return "bg-orange-500/20 text-orange-500"
+    case "PUT":
+      return "bg-yellow-500/20 text-yellow-500"
+    case "DELETE":
+      return "bg-red-500/20 text-red-500"
+    case "PATCH":
+      return "bg-teal-500/20 text-teal-500"
+    default:
+      return "bg-secondaryLight/20 text-secondaryLight"
+  }
+})
 
 // Parse body fields from JSON body or from bodySchemaTree
 const bodyFields = computed(() => {
