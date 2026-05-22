@@ -60,8 +60,8 @@
       </div>
     </div>
 
-    <!-- URL bar -->
-    <div class="shrink-0">
+    <!-- URL bar (only in edit mode) -->
+    <div v-if="subMode === 'edit'" class="shrink-0">
       <HttpRequest
         v-model="tabModel"
         send-label="手动调试"
