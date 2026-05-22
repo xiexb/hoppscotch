@@ -1,30 +1,7 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
-    <!-- Area 1: Title bar (read-only name + status + method + URL) -->
-    <div class="border-b border-dividerLight p-4 space-y-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h1 class="text-xl font-bold text-secondaryDark">
-            {{ apiTitle || request.name || "Untitled" }}
-          </h1>
-          <div class="relative">
-            <StatusBadge :model-value="apiStatus" />
-          </div>
-          <div class="flex items-center gap-1 ml-2">
-            <button class="text-secondaryLight hover:text-accent transition-colors p-1" title="收藏">
-              <IconStar class="w-4 h-4" />
-            </button>
-            <button class="text-secondaryLight hover:text-accent transition-colors p-1" title="分享">
-              <IconShare class="w-4 h-4" />
-            </button>
-            <button class="text-secondaryLight hover:text-secondary transition-colors p-1" title="更多">
-              <IconMoreHorizontal class="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Method + URL row (read-only) -->
+    <!-- Method + URL row (read-only) -->
+    <div class="border-b border-dividerLight px-4 py-3">
       <div class="flex items-center gap-2">
         <span
           class="px-2 py-0.5 text-xs font-mono font-semibold rounded"
@@ -39,10 +16,14 @@
     </div>
 
     <!-- Meta info row -->
-    <div class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-b border-dividerLight overflow-x-auto">
+    <div
+      class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-b border-dividerLight overflow-x-auto"
+    >
       <span v-if="responsibility">负责人: {{ responsibility }}</span>
       <span v-if="tags.length > 0">标签: {{ tags.join(", ") }}</span>
-      <span v-if="description" class="truncate max-w-xs">说明: {{ description }}</span>
+      <span v-if="description" class="truncate max-w-xs"
+        >说明: {{ description }}</span
+      >
     </div>
 
     <!-- Area 4: Request Parameters (read-only) -->
@@ -53,10 +34,18 @@
           class="flex items-center gap-2 cursor-pointer"
           @click="showAuth = !showAuth"
         >
-          <component :is="showAuth ? IconChevronDown : IconChevronRight" class="w-3.5 h-3.5 text-secondary" />
-          <span class="text-xs font-semibold text-secondaryDark">Authorization</span>
+          <component
+            :is="showAuth ? IconChevronDown : IconChevronRight"
+            class="w-3.5 h-3.5 text-secondary"
+          />
+          <span class="text-xs font-semibold text-secondaryDark"
+            >Authorization</span
+          >
         </div>
-        <div v-if="showAuth" class="mt-2 text-xs text-secondary bg-primaryLight rounded p-2">
+        <div
+          v-if="showAuth"
+          class="mt-2 text-xs text-secondary bg-primaryLight rounded p-2"
+        >
           在 Header 添加参数 Authorization，其值为 Bearer 之后拼接 Token
         </div>
       </div>
@@ -72,15 +61,24 @@
           >
             <span class="font-mono text-xs text-accent">{{ param.key }}</span>
             <span class="text-xs text-secondaryLight">string</span>
-            <span class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500">必填</span>
-            <span v-if="param.description" class="text-xs text-secondaryLight ml-2">{{ param.description }}</span>
+            <span
+              class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+              >必填</span
+            >
+            <span
+              v-if="param.description"
+              class="text-xs text-secondaryLight ml-2"
+              >{{ param.description }}</span
+            >
           </div>
         </div>
       </div>
 
       <!-- Headers -->
       <div v-if="activeHeaders.length > 0">
-        <h4 class="text-xs font-semibold text-secondaryDark mb-2">Header 参数</h4>
+        <h4 class="text-xs font-semibold text-secondaryDark mb-2">
+          Header 参数
+        </h4>
         <div class="space-y-2">
           <div
             v-for="(header, index) in activeHeaders"
@@ -88,11 +86,19 @@
             class="py-1"
           >
             <div class="flex items-center gap-3">
-              <span class="font-mono text-xs text-accent">{{ header.key }}</span>
+              <span class="font-mono text-xs text-accent">{{
+                header.key
+              }}</span>
               <span class="text-xs text-secondaryLight">string</span>
-              <span class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500">必填</span>
+              <span
+                class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+                >必填</span
+              >
             </div>
-            <div v-if="header.value" class="text-xs text-secondaryLight ml-4 mt-0.5">
+            <div
+              v-if="header.value"
+              class="text-xs text-secondaryLight ml-4 mt-0.5"
+            >
               示例: {{ header.value }}
             </div>
           </div>
@@ -115,11 +121,21 @@
               :key="index"
               class="flex items-center gap-3 py-1 px-2 rounded hover:bg-primaryLight"
             >
-              <span class="font-mono text-xs text-accent w-32 truncate">{{ param.key }}</span>
-              <span class="text-xs text-secondaryLight w-20">{{ param.type }}</span>
-              <span class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500">必填</span>
+              <span class="font-mono text-xs text-accent w-32 truncate">{{
+                param.key
+              }}</span>
+              <span class="text-xs text-secondaryLight w-20">{{
+                param.type
+              }}</span>
+              <span
+                class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+                >必填</span
+              >
             </div>
-            <div v-if="bodyFields.length === 0" class="text-xs text-secondaryLight py-2">
+            <div
+              v-if="bodyFields.length === 0"
+              class="text-xs text-secondaryLight py-2"
+            >
               暂无字段定义
             </div>
           </div>
@@ -139,7 +155,10 @@
       <h3 class="text-sm font-semibold text-secondaryDark">返回响应</h3>
 
       <!-- Response tabs -->
-      <div v-if="responseModels.length > 0" class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto">
+      <div
+        v-if="responseModels.length > 0"
+        class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto"
+      >
         <button
           v-for="(model, index) in responseModels"
           :key="index"
@@ -159,13 +178,20 @@
       <div v-if="currentResponse" class="space-y-2">
         <div class="text-xs text-secondary">
           HTTP 状态码: {{ currentResponse.statusCode }}
-          <span class="text-secondaryLight font-mono ml-2">{{ currentResponse.contentType }}</span>
+          <span class="text-secondaryLight font-mono ml-2">{{
+            currentResponse.contentType
+          }}</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <!-- Left: schema tree (read-only) -->
           <div class="lg:col-span-3 space-y-1">
-            <template v-if="currentResponse.bodySchemaTree && currentResponse.bodySchemaTree.length > 0">
+            <template
+              v-if="
+                currentResponse.bodySchemaTree &&
+                currentResponse.bodySchemaTree.length > 0
+              "
+            >
               <SchemaTreeReadonly
                 v-for="(node, index) in currentResponse.bodySchemaTree"
                 :key="index"
@@ -180,7 +206,10 @@
           <!-- Right: example JSON -->
           <div class="lg:col-span-2">
             <JsonExampleBlock
-              :content="currentResponse.bodyExample || generateExampleFromSchema(currentResponse.bodySchemaTree)"
+              :content="
+                currentResponse.bodyExample ||
+                generateExampleFromSchema(currentResponse.bodySchemaTree)
+              "
               :content-type="currentResponse.contentType"
             />
           </div>
@@ -196,14 +225,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue"
-import type { HoppRESTRequest, HoppRESTResponseModelV20, HoppRESTSchemaNode } from "@hoppscotch/data"
-import IconStar from "~icons/lucide/star"
-import IconShare from "~icons/lucide/share-2"
-import IconMoreHorizontal from "~icons/lucide/more-horizontal"
+import type {
+  HoppRESTRequest,
+  HoppRESTResponseModelV20,
+  HoppRESTSchemaNode,
+} from "@hoppscotch/data"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
-import StatusBadge from "./StatusBadge.vue"
-import type { ApiStatus } from "./StatusBadge.vue"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 
@@ -214,8 +242,6 @@ const props = defineProps<{
 const showAuth = ref(false)
 const activeResponseTab = ref(0)
 
-const apiTitle = computed(() => props.request.apiTitle ?? "")
-const apiStatus = computed(() => (props.request.apiStatus ?? "developing") as ApiStatus)
 const tags = computed(() => props.request.tags ?? [])
 const responsibility = computed(() => props.request.responsibility ?? "")
 const description = computed(() => props.request.description ?? "")
@@ -231,7 +257,9 @@ const activeHeaders = computed(() =>
 const responseModels = computed(
   () => (props.request.responseModels ?? []) as HoppRESTResponseModelV20[]
 )
-const currentResponse = computed(() => responseModels.value[activeResponseTab.value] ?? null)
+const currentResponse = computed(
+  () => responseModels.value[activeResponseTab.value] ?? null
+)
 
 const fullEndpoint = computed(() => {
   const base = props.request.inheritedBaseUrl || ""
@@ -285,7 +313,9 @@ const bodyExampleJson = computed(() => {
   return "{}"
 })
 
-function generateExampleFromSchema(tree: HoppRESTSchemaNode[] | null | undefined): string {
+function generateExampleFromSchema(
+  tree: HoppRESTSchemaNode[] | null | undefined
+): string {
   if (!tree || tree.length === 0) return "{}"
   const obj: Record<string, unknown> = {}
   for (const node of tree) {
