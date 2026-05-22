@@ -17,16 +17,44 @@
           class="shrink-0"
           @click="emit('switchToDebug')"
         />
-        <HoppButtonSecondary
-          :label="'保存'"
-          class="shrink-0"
-          @click="emit('save')"
-        />
-        <HoppButtonSecondary
-          :label="'另存为'"
-          class="shrink-0"
-          @click="emit('saveAs')"
-        />
+        <!-- Save button group: same style as edit mode's Request.vue -->
+        <span class="flex rounded border border-divider transition shrink-0">
+          <HoppButtonSecondary
+            :label="t('request.save')"
+            filled
+            :icon="IconSave"
+            class="flex-1 rounded rounded-r-none"
+            @click="onSave"
+          />
+          <span class="flex">
+            <tippy interactive trigger="click" theme="popover">
+              <HoppButtonSecondary
+                :title="t('app.options')"
+                :icon="IconChevronDown"
+                filled
+                class="rounded rounded-l-none"
+              />
+              <template #content="{ hide }">
+                <div
+                  class="flex flex-col focus:outline-none"
+                  tabindex="0"
+                  @keyup.escape="hide()"
+                >
+                  <HoppSmartItem
+                    :label="t('request.save_as')"
+                    :icon="IconFolderPlus"
+                    @click="
+                      () => {
+                        onSaveAs()
+                        hide()
+                      }
+                    "
+                  />
+                </div>
+              </template>
+            </tippy>
+          </span>
+        </span>
       </div>
     </div>
 
@@ -247,8 +275,14 @@ import type {
 } from "@hoppscotch/data"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
+import IconSave from "~icons/lucide/save"
+import IconFolderPlus from "~icons/lucide/folder-plus"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
+import { useI18n } from "@composables/i18n"
+import { invokeAction } from "~/helpers/actions"
+
+const t = useI18n()
 
 const props = defineProps<{
   request: HoppRESTRequest
@@ -256,9 +290,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "switchToDebug"): void
-  (e: "save"): void
-  (e: "saveAs"): void
 }>()
+
+function onSave() {
+  invokeAction("request-response.save")
+}
+
+function onSaveAs() {
+  invokeAction("request.save-as")
+}
 
 const showAuth = ref(false)
 const activeResponseTab = ref(0)

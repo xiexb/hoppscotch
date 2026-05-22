@@ -82,8 +82,6 @@
       v-if="subMode === 'preview'"
       :request="request"
       @switch-to-debug="emit('switchToDebug')"
-      @save="onSave"
-      @save-as="onSaveAs"
     />
   </div>
 </template>
@@ -100,7 +98,6 @@ import StatusBadge from "./design/StatusBadge.vue"
 import DesignEditView from "./design/EditView.vue"
 import DesignPreviewView from "./design/PreviewView.vue"
 import HttpRequest from "./Request.vue"
-import { invokeAction } from "~/helpers/actions"
 
 const props = withDefaults(
   defineProps<{
@@ -146,13 +143,5 @@ function onTitleInput(event: Event) {
 
 function onStatusChange(val: ApiStatus) {
   request.value = { ...request.value, apiStatus: val }
-}
-
-function onSave() {
-  invokeAction("request-response.save")
-}
-
-function onSaveAs() {
-  invokeAction("request.save-as")
 }
 </script>
