@@ -40,6 +40,7 @@ import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import {
   ENV_VAR_NAME_REGEX,
   HOPP_ENVIRONMENT_REGEX,
+  HOPP_PATH_PARAM_REGEX,
 } from "~/helpers/environment-regex"
 import {
   stabilizeTooltipHover,
@@ -398,6 +399,37 @@ const getRequestAndCollectionVariables = (
   return [...reqVars, ...collVars]
 }
 
+/**
+ * Path parameter highlight plugin for CodeMirror editor.
+ * Highlights {variable} patterns in the URL bar with a distinct color
+ * to differentiate from <<variable>> environment variables.
+ */
+
+const HOPP_PATH_PARAM_HIGHLIGHT =
+  "cursor-help transition rounded px-1 focus:outline-none mx-0.5 path-param-highlight"
+
+const getPathParamDecorator = () =>
+  new MatchDecorator({
+    regexp: HOPP_PATH_PARAM_REGEX,
+    decoration: (m, view, pos) => {
+      if (isComment(view.state, pos)) return null
+      return Decoration.mark({ class: HOPP_PATH_PARAM_HIGHLIGHT })
+    },
+  })
+
+const pathParamHighlightStyle = () => {
+  const decorator = getPathParamDecorator()
+  return ViewPlugin.define(
+    (view) => ({
+      decorations: decorator.createDeco(view),
+      update(u) {
+        this.decorations = decorator.updateDeco(u, this.decorations)
+      },
+    }),
+    { decorations: (v) => v.decorations }
+  )
+}
+
 export class HoppEnvironmentPlugin {
   private compartment = new Compartment()
   private envs: AggregateEnvironment[] = []
@@ -441,6 +473,7 @@ export class HoppEnvironmentPlugin {
           effects: this.compartment.reconfigure([
             cursorTooltipField(this.envs),
             environmentHighlightStyle(this.envs),
+            pathParamHighlightStyle(),
           ]),
         })
       },
@@ -471,6 +504,7 @@ export class HoppEnvironmentPlugin {
         effects: this.compartment.reconfigure([
           cursorTooltipField(this.envs),
           environmentHighlightStyle(this.envs),
+          pathParamHighlightStyle(),
         ]),
       })
     })
@@ -480,6 +514,7 @@ export class HoppEnvironmentPlugin {
     return this.compartment.of([
       cursorTooltipField(this.envs),
       environmentHighlightStyle(this.envs),
+      pathParamHighlightStyle(),
     ])
   }
 }
@@ -500,6 +535,7 @@ export class HoppReactiveEnvPlugin {
           effects: this.compartment.reconfigure([
             cursorTooltipField(this.envs),
             environmentHighlightStyle(this.envs),
+            pathParamHighlightStyle(),
           ]),
         })
       },
@@ -511,6 +547,7 @@ export class HoppReactiveEnvPlugin {
     return this.compartment.of([
       cursorTooltipField(this.envs),
       environmentHighlightStyle(this.envs),
+      pathParamHighlightStyle(),
     ])
   }
 }

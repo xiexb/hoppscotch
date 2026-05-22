@@ -524,6 +524,23 @@ details[open] summary .indicator {
   }
 }
 
+.path-param-highlight {
+  @apply bg-cyan-500;
+  @apply hover:bg-cyan-600;
+  @apply text-accentContrast #{!important};
+
+  span {
+    @apply text-accentContrast #{!important};
+  }
+
+  .cm-selectionMatch {
+    @apply text-secondaryDark #{!important};
+    span {
+      @apply text-secondaryDark #{!important};
+    }
+  }
+}
+
 .predefined-variable-highlight {
   &.predefined-variable-valid {
     @apply bg-yellow-500;

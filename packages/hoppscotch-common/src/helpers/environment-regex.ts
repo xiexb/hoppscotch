@@ -5,4 +5,9 @@ const ENV_VAR_NAME_PATTERN = "[a-zA-Z0-9_.-]+"
 const HOPP_ENVIRONMENT_REGEX = new RegExp(`(<<${ENV_VAR_NAME_PATTERN}>>)`, "g")
 const ENV_VAR_NAME_REGEX = new RegExp(ENV_VAR_NAME_PATTERN)
 
-export { HOPP_ENVIRONMENT_REGEX, ENV_VAR_NAME_REGEX }
+// Regex to match path parameters in the format `{variable_name}`
+const PATH_PARAM_NAME_PATTERN = "[a-zA-Z0-9_.-]+"
+const HOPP_PATH_PARAM_REGEX = new RegExp(`(\\{${PATH_PARAM_NAME_PATTERN}\\})`, "g")
+const PATH_PARAM_NAME_REGEX = new RegExp(PATH_PARAM_NAME_PATTERN)
+
+export { HOPP_ENVIRONMENT_REGEX, ENV_VAR_NAME_REGEX, HOPP_PATH_PARAM_REGEX, PATH_PARAM_NAME_REGEX }
