@@ -12,7 +12,7 @@
             placeholder="接口名称"
             @input="onTitleInput"
           />
-          <h1 v-else class="text-lg font-bold text-secondaryDark truncate">
+          <h1 v-else class="text-lg font-bold text-secondaryDark truncate m-0">
             {{ apiTitle || request.name || "Untitled" }}
           </h1>
 
