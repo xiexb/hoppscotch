@@ -5,7 +5,10 @@ import {
   HoppRESTResponse,
   relayRequestToActualSent,
 } from "./types/HoppRESTResponse"
-import { EffectiveHoppRESTRequest, getComputedHeaders } from "./utils/EffectiveURL"
+import {
+  EffectiveHoppRESTRequest,
+  getComputedHeaders,
+} from "./utils/EffectiveURL"
 import { getService } from "~/modules/dioc"
 import { KernelInterceptorService } from "~/services/kernel-interceptor.service"
 import { RESTRequest, RESTResponse } from "~/helpers/kernel/rest"

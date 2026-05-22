@@ -504,7 +504,7 @@ describe("getters", () => {
       ).toEqual(expected);
     });
 
-    test("PathParams take highest priority, overriding both request variables and environment variables", () => {
+    test("PathParams do NOT override env vars for <<var>> resolution (they use {var} syntax)", () => {
       const pathParams = [
         { key: "SHARED_KEY_I", value: "path-param-value-I", active: true, description: "" },
         { key: "PATH_PARAM_II", value: "path-param-value-II", active: true, description: "" },
@@ -513,27 +513,20 @@ describe("getters", () => {
       ];
 
       const expected = [
-        // pathParams first (active, non-empty key)
+        // request variables (pathParams NOT merged; they use {var} syntax)
         {
           key: "SHARED_KEY_I",
-          currentValue: "path-param-value-I",
-          initialValue: "path-param-value-I",
+          currentValue: "request-variable-value-I",
+          initialValue: "request-variable-value-I",
           secret: false,
         },
-        {
-          key: "PATH_PARAM_II",
-          currentValue: "path-param-value-II",
-          initialValue: "path-param-value-II",
-          secret: false,
-        },
-        // request variables (SHARED_KEY_I filtered out because pathParam has same key)
         {
           key: "REQUEST_VAR_III",
           currentValue: "request-variable-value-III",
           initialValue: "request-variable-value-III",
           secret: false,
         },
-        // environment variables (SHARED_KEY_I filtered out)
+        // environment variables (SHARED_KEY_I NOT filtered out — pathParams don't override)
         {
           key: "SHARED_KEY_II",
           currentValue: "environment-variable-shared-value-II",

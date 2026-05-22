@@ -438,9 +438,7 @@ const pathParamHighlightStyle = () => {
  * Shows the configured value for {variable} patterns when hovered.
  * Displays "?" if the path parameter value is not set.
  */
-const cursorPathParamsTooltipField = (
-  pathParams: HoppRESTPathParam[]
-) =>
+const cursorPathParamsTooltipField = (pathParams: HoppRESTPathParam[]) =>
   hoverTooltip(
     (view, pos, side) => {
       if (isComment(view.state, pos)) return null
@@ -450,19 +448,12 @@ const cursorPathParamsTooltipField = (
       // Find the variable name at cursor position by scanning left/right
       let start = pos
       let end = pos
-      while (
-        start > from &&
-        PATH_PARAM_NAME_REGEX.test(text[start - from - 1])
-      )
+      while (start > from && PATH_PARAM_NAME_REGEX.test(text[start - from - 1]))
         start--
       while (end < to && PATH_PARAM_NAME_REGEX.test(text[end - from])) end++
 
       // Check if cursor is at a boundary — no tooltip if just outside the name
-      if (
-        (start === pos && side < 0) ||
-        (end === pos && side > 0)
-      )
-        return null
+      if ((start === pos && side < 0) || (end === pos && side > 0)) return null
 
       // Check if we're inside a {var} pattern by verifying surrounding braces
       const beforeChar = start > from ? text[start - from - 1] : ""
@@ -471,9 +462,7 @@ const cursorPathParamsTooltipField = (
       if (beforeChar !== "{" || afterChar !== "}") return null
 
       const paramName = text.slice(start - from, end - from)
-      const param = pathParams.find(
-        (p) => p.key === paramName && p.active
-      )
+      const param = pathParams.find((p) => p.key === paramName && p.active)
       const paramValue = param?.value ?? ""
       const displayValue = paramValue || "?"
 

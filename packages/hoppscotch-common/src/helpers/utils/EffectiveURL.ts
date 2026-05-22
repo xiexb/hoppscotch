@@ -1,6 +1,5 @@
 import {
   Environment,
-  EnvironmentVariable,
   FormDataKeyValue,
   HoppRESTAuth,
   HoppRESTHeader,
@@ -388,42 +387,27 @@ export async function getEffectiveRESTRequest(
   showKeyIfSecret = false,
   showKeyIfNotFound = false
 ): Promise<EffectiveHoppRESTRequest> {
-  // Convert active pathParams to EnvironmentVariable format so they override
-  // same-named environment variables during template string resolution.
-  // pathParams are placed FIRST in the merged array so that
-  // variables.find(x => x.key === p1) returns the pathParam entry first.
-  const activePathParams: EnvironmentVariable[] = (request.pathParams ?? [])
-    .filter((p) => p.key !== "" && p.active)
-    .map((p) => ({
-      key: p.key,
-      value: p.value,
-      initialValue: p.value,
-      currentValue: p.value,
-      secret: false as const,
-    }))
-
-  const mergedEnvVars: Environment["variables"] = [
-    ...activePathParams,
-    ...environment.variables,
-  ]
+  // <<variable>> resolves from environment variables ONLY.
+  // {variable} resolves from pathParams via replacePathParams().
+  // Do NOT merge pathParams into envVars — that causes <<var>> in the body
+  // to incorrectly resolve to the pathParam value when names collide.
+  const envVars: Environment["variables"] = environment.variables
 
   const pathParamsList = request.pathParams ?? []
 
   const computedHeaders = pipe(
-    (await getComputedHeaders(request, mergedEnvVars, showKeyIfSecret)).map(
+    (await getComputedHeaders(request, envVars, showKeyIfSecret)).map(
       (h) => h.header
     ),
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      key: replacePathParams(
+        parseTemplateString(x.key, envVars, false, showKeyIfSecret),
+        pathParamsList
+      ),
       value: replacePathParams(
-        parseTemplateString(
-          x.value,
-          mergedEnvVars,
-          false,
-          showKeyIfSecret
-        ),
+        parseTemplateString(x.value, envVars, false, showKeyIfSecret),
         pathParamsList
       ),
       description: x.description,
@@ -435,39 +419,32 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      key: replacePathParams(
+        parseTemplateString(x.key, envVars, false, showKeyIfSecret),
+        pathParamsList
+      ),
       value: replacePathParams(
-        parseTemplateString(
-          x.value,
-          mergedEnvVars,
-          false,
-          showKeyIfSecret
-        ),
+        parseTemplateString(x.value, envVars, false, showKeyIfSecret),
         pathParamsList
       ),
       description: x.description,
     }))
   )
 
-  const effectiveFinalHeaders = pipe(
-    computedHeaders,
-    A.concat(userHeaders)
-  )
+  const effectiveFinalHeaders = pipe(computedHeaders, A.concat(userHeaders))
 
   const effectiveFinalParams = pipe(
-    (await getComputedParams(request, mergedEnvVars)).map((p) => p.param),
+    (await getComputedParams(request, envVars)).map((p) => p.param),
     A.concat(request.params),
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars, false, showKeyIfSecret), pathParamsList),
+      key: replacePathParams(
+        parseTemplateString(x.key, envVars, false, showKeyIfSecret),
+        pathParamsList
+      ),
       value: replacePathParams(
-        parseTemplateString(
-          x.value,
-          mergedEnvVars,
-          false,
-          showKeyIfSecret
-        ),
+        parseTemplateString(x.value, envVars, false, showKeyIfSecret),
         pathParamsList
       ),
       description: x.description,
@@ -479,8 +456,14 @@ export async function getEffectiveRESTRequest(
     A.filter((x) => x.active && x.key !== ""),
     A.map((x) => ({
       active: true,
-      key: replacePathParams(parseTemplateString(x.key, mergedEnvVars), pathParamsList),
-      value: replacePathParams(parseTemplateString(x.value, mergedEnvVars), pathParamsList),
+      key: replacePathParams(
+        parseTemplateString(x.key, envVars),
+        pathParamsList
+      ),
+      value: replacePathParams(
+        parseTemplateString(x.value, envVars),
+        pathParamsList
+      ),
     }))
   )
 
@@ -490,7 +473,7 @@ export async function getEffectiveRESTRequest(
 
   const effectiveFinalBody = getFinalBodyFromRequest(
     request,
-    mergedEnvVars,
+    envVars,
     showKeyIfSecret
   )
 
@@ -499,7 +482,7 @@ export async function getEffectiveRESTRequest(
     effectiveFinalURL: replacePathParams(
       parseTemplateString(
         request.endpoint,
-        mergedEnvVars,
+        envVars,
         false,
         showKeyIfSecret,
         showKeyIfNotFound

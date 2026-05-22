@@ -279,22 +279,12 @@ export const getResolvedVariables = (
   requestVariables: HoppRESTRequestVariables,
   environmentVariables: EnvironmentVariable[],
   collectionVariables: HoppCollectionVariable[] = [],
-  pathParams: HoppRESTPathParams = []
+  _pathParams: HoppRESTPathParams = []
 ): EnvironmentVariable[] => {
-  // Convert active pathParams to EnvironmentVariable format so they override
-  // same-named environment variables during template string resolution.
-  // pathParams are placed FIRST in the merged array so they take priority.
-  const activePathParams: EnvironmentVariable[] = (pathParams ?? [])
-    .filter(({ key, active }) => key !== "" && active)
-    .map(({ key, value }) => ({
-      key,
-      value,
-      initialValue: value,
-      currentValue: value,
-      secret: false,
-    }));
-
-  const pathParamKeys = activePathParams.map(({ key }) => key);
+  // <<variable>> resolves from environment variables ONLY.
+  // {variable} resolves from pathParams via replacePathParams().
+  // Do NOT merge pathParams into resolved variables — that causes <<var>>
+  // to incorrectly resolve to the pathParam value when names collide.
 
   // Transforming request variables to the shape of environment variables
   const activeRequestVariables = requestVariables
@@ -304,24 +294,24 @@ export const getResolvedVariables = (
       initialValue: value,
       currentValue: value,
       secret: false,
-    }));
+    }))
 
-  const requestVariableKeys = activeRequestVariables.map(({ key }) => key);
+  const requestVariableKeys = activeRequestVariables.map(({ key }) => key)
 
   // Request variables have higher priority, hence filtering out collection variables with the same keys
   const filteredCollectionVariables = collectionVariables.filter(
-    ({ key }) => ![...pathParamKeys, ...requestVariableKeys].includes(key)
-  );
+    ({ key }) => ![...requestVariableKeys].includes(key)
+  )
 
   const collectionVariableKeys = filteredCollectionVariables.map(
     ({ key }) => key
-  );
+  )
 
-  // Filtering out environment variables that have keys present in pathParams, request or collection variables
+  // Filtering out environment variables that have keys present in request or collection variables
   const filteredEnvironmentVariables = environmentVariables.filter(
     ({ key }) =>
-      ![...pathParamKeys, ...requestVariableKeys, ...collectionVariableKeys].includes(key)
-  );
+      ![...requestVariableKeys, ...collectionVariableKeys].includes(key)
+  )
 
   // Setting currentValue to initialValue for environment variables
   // because the exported file might not have the currentValue field
@@ -333,7 +323,7 @@ export const getResolvedVariables = (
         currentValue && currentValue !== "" ? currentValue : initialValue,
       secret,
     })
-  );
+  )
 
   const processedCollectionVariables = filteredCollectionVariables.map(
     ({ key, initialValue, currentValue, secret }) => ({
@@ -346,7 +336,6 @@ export const getResolvedVariables = (
   );
 
   return [
-    ...activePathParams,
     ...activeRequestVariables,
     ...processedCollectionVariables,
     ...processedEnvironmentVariables,

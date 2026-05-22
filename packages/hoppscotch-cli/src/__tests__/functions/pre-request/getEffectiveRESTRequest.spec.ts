@@ -152,8 +152,8 @@ describe("getEffectiveRESTRequest", () => {
     });
   });
 
-  test("PathParams are resolved in the endpoint URL.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
+  test("PathParams are resolved in the endpoint URL via {var} syntax.", () => {
+    SAMPLE_REQUEST.endpoint = "https://example.com/{USER_ID}/posts";
     SAMPLE_REQUEST.pathParams = [
       { key: "USER_ID", value: "42", active: true, description: "" },
     ];
@@ -168,8 +168,10 @@ describe("getEffectiveRESTRequest", () => {
     });
   });
 
-  test("PathParams take priority over environment variables.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
+  test("<<var>> resolves from env vars even when a same-named pathParam exists.", () => {
+    // <<USER_ID>> should resolve from env vars (value "99"), NOT pathParams (value "42").
+    // {USER_ID} is the correct syntax for path param substitution.
+    SAMPLE_REQUEST.endpoint = "https://example.com/{USER_ID}/posts";
     SAMPLE_REQUEST.pathParams = [
       { key: "USER_ID", value: "42", active: true, description: "" },
     ];
@@ -192,7 +194,7 @@ describe("getEffectiveRESTRequest", () => {
   });
 
   test("Inactive pathParams are ignored.", () => {
-    SAMPLE_REQUEST.endpoint = "https://example.com/<<USER_ID>>/posts";
+    SAMPLE_REQUEST.endpoint = "https://example.com/{USER_ID}/posts";
     SAMPLE_REQUEST.pathParams = [
       { key: "USER_ID", value: "42", active: false, description: "" },
     ];
@@ -200,8 +202,38 @@ describe("getEffectiveRESTRequest", () => {
     expect(
       getEffectiveRESTRequest(SAMPLE_REQUEST, DEFAULT_ENV)
     ).toSubsetEqualRight(<EffectiveHoppRESTRequest>{
-      effectiveFinalURL: "https://example.com//posts",
+      effectiveFinalURL: "https://example.com/{USER_ID}/posts",
       effectiveFinalPathParams: [],
+    });
+  });
+
+  test("<<var>> in body resolves from env vars, not pathParams.", () => {
+    // When a pathParam and env var share the same key, <<var>> in the body
+    // must resolve to the env var value, not the pathParam value.
+    SAMPLE_REQUEST.endpoint = "https://example.com/{USER_ID}/posts";
+    SAMPLE_REQUEST.pathParams = [
+      { key: "USER_ID", value: "42", active: true, description: "" },
+    ];
+    SAMPLE_REQUEST.body = {
+      contentType: "application/json",
+      body: '{"userId": "<<USER_ID>>"}',
+    };
+
+    const ENV_WITH_SAME_KEY = <Environment>{
+      name: "name",
+      variables: [
+        { key: "USER_ID", value: "99" },
+      ],
+    };
+
+    expect(
+      getEffectiveRESTRequest(SAMPLE_REQUEST, ENV_WITH_SAME_KEY)
+    ).toSubsetEqualRight(<EffectiveHoppRESTRequest>{
+      effectiveFinalURL: "https://example.com/42/posts",
+      effectiveFinalBody: '{"userId": "99"}',
+      effectiveFinalPathParams: [
+        { key: "USER_ID", value: "42", active: true, description: "" },
+      ],
     });
   });
 });
