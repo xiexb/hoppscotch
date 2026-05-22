@@ -28,18 +28,7 @@
         </div>
       </div>
 
-      <!-- Method + URL row (read-only display) -->
-      <div class="flex items-center gap-2">
-        <span
-          class="px-2 py-0.5 text-xs font-mono font-semibold rounded shrink-0"
-          :class="methodClass"
-        >
-          {{ request.method }}
-        </span>
-        <span class="text-sm text-secondary font-mono break-all">
-          {{ fullEndpoint }}
-        </span>
-      </div>
+      <!-- Method + URL row is now rendered by HttpRequest in RequestTab.vue -->
     </div>
 
     <!-- Area 2: Meta Info (description, tags, responsibility, base URL) -->
@@ -98,24 +87,6 @@ const optionTab = ref<RESTOptionTabs>("params")
 
 const apiTitle = computed(() => props.request.apiTitle ?? "")
 const apiStatus = computed(() => (props.request.apiStatus ?? "developing") as ApiStatus)
-
-const fullEndpoint = computed(() => {
-  const base = props.request.inheritedBaseUrl || ""
-  const endpoint = props.request.endpoint || ""
-  if (endpoint.startsWith("http")) return endpoint
-  return base + endpoint
-})
-
-const methodClass = computed(() => {
-  switch (props.request.method) {
-    case "GET": return "bg-green-500/20 text-green-500"
-    case "POST": return "bg-orange-500/20 text-orange-500"
-    case "PUT": return "bg-yellow-500/20 text-yellow-500"
-    case "DELETE": return "bg-red-500/20 text-red-500"
-    case "PATCH": return "bg-teal-500/20 text-teal-500"
-    default: return "bg-secondaryLight/20 text-secondaryLight"
-  }
-})
 
 // Bridge: RequestOptions uses v-model on the request directly,
 // so we proxy changes back up to the parent
