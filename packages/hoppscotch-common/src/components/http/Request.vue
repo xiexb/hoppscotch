@@ -705,10 +705,15 @@ watch(
       clearTimeout(pathParamsDebounceTimer)
     }
     pathParamsDebounceTimer = setTimeout(() => {
-      const regex = /<<([^>]+)>>/g
+      // Detect both <<var>> (environment variables) and {var} (path parameters)
+      const envVarRegex = /<<([^>]+)>>/g
+      const pathParamRegex = /\{([^}]+)\}/g
       const detectedVars: string[] = []
       let match: RegExpExecArray | null
-      while ((match = regex.exec(newEndpoint)) !== null) {
+      while ((match = envVarRegex.exec(newEndpoint)) !== null) {
+        detectedVars.push(match[1])
+      }
+      while ((match = pathParamRegex.exec(newEndpoint)) !== null) {
         detectedVars.push(match[1])
       }
 
