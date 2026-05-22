@@ -1,9 +1,6 @@
 <template>
   <!-- Debug mode: split pane layout with response panel -->
-  <AppPaneLayout
-    v-if="currentMode === 'debug'"
-    layout-id="rest-primary"
-  >
+  <AppPaneLayout v-if="currentMode === 'debug'" layout-id="rest-primary">
     <template #primary>
       <HttpRequestModeTabs
         :model-value="currentMode"
@@ -34,7 +31,7 @@
     <HttpRequestDesignPanel
       v-if="currentMode === 'design'"
       v-model="tab.document.request"
-      :tab="tab"
+      v-model:tab="tab"
       :inherited-properties="tab.document.inheritedProperties"
       :initial-sub-mode="tab.document.designSubModePreference ?? 'preview'"
       @switch-to-debug="currentMode = 'debug'"

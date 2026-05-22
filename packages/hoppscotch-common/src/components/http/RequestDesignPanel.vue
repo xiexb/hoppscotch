@@ -11,7 +11,10 @@
           placeholder="接口名称"
           @input="onTitleInput"
         />
-        <h1 v-else class="text-lg font-bold text-secondaryDark flex-1 min-w-0 truncate">
+        <h1
+          v-else
+          class="text-lg font-bold text-secondaryDark flex-1 min-w-0 truncate"
+        >
           {{ apiTitle || request.name || "Untitled" }}
         </h1>
 
@@ -74,7 +77,7 @@
     <!-- URL bar (Method + URL + 手动调试) — between title and content -->
     <div class="shrink-0">
       <HttpRequest
-        v-model="tab"
+        v-model="tabModel"
         send-label="手动调试"
         @send-action="emit('switchToDebug')"
       />
@@ -89,10 +92,7 @@
       @save="onSave"
     />
 
-    <DesignPreviewView
-      v-if="subMode === 'preview'"
-      :request="request"
-    />
+    <DesignPreviewView v-if="subMode === 'preview'" :request="request" />
   </div>
 </template>
 
@@ -126,15 +126,19 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: "update:modelValue", val: HoppRESTRequest): void
+  (e: "update:tab", val: HoppTab<HoppRequestDocument>): void
   (e: "switchToDebug"): void
   (e: "update:subMode", val: "edit" | "preview"): void
 }>()
 
 const request = useVModel(props, "modelValue", emit)
+const tabModel = useVModel(props, "tab", emit)
 const subMode = ref<"edit" | "preview">(props.initialSubMode)
 
 const apiTitle = computed(() => request.value.apiTitle ?? "")
-const apiStatus = computed(() => (request.value.apiStatus ?? "developing") as ApiStatus)
+const apiStatus = computed(
+  () => (request.value.apiStatus ?? "developing") as ApiStatus
+)
 
 // Persist sub-mode changes
 watch(subMode, (val) => {
