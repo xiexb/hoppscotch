@@ -56,8 +56,22 @@
         @input="onField('description', $event)"
       />
 
+      <!-- Required toggle -->
+      <button
+        class="px-1.5 py-0.5 text-[10px] rounded transition-colors shrink-0"
+        :class="
+          node.required
+            ? 'bg-orange-500/15 text-orange-500'
+            : 'bg-secondaryLight/10 text-secondaryLight hover:text-secondary'
+        "
+        :title="node.required ? '必填（点击取消）' : '非必填（点击设为必填）'"
+        @click="toggleRequired"
+      >
+        {{ node.required ? "必填" : "可选" }}
+      </button>
+
       <!-- Actions -->
-      <div class="flex items-center gap-1 ml-2 shrink-0">
+      <div class="flex items-center gap-1 ml-1 shrink-0">
         <button
           v-if="canAddChild"
           class="text-secondaryLight hover:text-accent transition-colors"
@@ -135,9 +149,17 @@ function onField(field: string, event: Event) {
   const target = event.target as HTMLInputElement | HTMLSelectElement
   const updated = { ...props.node, [field]: target.value }
   // If type changed to object/array, ensure children array exists
-  if (field === "type" && (target.value === "object" || target.value === "array")) {
+  if (
+    field === "type" &&
+    (target.value === "object" || target.value === "array")
+  ) {
     updated.children = updated.children ?? []
   }
+  emit("update", updated)
+}
+
+function toggleRequired() {
+  const updated = { ...props.node, required: !props.node.required }
   emit("update", updated)
 }
 

@@ -6,7 +6,9 @@
     </div>
 
     <!-- Status code tabs -->
-    <div class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto">
+    <div
+      class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto"
+    >
       <button
         v-for="(model, index) in responseModels"
         :key="index"
@@ -67,7 +69,9 @@
             <option value="text/plain">Text</option>
           </select>
         </div>
-        <span class="text-secondaryLight font-mono">{{ currentModel.contentType }}</span>
+        <span class="text-secondaryLight font-mono">{{
+          currentModel.contentType
+        }}</span>
         <button
           class="ml-auto text-secondaryLight hover:text-red-400 transition-colors"
           @click="removeResponseModel(activeModel)"
@@ -80,7 +84,9 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-secondary">数据结构</span>
-          <span class="text-xs text-secondaryLight font-mono">{{ currentModel.contentType }}</span>
+          <span class="text-xs text-secondaryLight font-mono">{{
+            currentModel.contentType
+          }}</span>
         </div>
         <SchemaTreeEditor
           :model-value="currentSchemaTree"
@@ -93,26 +99,31 @@
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-secondary">示例</span>
         </div>
-        <textarea
-          :value="currentModel.bodyExample"
-          class="w-full text-xs font-mono bg-primaryLight border border-dividerLight rounded p-3 text-secondaryDark outline-none focus:border-accent resize-y min-h-[100px]"
-          spellcheck="false"
-          placeholder='{ "result": true, "code": 0, "msg": "OK" }'
-          @input="onExampleInput"
+        <JsonExampleBlock
+          :content="currentModel.bodyExample || ''"
+          :content-type="currentModel.contentType"
+          :editable="true"
+          @update:content="onExampleUpdate"
         />
       </div>
 
       <!-- Bottom actions -->
       <div class="flex items-center gap-4">
-        <button class="text-xs text-accent hover:text-accentDark flex items-center gap-1">
+        <button
+          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+        >
           <IconPlus class="w-3 h-3" />
           添加示例
         </button>
-        <button class="text-xs text-accent hover:text-accentDark flex items-center gap-1">
+        <button
+          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+        >
           <IconPlus class="w-3 h-3" />
           添加描述
         </button>
-        <button class="text-xs text-accent hover:text-accentDark flex items-center gap-1">
+        <button
+          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+        >
           <IconPlus class="w-3 h-3" />
           Headers
         </button>
@@ -134,10 +145,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue"
-import type { HoppRESTRequest, HoppRESTResponseModelV20, HoppRESTSchemaNode } from "@hoppscotch/data"
+import type {
+  HoppRESTRequest,
+  HoppRESTResponseModelV20,
+  HoppRESTSchemaNode,
+} from "@hoppscotch/data"
 import IconTrash from "~icons/lucide/trash-2"
 import IconPlus from "~icons/lucide/plus"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
+import JsonExampleBlock from "./JsonExampleBlock.vue"
 
 const props = defineProps<{
   request: HoppRESTRequest
@@ -153,7 +169,9 @@ const responseModels = computed(
   () => (props.request.responseModels ?? []) as HoppRESTResponseModelV20[]
 )
 
-const currentModel = computed(() => responseModels.value[activeModel.value] ?? null)
+const currentModel = computed(
+  () => responseModels.value[activeModel.value] ?? null
+)
 
 const currentSchemaTree = computed(
   () => currentModel.value?.bodySchemaTree ?? []
@@ -163,7 +181,10 @@ function ensureModels(): HoppRESTResponseModelV20[] {
   return [...(props.request.responseModels ?? [])] as HoppRESTResponseModelV20[]
 }
 
-function updateModel(index: number, updated: Partial<HoppRESTResponseModelV20>) {
+function updateModel(
+  index: number,
+  updated: Partial<HoppRESTResponseModelV20>
+) {
   const models = ensureModels()
   models[index] = { ...models[index], ...updated }
   emit("update:request", { ...props.request, responseModels: models })
@@ -207,9 +228,8 @@ function onSchemaTreeUpdate(tree: HoppRESTSchemaNode[]) {
   updateModel(activeModel.value, { bodySchemaTree: tree })
 }
 
-function onExampleInput(event: Event) {
-  const target = event.target as HTMLTextAreaElement
-  updateModel(activeModel.value, { bodyExample: target.value })
+function onExampleUpdate(val: string) {
+  updateModel(activeModel.value, { bodyExample: val })
 }
 
 function statusTabClass(code: string): string {
