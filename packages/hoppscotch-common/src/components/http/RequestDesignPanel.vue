@@ -8,11 +8,15 @@
           <input
             v-if="subMode === 'edit'"
             :value="apiTitle || request.name"
-            class="text-lg font-bold bg-transparent outline-none max-w-[20rem] text-secondaryDark placeholder:text-secondaryLight"
+            :size="Math.max((apiTitle || request.name || '接口名称').length, 4)"
+            class="text-lg font-bold bg-transparent outline-none border-0 p-0 m-0 max-w-[20rem] leading-none text-secondaryDark placeholder:text-secondaryLight"
             placeholder="接口名称"
             @input="onTitleInput"
           />
-          <h1 v-else class="text-lg font-bold text-secondaryDark truncate m-0">
+          <h1
+            v-else
+            class="text-lg font-bold text-secondaryDark truncate m-0 p-0 leading-none"
+          >
             {{ apiTitle || request.name || "Untitled" }}
           </h1>
 
