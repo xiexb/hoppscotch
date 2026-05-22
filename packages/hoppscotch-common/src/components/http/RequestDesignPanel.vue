@@ -78,7 +78,12 @@
       @save="onSave"
     />
 
-    <DesignPreviewView v-if="subMode === 'preview'" :request="request" />
+    <DesignPreviewView
+      v-if="subMode === 'preview'"
+      :request="request"
+      @switch-to-debug="emit('switchToDebug')"
+      @switch-to-edit="subMode = 'edit'"
+    />
   </div>
 </template>
 

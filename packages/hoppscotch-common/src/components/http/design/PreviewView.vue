@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
-    <!-- Method + URL row (read-only) -->
+    <!-- Method + URL row (read-only) + action buttons -->
     <div class="border-b border-dividerLight px-4 py-3">
       <div class="flex items-center gap-2">
         <span
@@ -9,9 +9,19 @@
         >
           {{ request.method }}
         </span>
-        <span class="text-sm text-secondary font-mono break-all">
+        <span class="text-sm text-secondary font-mono break-all flex-1">
           {{ fullEndpoint }}
         </span>
+        <HoppButtonPrimary
+          :label="'手动调试'"
+          class="shrink-0"
+          @click="emit('switchToDebug')"
+        />
+        <HoppButtonSecondary
+          :label="'编辑'"
+          class="shrink-0"
+          @click="emit('switchToEdit')"
+        />
       </div>
     </div>
 
@@ -237,6 +247,11 @@ import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 
 const props = defineProps<{
   request: HoppRESTRequest
+}>()
+
+const emit = defineEmits<{
+  (e: "switchToDebug"): void
+  (e: "switchToEdit"): void
 }>()
 
 const showAuth = ref(false)
