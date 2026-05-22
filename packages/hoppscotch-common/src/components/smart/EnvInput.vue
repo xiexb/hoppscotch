@@ -99,6 +99,7 @@ import IconEyeoff from "~icons/lucide/eye-off"
 import { CompletionContext, autocompletion } from "@codemirror/autocomplete"
 import { useService } from "dioc/vue"
 import { RESTTabService } from "~/services/tab/rest"
+import { HoppRESTPathParam } from "@hoppscotch/data"
 import { syntaxTree } from "@codemirror/language"
 import { uniqueID } from "~/helpers/utils/uniqueID"
 import { transformInheritedCollectionVariablesToAggregateEnv } from "~/helpers/utils/inheritedCollectionVarTransformer"
@@ -440,6 +441,21 @@ const envVars = computed(() => {
   return [...requestVariables, ...collectionVariables, ...aggregateEnvs.value]
 })
 
+// Computed path parameters from the current active tab
+const pathParams = computed<HoppRESTPathParam[]>(() => {
+  const currentTab = tabs.currentActiveTab.value
+  const { document } = currentTab
+  const isRequest = document.type === "request"
+  const isExample = document.type === "example-response"
+
+  if (isRequest) {
+    return document.request.pathParams ?? []
+  } else if (isExample) {
+    return document.response.originalRequest.pathParams ?? []
+  }
+  return []
+})
+
 function envAutoCompletion(context: CompletionContext) {
   const nodeBefore = syntaxTree(context.state).resolveInner(context.pos, -1)
   const textBefore = context.state.sliceDoc(nodeBefore.from, context.pos)
@@ -479,7 +495,7 @@ function envAutoCompletion(context: CompletionContext) {
   }
 }
 
-const envTooltipPlugin = new HoppReactiveEnvPlugin(envVars, view)
+const envTooltipPlugin = new HoppReactiveEnvPlugin(envVars, pathParams, view)
 const predefinedVariablePlugin = new HoppPredefinedVariablesPlugin()
 
 function handleTextSelection() {

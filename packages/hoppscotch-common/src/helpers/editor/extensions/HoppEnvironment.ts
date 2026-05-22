@@ -10,6 +10,7 @@ import { StreamSubscriberFunc } from "@composables/stream"
 import {
   parseTemplateStringE,
   HoppRESTRequestVariables,
+  HoppRESTPathParam,
 } from "@hoppscotch/data"
 import * as E from "fp-ts/Either"
 import { Ref, watch } from "vue"
@@ -33,6 +34,7 @@ import IconUsers from "~icons/lucide/users?raw"
 import IconGlobe from "~icons/lucide/globe?raw"
 import IconVariable from "~icons/lucide/variable?raw"
 import IconLibrary from "~icons/lucide/library?raw"
+import IconRoute from "~icons/lucide/route?raw"
 
 import { isComment } from "./helpers"
 import { transformInheritedCollectionVariablesToAggregateEnv } from "~/helpers/utils/inheritedCollectionVarTransformer"
@@ -41,6 +43,7 @@ import {
   ENV_VAR_NAME_REGEX,
   HOPP_ENVIRONMENT_REGEX,
   HOPP_PATH_PARAM_REGEX,
+  PATH_PARAM_NAME_REGEX,
 } from "~/helpers/environment-regex"
 import {
   stabilizeTooltipHover,
@@ -430,9 +433,110 @@ const pathParamHighlightStyle = () => {
   )
 }
 
+/**
+ * Path parameter hover tooltip for CodeMirror editor.
+ * Shows the configured value for {variable} patterns when hovered.
+ * Displays "?" if the path parameter value is not set.
+ */
+const cursorPathParamsTooltipField = (
+  pathParams: HoppRESTPathParam[]
+) =>
+  hoverTooltip(
+    (view, pos, side) => {
+      if (isComment(view.state, pos)) return null
+
+      const { from, to, text } = view.state.doc.lineAt(pos)
+
+      // Find the variable name at cursor position by scanning left/right
+      let start = pos
+      let end = pos
+      while (
+        start > from &&
+        PATH_PARAM_NAME_REGEX.test(text[start - from - 1])
+      )
+        start--
+      while (end < to && PATH_PARAM_NAME_REGEX.test(text[end - from])) end++
+
+      // Check if cursor is at a boundary — no tooltip if just outside the name
+      if (
+        (start === pos && side < 0) ||
+        (end === pos && side > 0)
+      )
+        return null
+
+      // Check if we're inside a {var} pattern by verifying surrounding braces
+      const beforeChar = start > from ? text[start - from - 1] : ""
+      const afterChar = end < to ? text[end - from] : ""
+
+      if (beforeChar !== "{" || afterChar !== "}") return null
+
+      const paramName = text.slice(start - from, end - from)
+      const param = pathParams.find(
+        (p) => p.key === paramName && p.active
+      )
+      const paramValue = param?.value ?? ""
+      const displayValue = paramValue || "?"
+
+      return {
+        pos: start - 1, // include the opening '{'
+        end: end + 1, // include the closing '}'
+        arrow: true,
+        create() {
+          const dom = document.createElement("div")
+          const tooltipContainer = document.createElement("div")
+
+          const tooltipHeaderBlock = document.createElement("div")
+          tooltipHeaderBlock.className =
+            "flex items-center justify-between w-full space-x-2 "
+          tooltipContainer.appendChild(tooltipHeaderBlock)
+
+          const iconNameContainer = document.createElement("div")
+          iconNameContainer.className =
+            "flex items-center space-x-2 flex-1 mr-4 "
+          tooltipHeaderBlock.appendChild(iconNameContainer)
+
+          const icon = document.createElement("span")
+          icon.innerHTML = `<span class="inline-flex items-center justify-center my-1">${IconRoute}</span>`
+          const paramNameBlock = document.createElement("span")
+          paramNameBlock.className = "font-bold"
+          paramNameBlock.innerText = paramName
+
+          const sourceLabel = document.createElement("span")
+          sourceLabel.innerText = "Path Parameter"
+          sourceLabel.className = "text-secondary"
+
+          iconNameContainer.appendChild(icon)
+          iconNameContainer.appendChild(sourceLabel)
+          iconNameContainer.appendChild(paramNameBlock)
+
+          const envContainer = document.createElement("div")
+          tooltipContainer.appendChild(envContainer)
+          envContainer.className = `flex flex-col items-start space-y-1 flex-1 w-full mt-2 ${TOOLTIP_ENV_CONTAINER_Z_INDEX_CLASS}`
+          envContainer.style.overflow = "hidden"
+
+          const valueRow = createTooltipValueRow("Value", displayValue)
+          envContainer.appendChild(valueRow)
+
+          tooltipContainer.className =
+            "tippy-content env-tooltip-content env-tooltip-constrained"
+          dom.className = "tippy-box"
+          dom.dataset.theme = "tooltip"
+          dom.appendChild(tooltipContainer)
+
+          constrainTooltipToViewport(dom, tooltipContainer)
+          stabilizeTooltipHover(dom)
+
+          return { dom }
+        },
+      }
+    },
+    { hoverTime: 1 } as any
+  )
+
 export class HoppEnvironmentPlugin {
   private compartment = new Compartment()
   private envs: AggregateEnvironment[] = []
+  private pathParams: HoppRESTPathParam[] = []
 
   constructor(
     subscribeToStream: StreamSubscriberFunc,
@@ -469,9 +573,13 @@ export class HoppEnvironmentPlugin {
         const currentAggregateEnvs = getAggregateEnvsWithCurrentValue()
         this.envs = [...requestAndCollVars, ...currentAggregateEnvs]
 
+        // Get path parameters from the current request
+        this.pathParams = request?.pathParams ?? []
+
         this.editorView.value?.dispatch({
           effects: this.compartment.reconfigure([
             cursorTooltipField(this.envs),
+            cursorPathParamsTooltipField(this.pathParams),
             environmentHighlightStyle(this.envs),
             pathParamHighlightStyle(),
           ]),
@@ -500,9 +608,13 @@ export class HoppEnvironmentPlugin {
 
       this.envs = [...freshRequestAndCollVars, ...envs]
 
+      // Get path parameters from the current request
+      this.pathParams = request?.pathParams ?? []
+
       this.editorView.value?.dispatch({
         effects: this.compartment.reconfigure([
           cursorTooltipField(this.envs),
+          cursorPathParamsTooltipField(this.pathParams),
           environmentHighlightStyle(this.envs),
           pathParamHighlightStyle(),
         ]),
@@ -513,6 +625,7 @@ export class HoppEnvironmentPlugin {
   get extension() {
     return this.compartment.of([
       cursorTooltipField(this.envs),
+      cursorPathParamsTooltipField(this.pathParams),
       environmentHighlightStyle(this.envs),
       pathParamHighlightStyle(),
     ])
@@ -522,18 +635,22 @@ export class HoppEnvironmentPlugin {
 export class HoppReactiveEnvPlugin {
   private compartment = new Compartment()
   private envs: AggregateEnvironment[] = []
+  private pathParams: HoppRESTPathParam[] = []
 
   constructor(
     envsRef: Ref<AggregateEnvironment[]>,
+    pathParamsRef: Ref<HoppRESTPathParam[]>,
     private editorView: Ref<EditorView | undefined>
   ) {
     watch(
-      envsRef,
-      (envs) => {
+      [envsRef, pathParamsRef],
+      ([envs, pathParams]) => {
         this.envs = envs
+        this.pathParams = pathParams
         this.editorView.value?.dispatch({
           effects: this.compartment.reconfigure([
             cursorTooltipField(this.envs),
+            cursorPathParamsTooltipField(this.pathParams),
             environmentHighlightStyle(this.envs),
             pathParamHighlightStyle(),
           ]),
@@ -546,6 +663,7 @@ export class HoppReactiveEnvPlugin {
   get extension() {
     return this.compartment.of([
       cursorTooltipField(this.envs),
+      cursorPathParamsTooltipField(this.pathParams),
       environmentHighlightStyle(this.envs),
       pathParamHighlightStyle(),
     ])

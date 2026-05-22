@@ -690,7 +690,9 @@ const COLUMN_LAYOUT = useSetting("COLUMN_LAYOUT")
 
 const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
 
-// Auto-detect path variables from URL (e.g., <<varName>> patterns)
+// Auto-detect path parameters from URL ({varName} patterns only)
+// <<varName>> are environment variables resolved from env settings, NOT path params
+// Only {varName} patterns create path parameter entries
 // Syncs pathParams with detected variables: adds new ones, removes stale ones
 // Runs on mount (immediate) to detect params from persisted URLs on first load
 let pathParamsDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -705,14 +707,10 @@ watch(
       clearTimeout(pathParamsDebounceTimer)
     }
     pathParamsDebounceTimer = setTimeout(() => {
-      // Detect both <<var>> (environment variables) and {var} (path parameters)
-      const envVarRegex = /<<([^>]+)>>/g
+      // Only detect {var} (path parameters). <<var>> are environment variables.
       const pathParamRegex = /\{([^}]+)\}/g
       const detectedVars: string[] = []
       let match: RegExpExecArray | null
-      while ((match = envVarRegex.exec(newEndpoint)) !== null) {
-        detectedVars.push(match[1])
-      }
       while ((match = pathParamRegex.exec(newEndpoint)) !== null) {
         detectedVars.push(match[1])
       }
