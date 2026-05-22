@@ -361,8 +361,8 @@ export function getFinalBodyFromRequest(
  *
  * @returns An object with extra fields defining a complete request
  */
-/** Regex for path parameter templates: {variable} */
-const REGEX_PATH_PARAM = /\{([^}]+)\}/g
+/** Regex for path parameter templates: {variable} — only matches {alpha_numeric}, not JSON braces */
+const REGEX_PATH_PARAM = /\{([a-zA-Z0-9_.-]+)\}/g
 
 /**
  * Replace {variable} path parameter templates in a string.
@@ -471,11 +471,16 @@ export async function getEffectiveRESTRequest(
     (x) => x.active && x.key !== ""
   )
 
-  const effectiveFinalBody = getFinalBodyFromRequest(
+  const effectiveFinalBodyRaw = getFinalBodyFromRequest(
     request,
     envVars,
     showKeyIfSecret
   )
+  // Apply path parameter replacement to string body (JSON, XML, text, etc.)
+  const effectiveFinalBody =
+    typeof effectiveFinalBodyRaw === "string"
+      ? replacePathParams(effectiveFinalBodyRaw, pathParamsList)
+      : effectiveFinalBodyRaw
 
   return {
     ...request,

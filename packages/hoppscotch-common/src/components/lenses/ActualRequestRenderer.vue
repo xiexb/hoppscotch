@@ -190,8 +190,8 @@ const copyIcon = refAutoReset<typeof IconCopy | typeof IconCheck>(
 
 /** Environment variable template: <<variable>> */
 const ENV_TEMPLATE_RE = /<<[^>]*>>/g
-/** Path parameter template: {variable} */
-const PATH_PARAM_RE = /\{[^}]+\}/g
+/** Path parameter template: {variable} — only matches {alpha_numeric}, not JSON braces */
+const PATH_PARAM_RE = /\{[a-zA-Z0-9_.-]+\}/g
 
 /** Check if a string contains unresolved templates */
 const hasTemplate = (s: string): boolean =>
