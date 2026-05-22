@@ -21,7 +21,10 @@
       :class="modelValue === option.value ? 'font-bold' : ''"
       @click="selectStatus(option.value)"
     >
-      <span class="w-1.5 h-1.5 rounded-full" :class="getDotClass(option.value)" />
+      <span
+        class="w-1.5 h-1.5 rounded-full"
+        :class="getDotClass(option.value)"
+      />
       {{ option.label }}
     </button>
   </div>
@@ -36,6 +39,7 @@ export type ApiStatus =
   | "developing"
   | "testing"
   | "published"
+  | "about_to_deprecate"
   | "deprecated"
 
 const props = withDefaults(
@@ -54,14 +58,16 @@ const showDropdown = ref(false)
 
 const statusOptions: { value: ApiStatus; label: string; color: string }[] = [
   { value: "designing", label: "设计中", color: "gray" },
-  { value: "developing", label: "开发中", color: "blue" },
+  { value: "developing", label: "调试中", color: "blue" },
   { value: "testing", label: "测试中", color: "yellow" },
-  { value: "published", label: "已发布", color: "green" },
-  { value: "deprecated", label: "废弃", color: "red" },
+  { value: "published", label: "发布", color: "green" },
+  { value: "about_to_deprecate", label: "将废弃", color: "orange" },
+  { value: "deprecated", label: "已废弃", color: "red" },
 ]
 
 const currentOption = computed(
-  () => statusOptions.find((o) => o.value === props.modelValue) ?? statusOptions[1]
+  () =>
+    statusOptions.find((o) => o.value === props.modelValue) ?? statusOptions[1]
 )
 
 const label = computed(() => currentOption.value.label)
@@ -76,6 +82,8 @@ const badgeClass = computed(() => {
       return "bg-yellow-500/15 text-yellow-600"
     case "green":
       return "bg-green-500/15 text-green-500"
+    case "orange":
+      return "bg-orange-500/15 text-orange-500"
     case "red":
       return "bg-red-500/15 text-red-500"
     default:
@@ -95,6 +103,8 @@ function getDotClass(status: ApiStatus): string {
       return "bg-yellow-500"
     case "published":
       return "bg-green-500"
+    case "about_to_deprecate":
+      return "bg-orange-500"
     case "deprecated":
       return "bg-red-500"
     default:
