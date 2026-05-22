@@ -1,22 +1,5 @@
 <template>
   <div class="border-b border-dividerLight p-4 space-y-4">
-    <!-- Title + Status Row -->
-    <div class="flex items-center gap-3">
-      <input
-        :value="apiTitle"
-        class="text-lg font-semibold bg-transparent outline-none flex-1 min-w-0 text-secondaryDark placeholder:text-secondaryLight"
-        placeholder="接口名称（如：wifi开门记录上报）"
-        @input="onInput('apiTitle', $event)"
-      />
-      <div class="relative status-badge-wrapper">
-        <StatusBadge
-          :model-value="apiStatus"
-          :editable="true"
-          @update:model-value="onStatusChange"
-        />
-      </div>
-    </div>
-
     <!-- Markdown Description -->
     <div>
       <DocumentationMarkdownEditor
@@ -77,8 +60,6 @@
 import { computed, ref } from "vue"
 import type { HoppRESTRequest } from "@hoppscotch/data"
 import DocumentationMarkdownEditor from "~/components/collections/documentation/MarkdownEditor.vue"
-import StatusBadge from "./StatusBadge.vue"
-import type { ApiStatus } from "./StatusBadge.vue"
 import TagInput from "./TagInput.vue"
 
 const props = defineProps<{
@@ -92,8 +73,6 @@ const emit = defineEmits<{
 const showCustomUrl = ref(false)
 const customBaseUrl = ref("")
 
-const apiTitle = computed(() => props.request.apiTitle ?? "")
-const apiStatus = computed(() => (props.request.apiStatus ?? "developing") as ApiStatus)
 const tags = computed(() => props.request.tags ?? [])
 const responsibility = computed(() => props.request.responsibility ?? "")
 const inheritedBaseUrl = computed(() => props.request.inheritedBaseUrl ?? "")
@@ -129,10 +108,6 @@ function onCustomUrlInput(event: Event) {
   const target = event.target as HTMLInputElement
   customBaseUrl.value = target.value
   updateField("inheritedBaseUrl", target.value)
-}
-
-function onStatusChange(val: ApiStatus) {
-  updateField("apiStatus", val)
 }
 
 function onTagsChange(val: string[]) {

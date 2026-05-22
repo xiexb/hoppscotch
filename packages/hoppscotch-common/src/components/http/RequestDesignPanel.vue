@@ -35,12 +35,6 @@
         >
           保存
         </button>
-        <button
-          class="px-3 py-1.5 text-xs font-medium text-secondaryDark bg-primaryLight border border-dividerLight rounded-md hover:bg-primaryDark transition-colors"
-          @click="emit('switchToDebug')"
-        >
-          调试
-        </button>
       </div>
     </div>
 
@@ -50,6 +44,7 @@
       :request="request"
       @update:request="onRequestUpdate"
       @save="onSave"
+      @debug="emit('switchToDebug')"
     />
 
     <!-- Preview View -->

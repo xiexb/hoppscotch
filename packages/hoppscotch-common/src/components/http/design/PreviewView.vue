@@ -31,17 +31,6 @@
           >
             手动调试
           </button>
-          <button
-            class="px-3 py-1.5 text-xs font-medium text-secondaryDark bg-primaryLight border border-dividerLight rounded-md hover:bg-primaryDark transition-colors"
-          >
-            生成代码
-          </button>
-          <button
-            class="px-3 py-1.5 text-xs font-medium text-secondaryDark bg-primaryLight border border-dividerLight rounded-md hover:bg-primaryDark transition-colors"
-            @click="copyEndpoint"
-          >
-            复制
-          </button>
         </div>
       </div>
 
