@@ -73,6 +73,7 @@ declare module 'vue' {
     CollectionsDocumentationSectionsPathParams: typeof import('./components/collections/documentation/sections/PathParams.vue')['default']
     CollectionsDocumentationSectionsRequestBody: typeof import('./components/collections/documentation/sections/RequestBody.vue')['default']
     CollectionsDocumentationSectionsResponse: typeof import('./components/collections/documentation/sections/Response.vue')['default']
+    CollectionsDocumentationSectionsResponseHeadersTable: typeof import('./components/collections/documentation/sections/ResponseHeadersTable.vue')['default']
     CollectionsDocumentationSectionsVariables: typeof import('./components/collections/documentation/sections/Variables.vue')['default']
     CollectionsEdit: typeof import('./components/collections/Edit.vue')['default']
     CollectionsEditFolder: typeof import('./components/collections/EditFolder.vue')['default']
