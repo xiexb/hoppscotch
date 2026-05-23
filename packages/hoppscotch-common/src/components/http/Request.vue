@@ -71,8 +71,15 @@
       <HoppButtonPrimary
         id="send"
         v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
-        :title="props.sendLabel ? props.sendLabel : `${t('action.send')} <kbd>${getSpecialKey()}</kbd><kbd>↩</kbd>`"
-        :label="props.sendLabel ?? (!isTabResponseLoading ? t('action.send') : t('action.cancel'))"
+        :title="
+          props.sendLabel
+            ? props.sendLabel
+            : `${t('action.send')} <kbd>${getSpecialKey()}</kbd><kbd>↩</kbd>`
+        "
+        :label="
+          props.sendLabel ??
+          (!isTabResponseLoading ? t('action.send') : t('action.cancel'))
+        "
         class="min-w-[5rem] flex-1 rounded-r-none"
         @click="onSendClick"
       />

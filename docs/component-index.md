@@ -67,6 +67,31 @@ Each section maps to a request type or shared feature area.
 - `Variables.vue`
 - `index.vue`
 
+### collections/documentation/
+*Documentation mode — collection/request documentation preview and editing*
+
+- `index.vue` — Documentation modal entry point (DocumentationModal)
+- `Preview.vue` — Documentation preview container
+- `RequestItem.vue` — Request entry in documentation tree
+- `FolderItem.vue` — Folder entry in documentation tree
+- `RequestPreview.vue` — Request documentation preview (edit/preview mode toggle, markdown editing, getResponseExamples)
+- `CollectionPreview.vue` — Collection documentation preview
+- `CollectionStructure.vue` — Collection structure navigation sidebar
+- `MarkdownEditor.vue` — Markdown editor for documentation descriptions
+- `LazyDocumentationItem.vue` — Lazy-loaded documentation item wrapper
+- `EnvironmentPicker.vue` — Environment selector for published docs
+- `PublishDocModal.vue` — Publish documentation modal
+- `PublishDocForm.vue` — Publish documentation form
+- `PublishDocSnapshotPreview.vue` — Published doc snapshot preview
+- `sections/Response.vue` — Response section display (supports responseModels + responses dual data source, dual-column layout with bodySchemaTree)
+- `sections/RequestBody.vue` — Request body section
+- `sections/Headers.vue` — Request headers section
+- `sections/Parameters.vue` — Query parameters section
+- `sections/PathParams.vue` — Path parameters section
+- `sections/Variables.vue` — Request variables section
+- `sections/Auth.vue` — Authentication section
+- `sections/CurlView.vue` — cURL command view
+
 ## console/
 
 - `Item.vue`
@@ -175,6 +200,21 @@ Each section maps to a request type or shared feature area.
 - `TestResultReport.vue`
 - `Tests.vue`
 - `URLEncodedParams.vue`
+
+### http/design/
+*Design mode — visual schema editing and API design*
+
+- `EditView.vue` — Design edit view entry point (contains MetaInfoSection + RequestOptions + ResponseSection)
+- `PreviewView.vue` — Design preview view (two-column layout: SchemaTreeReadonly + JsonExampleBlock)
+- `ResponseSection.vue` — Response model editor (manages responseModels array, add/remove/edit models)
+- `SchemaTreeEditor.vue` — Visual schema tree editor (add/edit/delete fields recursively)
+- `SchemaTreeReadonly.vue` — Read-only schema tree display
+- `SchemaTreeRow.vue` — Single schema tree row (handles type, mock, required, children)
+- `JsonExampleBlock.vue` — JSON example code block (syntax highlighting, editable, copyable)
+- `StatusBadge.vue` — API status badge (developing/Testing/Released/Deprecated)
+- `MetaInfoSection.vue` — API meta info editor (description, tags, responsibility, base URL)
+- `RequestParamsSection.vue` — Request parameters section for design mode
+- `TagInput.vue` — Tag input component
 
 ## importExport/
 

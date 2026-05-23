@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1">
     <!-- Toolbar -->
-    <div class="flex items-center justify-between px-4 py-2 border-b border-dividerLight">
+    <div
+      class="flex items-center justify-between px-4 py-2 border-b border-dividerLight"
+    >
       <div class="flex items-center gap-2">
         <HoppButtonSecondary
           :label="t('request_mode.testcases.add')"
@@ -15,10 +17,7 @@
           @click="runAllTestCases"
         />
       </div>
-      <span
-        v-if="testCases.length > 0"
-        class="text-xs text-secondary"
-      >
+      <span v-if="testCases.length > 0" class="text-xs text-secondary">
         {{ testCases.length }} {{ t("request_mode.testcases.count") }}
       </span>
     </div>
@@ -50,28 +49,25 @@
         @click="toggleExpand(testCase.id)"
       >
         <component
-          :is="expandedCases.has(testCase.id) ? IconChevronDown : IconChevronRight"
+          :is="
+            expandedCases.has(testCase.id) ? IconChevronDown : IconChevronRight
+          "
           class="svg-icons text-secondary w-4 h-4"
         />
         <!-- Test Result Indicator -->
-        <span
-          v-if="testCaseResults[testCase.id]"
-          class="flex items-center"
-        >
+        <span v-if="testCaseResults[testCase.id]" class="flex items-center">
           <IconCheckCircle
             v-if="testCaseResults[testCase.id]?.status === 'pass'"
             class="svg-icons w-4 h-4 text-green-500"
           />
-          <IconXCircle
-            v-else
-            class="svg-icons w-4 h-4 text-red-500"
-          />
+          <IconXCircle v-else class="svg-icons w-4 h-4 text-red-500" />
         </span>
         <span class="flex-1 text-sm text-secondaryDark truncate">
           {{ testCase.name }}
         </span>
         <span class="text-xs text-secondary">
-          {{ assertionCount(testCase) }} {{ t("request_mode.testcases.assertions") }}
+          {{ assertionCount(testCase) }}
+          {{ t("request_mode.testcases.assertions") }}
         </span>
         <!-- Run Single -->
         <button
@@ -279,7 +275,9 @@
               "
               class="svg-icons w-4 h-4"
             />
-            {{ testCaseResults[testCase.id]?.status === 'pass' ? 'PASS' : 'FAIL' }}
+            {{
+              testCaseResults[testCase.id]?.status === "pass" ? "PASS" : "FAIL"
+            }}
           </div>
           <div
             v-for="(detail, dIndex) in testCaseResults[testCase.id]?.details"
@@ -303,10 +301,7 @@
 import { computed, ref } from "vue"
 import { useI18n } from "@composables/i18n"
 import { useVModel } from "@vueuse/core"
-import type {
-  HoppRESTRequest,
-  HoppRESTTestCase,
-} from "@hoppscotch/data"
+import type { HoppRESTRequest, HoppRESTTestCase } from "@hoppscotch/data"
 import { generateUniqueRefId } from "@hoppscotch/data"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"

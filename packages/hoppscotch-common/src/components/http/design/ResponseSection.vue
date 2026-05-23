@@ -37,7 +37,7 @@
     <!-- Active model content -->
     <div v-if="currentModel" class="space-y-4">
       <!-- Meta info row -->
-      <div class="flex items-center gap-4 text-xs">
+      <div class="flex items-center gap-4 text-xs flex-wrap">
         <div class="flex items-center gap-1.5">
           <span class="text-secondary">HTTP 状态码:</span>
           <input
@@ -74,7 +74,8 @@
         }}</span>
         <button
           class="ml-auto text-secondaryLight hover:text-red-400 transition-colors"
-          @click="removeResponseModel(activeModel)"
+          title="删除此响应"
+          @click="confirmRemoveResponseModel(activeModel)"
         >
           <IconTrash class="w-3.5 h-3.5" />
         </button>
@@ -107,26 +108,78 @@
         />
       </div>
 
-      <!-- Bottom actions -->
-      <div class="flex items-center gap-4">
-        <button
-          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+      <!-- Response Headers (editable) -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-secondary">响应 Headers</span>
+          <button
+            class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+            @click="addHeader"
+          >
+            <IconPlus class="w-3 h-3" />
+            添加
+          </button>
+        </div>
+        <div
+          v-if="currentModel.headers && currentModel.headers.length > 0"
+          class="border border-dividerLight rounded overflow-hidden"
         >
-          <IconPlus class="w-3 h-3" />
-          添加示例
-        </button>
-        <button
-          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+          <table class="w-full text-xs">
+            <thead class="bg-primaryLight">
+              <tr>
+                <th
+                  class="text-left py-1.5 px-2 font-semibold text-secondaryDark w-1/3"
+                >
+                  Key
+                </th>
+                <th
+                  class="text-left py-1.5 px-2 font-semibold text-secondaryDark"
+                >
+                  说明
+                </th>
+                <th class="w-8 py-1.5 px-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(header, hIdx) in currentModel.headers"
+                :key="hIdx"
+                class="border-t border-dividerLight"
+              >
+                <td class="py-1 px-2">
+                  <input
+                    :value="header.key"
+                    class="w-full bg-transparent outline-none text-secondaryDark font-mono"
+                    placeholder="Content-Type"
+                    @input="onHeaderInput(hIdx, 'key', $event)"
+                  />
+                </td>
+                <td class="py-1 px-2">
+                  <input
+                    :value="header.description"
+                    class="w-full bg-transparent outline-none text-secondaryDark"
+                    placeholder="响应头说明"
+                    @input="onHeaderInput(hIdx, 'description', $event)"
+                  />
+                </td>
+                <td class="py-1 px-1">
+                  <button
+                    class="text-secondaryLight hover:text-red-400 transition-colors"
+                    @click="removeHeader(hIdx)"
+                  >
+                    <IconX class="w-3 h-3" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div
+          v-else
+          class="text-xs text-secondaryLight py-2 text-center border border-dashed border-dividerLight rounded"
         >
-          <IconPlus class="w-3 h-3" />
-          添加描述
-        </button>
-        <button
-          class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
-        >
-          <IconPlus class="w-3 h-3" />
-          Headers
-        </button>
+          暂无响应头定义
+        </div>
       </div>
     </div>
 
@@ -152,8 +205,10 @@ import type {
 } from "@hoppscotch/data"
 import IconTrash from "~icons/lucide/trash-2"
 import IconPlus from "~icons/lucide/plus"
+import IconX from "~icons/lucide/x"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
+import { statusTabClass, statusDotClass } from "./utils/schemaExample"
 
 const props = defineProps<{
   request: HoppRESTRequest
@@ -205,6 +260,16 @@ function addResponseModel() {
   activeModel.value = models.length - 1
 }
 
+function confirmRemoveResponseModel(index: number) {
+  const model = responseModels.value[index]
+  const label = model
+    ? `${model.statusCode} ${model.description || "响应"}`
+    : "此响应"
+  if (confirm(`确定删除响应 "${label}" 吗？`)) {
+    removeResponseModel(index)
+  }
+}
+
 function removeResponseModel(index: number) {
   const models = ensureModels()
   models.splice(index, 1)
@@ -232,21 +297,27 @@ function onExampleUpdate(val: string) {
   updateModel(activeModel.value, { bodyExample: val })
 }
 
-function statusTabClass(code: string): string {
-  const num = parseInt(code, 10)
-  if (num >= 200 && num < 300) return "border-green-500 text-green-500"
-  if (num >= 300 && num < 400) return "border-blue-500 text-blue-500"
-  if (num >= 400 && num < 500) return "border-yellow-500 text-yellow-500"
-  if (num >= 500) return "border-red-500 text-red-500"
-  return "border-secondary text-secondary"
+// --- Headers editing ---
+function addHeader() {
+  const headers = [...(currentModel.value?.headers ?? [])]
+  headers.push({ key: "", description: "" })
+  updateModel(activeModel.value, { headers })
 }
 
-function statusDotClass(code: string): string {
-  const num = parseInt(code, 10)
-  if (num >= 200 && num < 300) return "bg-green-500"
-  if (num >= 300 && num < 400) return "bg-blue-500"
-  if (num >= 400 && num < 500) return "bg-yellow-500"
-  if (num >= 500) return "bg-red-500"
-  return "bg-secondary"
+function removeHeader(hIdx: number) {
+  const headers = [...(currentModel.value?.headers ?? [])]
+  headers.splice(hIdx, 1)
+  updateModel(activeModel.value, { headers })
+}
+
+function onHeaderInput(
+  hIdx: number,
+  field: "key" | "description",
+  event: Event
+) {
+  const target = event.target as HTMLInputElement
+  const headers = [...(currentModel.value?.headers ?? [])]
+  headers[hIdx] = { ...headers[hIdx], [field]: target.value }
+  updateModel(activeModel.value, { headers })
 }
 </script>

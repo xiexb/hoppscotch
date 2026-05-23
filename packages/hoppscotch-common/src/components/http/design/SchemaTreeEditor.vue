@@ -1,7 +1,9 @@
 <template>
   <div class="text-xs">
     <!-- Root node header -->
-    <div class="flex items-center gap-2 py-1.5 px-2 bg-primaryLight rounded-t border border-dividerLight">
+    <div
+      class="flex items-center gap-2 py-1.5 px-2 bg-primaryLight rounded-t border border-dividerLight"
+    >
       <IconChevronDown class="w-3.5 h-3.5 text-accent" />
       <span class="text-accent font-semibold">根节点</span>
       <span class="text-accent text-xs">object</span>

@@ -35,7 +35,10 @@
       </span>
 
       <!-- Description -->
-      <span v-if="node.description" class="text-xs text-secondaryLight ml-auto truncate max-w-[200px]">
+      <span
+        v-if="node.description"
+        class="text-xs text-secondaryLight ml-auto truncate max-w-[200px]"
+      >
         {{ node.description }}
       </span>
     </div>

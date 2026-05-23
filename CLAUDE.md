@@ -83,7 +83,7 @@ All core data models use `verzod` for schema versioning. **Adding a field requir
 Current versions:
 | Entity | Latest Version | Package Path |
 |--------|---------------|-------------|
-| HoppRESTRequest | v17 | `@hoppscotch/data/rest` |
+| HoppRESTRequest | v20 | `@hoppscotch/data/rest` |
 | HoppGQLRequest | v9 | `@hoppscotch/data/graphql` |
 | HoppCollection | v12 | `@hoppscotch/data/collection` |
 | Environment | v2 | `@hoppscotch/data/environment` |
@@ -174,8 +174,10 @@ Without `host: '0.0.0.0'`, Vite listens on IPv6 only → nginx proxy to 127.0.0.
 ```
 # Common UI components
 packages/hoppscotch-common/src/components/http/         # REST request UI
+packages/hoppscotch-common/src/components/http/design/  # Design mode (schema tree, response models)
 packages/hoppscotch-common/src/components/graphql/      # GraphQL request UI
 packages/hoppscotch-common/src/components/realtime/     # WebSocket/SSE/Socket.IO/MQTT
+packages/hoppscotch-common/src/components/collections/documentation/  # Documentation mode preview
 
 # Data models
 packages/hoppscotch-data/src/rest/v/                    # REST request versioned schemas
@@ -200,6 +202,8 @@ packages/hoppscotch-backend/prisma/                     # Prisma schema & migrat
 ## Documentation
 
 - `docs/wiki/` — OpenDeepWiki documentation (38 pages covering all subsystems)
+- `docs/wiki/07-documentation-mode.md` — Documentation mode architecture, data model, component tree, edit/preview flow
+- `docs/API文档模式-布局与功能设计说明.md` — API 文档模式 UI 布局与功能设计说明
 - `docs/verzod-migration-checklist.md` — Step-by-step guide for data model changes
 - `docs/request-pipeline.md` — REST request execution pipeline details
 - `docs/component-index.md` — UI component directory

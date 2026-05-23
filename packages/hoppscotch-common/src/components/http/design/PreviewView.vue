@@ -197,7 +197,7 @@
     <div class="p-4 space-y-4">
       <h3 class="text-sm font-semibold text-secondaryDark">返回响应</h3>
 
-      <!-- Response tabs -->
+      <!-- Response tabs (color-coded by status code) -->
       <div
         v-if="responseModels.length > 0"
         class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto"
@@ -208,19 +208,24 @@
           class="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-t transition-colors shrink-0"
           :class="
             activeResponseTab === index
-              ? 'border-b-2 border-green-500 font-bold text-green-500'
+              ? 'border-b-2 font-bold ' + statusTabClass(model.statusCode)
               : 'text-secondary hover:text-secondaryDark'
           "
           @click="activeResponseTab = index"
         >
+          <span
+            class="w-1.5 h-1.5 rounded-full"
+            :class="statusDotClass(model.statusCode)"
+          />
           {{ model.statusCode }} {{ model.description || "响应" }}
         </button>
       </div>
 
       <!-- Active response body (two-column) -->
-      <div v-if="currentResponse" class="space-y-2">
+      <div v-if="currentResponse" class="space-y-3">
         <div class="text-xs text-secondary">
-          HTTP 状态码: {{ currentResponse.statusCode }}
+          HTTP 状态码:
+          <span class="font-mono">{{ currentResponse.statusCode }}</span>
           <span class="text-secondaryLight font-mono ml-2">{{
             currentResponse.contentType
           }}</span>
@@ -257,6 +262,61 @@
             />
           </div>
         </div>
+
+        <!-- Response Headers (read-only) -->
+        <div
+          v-if="currentResponse.headers && currentResponse.headers.length > 0"
+        >
+          <div
+            class="flex items-center gap-2 cursor-pointer"
+            @click="showResponseHeaders = !showResponseHeaders"
+          >
+            <component
+              :is="showResponseHeaders ? IconChevronDown : IconChevronRight"
+              class="w-3.5 h-3.5 text-secondary"
+            />
+            <span class="text-xs font-semibold text-secondaryDark"
+              >响应 Headers</span
+            >
+            <span class="text-xs text-secondaryLight"
+              >({{ currentResponse.headers.length }})</span
+            >
+          </div>
+          <div v-if="showResponseHeaders" class="mt-2">
+            <table
+              class="w-full border-collapse text-xs border border-dividerLight rounded"
+            >
+              <thead class="bg-primaryLight">
+                <tr>
+                  <th
+                    class="text-left py-1.5 px-3 font-semibold text-secondaryDark w-1/3"
+                  >
+                    Key
+                  </th>
+                  <th
+                    class="text-left py-1.5 px-3 font-semibold text-secondaryDark"
+                  >
+                    说明
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(header, hIdx) in currentResponse.headers"
+                  :key="hIdx"
+                  class="border-t border-dividerLight"
+                >
+                  <td class="py-1.5 px-3 font-mono text-accent">
+                    {{ header.key }}
+                  </td>
+                  <td class="py-1.5 px-3 text-secondaryLight">
+                    {{ header.description || "-" }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div v-else class="text-xs text-secondaryLight py-4 text-center">
@@ -271,7 +331,6 @@ import { ref, computed } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV20,
-  HoppRESTSchemaNode,
 } from "@hoppscotch/data"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
@@ -281,6 +340,11 @@ import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import { useI18n } from "@composables/i18n"
 import { invokeAction } from "~/helpers/actions"
+import {
+  generateExampleFromSchema,
+  statusTabClass,
+  statusDotClass,
+} from "./utils/schemaExample"
 
 const t = useI18n()
 
@@ -301,6 +365,7 @@ function onSaveAs() {
 }
 
 const showAuth = ref(false)
+const showResponseHeaders = ref(true)
 const activeResponseTab = ref(0)
 
 const tags = computed(() => props.request.tags ?? [])
@@ -373,44 +438,4 @@ const bodyExampleJson = computed(() => {
   if (typeof body.body === "string") return body.body
   return "{}"
 })
-
-function generateExampleFromSchema(
-  tree: HoppRESTSchemaNode[] | null | undefined
-): string {
-  if (!tree || tree.length === 0) return "{}"
-  const obj: Record<string, unknown> = {}
-  for (const node of tree) {
-    obj[node.name || "field"] = generateNodeExample(node)
-  }
-  return JSON.stringify(obj, null, 2)
-}
-
-function generateNodeExample(node: HoppRESTSchemaNode): unknown {
-  switch (node.type) {
-    case "string":
-      return node.mock || "string"
-    case "integer":
-      return 0
-    case "number":
-      return 0.0
-    case "boolean":
-      return true
-    case "array":
-      if (node.children && node.children.length > 0) {
-        return [generateNodeExample(node.children[0])]
-      }
-      return []
-    case "object":
-      if (node.children && node.children.length > 0) {
-        const obj: Record<string, unknown> = {}
-        for (const child of node.children) {
-          obj[child.name || "field"] = generateNodeExample(child)
-        }
-        return obj
-      }
-      return {}
-    default:
-      return null
-  }
-}
 </script>

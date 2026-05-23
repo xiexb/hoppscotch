@@ -80,7 +80,7 @@
       <CollectionsDocumentationSectionsRequestBody :body="request?.body" />
 
       <CollectionsDocumentationSectionsResponse
-        :response-examples="getResponseExamples()"
+        :response-examples="responseExamples"
       />
     </div>
 
@@ -96,6 +96,7 @@ import {
   Environment,
   HoppCollectionVariable,
   HoppRESTRequest,
+  HoppRESTResponseModelV20,
   makeRESTRequest,
 } from "@hoppscotch/data"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
@@ -273,33 +274,78 @@ watch(
   { immediate: true }
 )
 
-function getResponseExamples() {
+interface ResponseHeader {
+  key: string
+  value?: string
+  description?: string
+}
+
+interface ResponseExample {
+  name?: string
+  statusCode?: number
+  headers?: ResponseHeader[]
+  body?: string
+  contentType?: string
+  bodySchemaTree?: any[] | null
+}
+
+/**
+ * Computed property that extracts response examples from the request.
+ * Priority 1: Read from v20 responseModels (design mode data)
+ * Priority 2: Fall back to legacy responses field
+ *
+ * Key fix: design-mode headers have { key, description } where
+ * description is a human-readable explanation, NOT a value.
+ * We pass both fields so the display component can show them correctly.
+ */
+const responseExamples = computed<ResponseExample[] | null>(() => {
   if (!props.request) return null
 
-  if (
-    props.request.responses &&
-    Object.keys(props.request.responses).length > 0
-  ) {
-    const examples = []
+  const examples: ResponseExample[] = []
 
-    for (const [name, response] of Object.entries(props.request.responses)) {
-      if (response && typeof response === "object") {
-        const example = {
-          name: name || "Response Example",
-          statusCode: response.code || 200,
-          headers: response.headers || [],
-          body: response.body || "",
-          contentType: "application/json",
-        }
-        examples.push(example)
-      }
+  // Priority 1: Read from v20 responseModels (design mode data)
+  const responseModels = props.request.responseModels as
+    | HoppRESTResponseModelV20[]
+    | undefined
+
+  if (responseModels && responseModels.length > 0) {
+    for (const model of responseModels) {
+      examples.push({
+        name: model.description || `Status ${model.statusCode}`,
+        statusCode: parseInt(model.statusCode, 10) || 200,
+        // Design-mode headers: description is the explanation, not a value
+        headers: (model.headers || []).map((h) => ({
+          key: h.key,
+          description: h.description,
+        })),
+        body: model.bodyExample || model.bodySchema || "",
+        contentType: model.contentType || "application/json",
+        bodySchemaTree: model.bodySchemaTree,
+      })
     }
-
-    return examples.length > 0 ? examples : null
   }
 
-  return null
-}
+  // Priority 2: Fall back to legacy responses field
+  if (examples.length === 0) {
+    const responses = props.request.responses
+    if (responses && Object.keys(responses).length > 0) {
+      for (const [name, response] of Object.entries(responses)) {
+        if (response && typeof response === "object") {
+          examples.push({
+            name: name || "Response Example",
+            statusCode: response.code || 200,
+            // Legacy headers already have { key, value } format
+            headers: response.headers || [],
+            body: response.body || "",
+            contentType: "application/json",
+          })
+        }
+      }
+    }
+  }
+
+  return examples.length > 0 ? examples : null
+})
 
 function handleBlur(): void {
   // Only store changes in documentation service if there's actually a change

@@ -18,7 +18,7 @@
           v-for="(example, index) in responseExamples"
           :id="`response-${index}`"
           :key="index"
-          :label="String(example.statusCode)"
+          :label="responseTabLabel(example)"
           class="flex h-full w-full flex-1 flex-col"
         >
           <div class="rounded-md overflow-hidden my-4">
@@ -29,96 +29,133 @@
                     {{ example.name || "Untitled" }}
                   </span>
                 </div>
-                <HoppSmartItem
-                  :icon="IconCopy"
-                  :title="t('documentation.response.copy')"
-                  @click="copyResponseExample(example)"
-                />
-              </div>
-            </div>
-
-            <HoppSmartTabs
-              v-model="selectedContentTabs[index]"
-              styles="sticky overflow-x-auto flex-shrink-0 z-10 bg-primary"
-            >
-              <HoppSmartTab
-                v-if="example.body"
-                id="body"
-                :label="t('documentation.response.body')"
-                class="flex h-full w-full flex-1 flex-col"
-              >
-                <div class="p-4">
-                  <div v-if="isJsonResponse(example)">
-                    <pre
-                      class="bg-primaryLight p-3 rounded my-2 overflow-auto max-h-64 text-sm font-mono text-secondaryLight"
-                      >{{ formatJSON(example.body) }}</pre
-                    >
-                  </div>
-                  <div v-else>
-                    <pre
-                      class="bg-primaryLight p-3 rounded my-2 overflow-auto max-h-64 text-sm font-mono text-secondaryLight"
-                      >{{ example.body }}</pre
-                    >
-                  </div>
-                </div>
-              </HoppSmartTab>
-
-              <HoppSmartTab
-                v-if="example.headers && example.headers.length > 0"
-                id="headers"
-                :label="t('documentation.response.headers')"
-                :info="`${example.headers.length}`"
-                class="flex h-full w-full flex-1 flex-col"
-              >
-                <div class="p-4">
-                  <table class="w-full border-collapse text-sm">
-                    <thead class="bg-divider/20">
-                      <tr>
-                        <th
-                          class="text-left py-2 px-3 font-semibold text-secondaryDark text-xs"
-                        >
-                          {{ t("documentation.key") }}
-                        </th>
-                        <th
-                          class="text-left py-2 px-3 font-semibold text-secondaryDark text-xs"
-                        >
-                          {{ t("documentation.value") }}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="(header, headerIndex) in example.headers"
-                        :key="headerIndex"
-                        class="border-t border-divider"
-                      >
-                        <td class="py-2 px-3 text-xs">
-                          {{ header.key }}
-                        </td>
-                        <td class="py-2 px-3 text-secondaryLight text-xs">
-                          {{ header.value }}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </HoppSmartTab>
-
-              <template #actions>
-                <div
-                  v-if="example.statusCode"
-                  class="flex items-center gap-2 px-4"
-                >
+                <div class="flex items-center gap-2">
                   <span
+                    v-if="example.statusCode"
                     class="px-1 py-.5 text-tiny rounded"
-                    :class="getStatusCodeClass(example.statusCode)"
+                    :class="statusCodeBadgeClass(example.statusCode)"
                   >
                     {{ example.statusCode }} -
                     {{ getStatusCodeReasonPhrase(example.statusCode) }}
                   </span>
+                  <HoppSmartItem
+                    :icon="IconCopy"
+                    :title="t('documentation.response.copy')"
+                    @click="copyResponseExample(example)"
+                  />
                 </div>
-              </template>
-            </HoppSmartTabs>
+              </div>
+            </div>
+
+            <!-- Two-column layout when bodySchemaTree is present -->
+            <div
+              v-if="example.bodySchemaTree && example.bodySchemaTree.length > 0"
+              class="p-4"
+            >
+              <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                <!-- Left: schema tree (60%) -->
+                <div class="lg:col-span-3 space-y-1">
+                  <div
+                    class="text-xs font-semibold text-secondaryDark mb-2 flex items-center justify-between"
+                  >
+                    <span>{{
+                      t("documentation.response.schema") || "Schema"
+                    }}</span>
+                    <span class="text-secondaryLight font-mono">{{
+                      example.contentType
+                    }}</span>
+                  </div>
+                  <SchemaTreeReadonly
+                    v-for="(node, nodeIdx) in example.bodySchemaTree"
+                    :key="nodeIdx"
+                    :node="node"
+                    :depth="0"
+                  />
+                </div>
+                <!-- Right: JSON example (40%) -->
+                <div class="lg:col-span-2">
+                  <JsonExampleBlock
+                    :content="
+                      example.body ||
+                      generateExampleFromSchema(example.bodySchemaTree)
+                    "
+                    :content-type="example.contentType"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Fallback: body/headers tabs when bodySchemaTree is absent -->
+            <div v-else>
+              <HoppSmartTabs
+                v-model="selectedContentTabs[index]"
+                styles="sticky overflow-x-auto flex-shrink-0 z-10 bg-primary"
+              >
+                <HoppSmartTab
+                  v-if="example.body"
+                  id="body"
+                  :label="t('documentation.response.body')"
+                  class="flex h-full w-full flex-1 flex-col"
+                >
+                  <div class="p-4">
+                    <div v-if="isJsonResponse(example)">
+                      <pre
+                        class="bg-primaryLight p-3 rounded my-2 overflow-auto max-h-64 text-sm font-mono text-secondaryLight"
+                        >{{ formatJSON(example.body) }}</pre
+                      >
+                    </div>
+                    <div v-else>
+                      <pre
+                        class="bg-primaryLight p-3 rounded my-2 overflow-auto max-h-64 text-sm font-mono text-secondaryLight"
+                        >{{ example.body }}</pre
+                      >
+                    </div>
+                  </div>
+                </HoppSmartTab>
+
+                <HoppSmartTab
+                  v-if="example.headers && example.headers.length > 0"
+                  id="headers"
+                  :label="t('documentation.response.headers')"
+                  :info="`${example.headers.length}`"
+                  class="flex h-full w-full flex-1 flex-col"
+                >
+                  <div class="p-4">
+                    <ResponseHeadersTable :headers="example.headers" />
+                  </div>
+                </HoppSmartTab>
+              </HoppSmartTabs>
+            </div>
+
+            <!-- Headers table shown below when bodySchemaTree is present and headers exist -->
+            <div
+              v-if="
+                example.bodySchemaTree &&
+                example.bodySchemaTree.length > 0 &&
+                example.headers &&
+                example.headers.length > 0
+              "
+              class="px-4 pb-4"
+            >
+              <div
+                class="text-xs font-semibold text-secondaryDark mb-2 mt-2 flex items-center gap-2 cursor-pointer"
+                @click="toggleHeaders(index)"
+              >
+                <component
+                  :is="
+                    expandedHeaders[index] ? IconChevronDown : IconChevronRight
+                  "
+                  class="w-3.5 h-3.5 text-secondary"
+                />
+                {{ t("documentation.response.headers") }}
+                <span class="text-secondaryLight"
+                  >({{ example.headers.length }})</span
+                >
+              </div>
+              <div v-if="expandedHeaders[index]">
+                <ResponseHeadersTable :headers="example.headers" />
+              </div>
+            </div>
           </div>
         </HoppSmartTab>
       </HoppSmartTabs>
@@ -132,20 +169,45 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from "vue"
+import { computed, ref, watch, reactive } from "vue"
 import IconCopy from "~icons/lucide/copy"
+import IconChevronDown from "~icons/lucide/chevron-down"
+import IconChevronRight from "~icons/lucide/chevron-right"
 import { useToast } from "~/composables/toast"
 import { getStatusCodeReasonPhrase } from "~/helpers/utils/statusCodes"
 import { useI18n } from "~/composables/i18n"
+import SchemaTreeReadonly from "~/components/http/design/SchemaTreeReadonly.vue"
+import JsonExampleBlock from "~/components/http/design/JsonExampleBlock.vue"
+import {
+  generateExampleFromSchema,
+  statusCodeBadgeClass,
+} from "~/components/http/design/utils/schemaExample"
+import ResponseHeadersTable from "./ResponseHeadersTable.vue"
 
 const t = useI18n()
+
+/**
+ * Response headers can come from two sources:
+ * 1. Design mode (responseModels): { key, description } — key is header name, description is explanation
+ * 2. Legacy responses: { key, value } — key is header name, value is actual value
+ *
+ * We normalize both to a common interface for display.
+ */
+export interface ResponseHeader {
+  key: string
+  /** For design-mode headers, this is the description. For legacy, this is the value. */
+  value?: string
+  /** Design-mode header description (optional, only from responseModels) */
+  description?: string
+}
 
 interface ResponseExample {
   name?: string
   statusCode?: number
-  headers?: Array<{ key: string; value: string }>
+  headers?: ResponseHeader[]
   body?: string
   contentType?: string
+  bodySchemaTree?: any[] | null
 }
 
 const props = defineProps<{
@@ -155,6 +217,11 @@ const props = defineProps<{
 const toast = useToast()
 const selectedResponseTab = ref<string>("response-0")
 const selectedContentTabs = ref<Record<number, string>>({})
+const expandedHeaders = reactive<Record<number, boolean>>({})
+
+function toggleHeaders(index: number) {
+  expandedHeaders[index] = !expandedHeaders[index]
+}
 
 // Initialize tabs when responseExamples change
 watch(
@@ -181,27 +248,20 @@ const hasResponseExamples = computed(() => {
 })
 
 /**
- * Returns the appropriate CSS class for styling the status code badge
- * @param statusCode The HTTP status code
- * @returns CSS class string for the status code badge
+ * Generate a tab label showing status code and reason phrase
  */
-function getStatusCodeClass(statusCode: number): string {
-  if (statusCode >= 200 && statusCode < 300) {
-    return "bg-green-500/10 text-green-500 "
-  } else if (statusCode >= 300 && statusCode < 400) {
-    return "bg-yellow-500/10 text-yellow-500"
-  } else if (statusCode >= 400 && statusCode < 500) {
-    return "bg-orange-500/10 text-orange-500"
-  } else if (statusCode >= 500) {
-    return "bg-red-500/10 text-red-500"
+function responseTabLabel(example: ResponseExample): string {
+  if (example.statusCode) {
+    const phrase = getStatusCodeReasonPhrase(example.statusCode)
+    return phrase
+      ? `${example.statusCode} ${phrase}`
+      : String(example.statusCode)
   }
-  return "bg-secondaryLight/20 text-secondaryLight"
+  return "Response"
 }
 
 /**
  * Check if the response is JSON based on content type or body structure
- * @param example Response example
- * @returns Boolean indicating if response is JSON
  */
 function isJsonResponse(example: ResponseExample): boolean {
   if (example.contentType?.includes("application/json")) {
@@ -219,8 +279,6 @@ function isJsonResponse(example: ResponseExample): boolean {
 
 /**
  * Format JSON string for display
- * @param jsonString String to format
- * @returns Formatted JSON string
  */
 function formatJSON(jsonString: string): string {
   try {
@@ -233,7 +291,6 @@ function formatJSON(jsonString: string): string {
 
 /**
  * Copy response example to clipboard
- * @param example Response example to copy
  */
 async function copyResponseExample(example: ResponseExample): Promise<void> {
   try {

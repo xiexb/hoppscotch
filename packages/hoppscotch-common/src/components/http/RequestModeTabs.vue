@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="flex items-center border-b border-dividerLight bg-primary"
-  >
+  <div class="flex items-center border-b border-dividerLight bg-primary">
     <button
       v-for="mode in modes"
       :key="mode.id"
@@ -40,6 +38,10 @@ const t = useI18n()
 const modes: { id: RequestMode; label: string; icon: typeof IconFileText }[] = [
   { id: "design", label: t("request_mode.design_tab"), icon: IconFileText },
   { id: "debug", label: t("request_mode.debug"), icon: IconPlay },
-  { id: "testcases", label: t("request_mode.testcases_tab"), icon: IconCheckCircle },
+  {
+    id: "testcases",
+    label: t("request_mode.testcases_tab"),
+    icon: IconCheckCircle,
+  },
 ]
 </script>

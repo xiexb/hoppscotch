@@ -27,7 +27,9 @@
     <div class="p-4">
       <!-- Authorization -->
       <div v-if="activeTab === 'auth'" class="space-y-2">
-        <div class="text-xs text-secondaryDark font-semibold mb-2">Authorization</div>
+        <div class="text-xs text-secondaryDark font-semibold mb-2">
+          Authorization
+        </div>
         <div class="text-xs text-secondary bg-primaryLight rounded p-2">
           {{ authDescription }}
         </div>
@@ -46,7 +48,9 @@
           :key="'path-' + index"
           class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-primaryLight"
         >
-          <span class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-32 truncate">
+          <span
+            class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-32 truncate"
+          >
             {{ param.key }}
           </span>
           <span class="text-xs text-secondaryLight w-16">string</span>
@@ -78,7 +82,9 @@
           :key="'query-' + index"
           class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-primaryLight"
         >
-          <span class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-32 truncate">
+          <span
+            class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-32 truncate"
+          >
             {{ param.key }}
           </span>
           <input
@@ -109,7 +115,9 @@
           :key="'header-' + index"
           class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-primaryLight"
         >
-          <span class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-36 truncate">
+          <span
+            class="font-mono text-xs px-2 py-0.5 rounded bg-accentLight/20 text-accent w-36 truncate"
+          >
             {{ header.key }}
           </span>
           <input
@@ -130,7 +138,9 @@
       <!-- Body -->
       <div v-if="activeTab === 'body'">
         <template v-if="request.body.contentType === null">
-          <div class="text-xs text-secondaryLight py-4 text-center">暂无请求体</div>
+          <div class="text-xs text-secondaryLight py-4 text-center">
+            暂无请求体
+          </div>
         </template>
         <template v-else>
           <div class="flex items-center gap-2 mb-2">
@@ -200,9 +210,21 @@ const bodyContent = computed(() => {
 
 const paramTabs = computed(() => [
   { id: "auth" as ParamTab, label: "Authorization", count: 0 },
-  { id: "path" as ParamTab, label: "Path 参数", count: activePathParams.value.length },
-  { id: "query" as ParamTab, label: "Query 参数", count: activeQueryParams.value.length },
-  { id: "headers" as ParamTab, label: "Headers", count: activeHeaders.value.length },
+  {
+    id: "path" as ParamTab,
+    label: "Path 参数",
+    count: activePathParams.value.length,
+  },
+  {
+    id: "query" as ParamTab,
+    label: "Query 参数",
+    count: activeQueryParams.value.length,
+  },
+  {
+    id: "headers" as ParamTab,
+    label: "Headers",
+    count: activeHeaders.value.length,
+  },
   { id: "body" as ParamTab, label: "Body", count: 0 },
 ])
 
