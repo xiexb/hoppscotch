@@ -70,6 +70,7 @@
                     :key="nodeIdx"
                     :node="node"
                     :depth="0"
+                    :model-resolver="readonlyModelResolver"
                   />
                 </div>
                 <!-- Right: JSON example (40%) -->
@@ -77,7 +78,10 @@
                   <JsonExampleBlock
                     :content="
                       example.body ||
-                      generateExampleFromSchema(example.bodySchemaTree)
+                      generateExampleFromSchema(
+                        example.bodySchemaTree,
+                        modelResolver
+                      )
                     "
                     :content-type="example.contentType"
                   />
@@ -173,18 +177,46 @@ import { computed, ref, watch, reactive } from "vue"
 import IconCopy from "~icons/lucide/copy"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
+import { useService } from "dioc/vue"
 import { useToast } from "~/composables/toast"
 import { getStatusCodeReasonPhrase } from "~/helpers/utils/statusCodes"
 import { useI18n } from "~/composables/i18n"
+import type { HoppRESTSchemaNode } from "@hoppscotch/data"
 import SchemaTreeReadonly from "~/components/http/design/SchemaTreeReadonly.vue"
+import type { ReadonlyModelResolver } from "~/components/http/design/SchemaTreeReadonly.vue"
 import JsonExampleBlock from "~/components/http/design/JsonExampleBlock.vue"
 import {
   generateExampleFromSchema,
   statusCodeBadgeClass,
 } from "~/components/http/design/utils/schemaExample"
+import type { ModelResolver } from "~/components/http/design/utils/schemaExample"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
 import ResponseHeadersTable from "./ResponseHeadersTable.vue"
 
 const t = useI18n()
+
+// Workspace model service for resolving modelRef
+const workspaceModelService = useService(WorkspaceModelService)
+
+/**
+ * Resolver for generateExampleFromSchema: modelRef ID → schema tree
+ */
+const modelResolver: ModelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  return model?.schemaTree as HoppRESTSchemaNode[] | undefined
+}
+
+/**
+ * Resolver for SchemaTreeReadonly: modelRef ID → { name, schemaTree }
+ */
+const readonlyModelResolver: ReadonlyModelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  if (!model) return undefined
+  return {
+    name: model.name,
+    schemaTree: (model.schemaTree ?? []) as HoppRESTSchemaNode[],
+  }
+}
 
 /**
  * Response headers can come from two sources:

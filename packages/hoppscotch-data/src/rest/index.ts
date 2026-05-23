@@ -31,6 +31,7 @@ import V17_VERSION from "./v/17"
 import V18_VERSION, { HoppRESTPathParams } from "./v/18"
 import V19_VERSION from "./v/19"
 import V20_VERSION from "./v/20"
+import V21_VERSION from "./v/21"
 
 export * from "./content-types"
 
@@ -82,13 +83,20 @@ export {
 
 export {
   HoppRESTApiStatus,
-  HoppRESTSchemaNodeSchema,
 } from "./v/20"
 
+export {
+  HoppRESTSchemaNodeSchema,
+  HoppWorkspaceModel,
+} from "./v/21"
+
 export type {
-  HoppRESTResponseModelV20,
+  HoppRESTResponseModelV21,
   HoppRESTSchemaNode,
-} from "./v/20"
+} from "./v/21"
+
+// Backward-compatible re-exports from v20
+export type { HoppRESTResponseModelV20 } from "./v/20"
 
 export {
   HoppRESTRequestResponse,
@@ -101,7 +109,7 @@ const versionedObject = z.object({
 })
 
 export const HoppRESTRequest = createVersionedEntity({
-  latestVersion: 20,
+  latestVersion: 21,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
@@ -124,6 +132,7 @@ export const HoppRESTRequest = createVersionedEntity({
     18: V18_VERSION,
     19: V19_VERSION,
     20: V20_VERSION,
+    21: V21_VERSION,
   },
   getVersion(data) {
     // For V1 onwards we have the v string storing the number
@@ -180,7 +189,7 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
   inheritedBaseUrl: S.Eq,
 })
 
-export const RESTReqSchemaVersion = "20"
+export const RESTReqSchemaVersion = "21"
 
 export type HoppRESTParam = HoppRESTRequest["params"][number]
 export type HoppRESTHeader = HoppRESTRequest["headers"][number]

@@ -245,6 +245,7 @@
                 :key="index"
                 :node="node"
                 :depth="0"
+                :model-resolver="readonlyModelResolver"
               />
             </template>
             <div v-else class="text-xs text-secondaryLight py-2">
@@ -256,7 +257,10 @@
             <JsonExampleBlock
               :content="
                 currentResponse.bodyExample ||
-                generateExampleFromSchema(currentResponse.bodySchemaTree)
+                generateExampleFromSchema(
+                  currentResponse.bodySchemaTree,
+                  modelResolver
+                )
               "
               :content-type="currentResponse.contentType"
             />
@@ -330,14 +334,17 @@
 import { ref, computed } from "vue"
 import type {
   HoppRESTRequest,
-  HoppRESTResponseModelV20,
+  HoppRESTResponseModelV21,
+  HoppRESTSchemaNode,
 } from "@hoppscotch/data"
+import { useService } from "dioc/vue"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconSave from "~icons/lucide/save"
 import IconFolderPlus from "~icons/lucide/folder-plus"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
+import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
 import { useI18n } from "@composables/i18n"
 import { invokeAction } from "~/helpers/actions"
 import {
@@ -345,8 +352,33 @@ import {
   statusTabClass,
   statusDotClass,
 } from "./utils/schemaExample"
+import type { ModelResolver } from "./utils/schemaExample"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
 
 const t = useI18n()
+
+// Workspace model service for resolving modelRef
+const workspaceModelService = useService(WorkspaceModelService)
+
+/**
+ * Resolver for generateExampleFromSchema: modelRef ID → schema tree
+ */
+const modelResolver: ModelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  return model?.schemaTree as HoppRESTSchemaNode[] | undefined
+}
+
+/**
+ * Resolver for SchemaTreeReadonly: modelRef ID → { name, schemaTree }
+ */
+const readonlyModelResolver: ReadonlyModelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  if (!model) return undefined
+  return {
+    name: model.name,
+    schemaTree: (model.schemaTree ?? []) as HoppRESTSchemaNode[],
+  }
+}
 
 const props = defineProps<{
   request: HoppRESTRequest
@@ -381,7 +413,7 @@ const activeHeaders = computed(() =>
 )
 
 const responseModels = computed(
-  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV20[]
+  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV21[]
 )
 const currentResponse = computed(
   () => responseModels.value[activeResponseTab.value] ?? null

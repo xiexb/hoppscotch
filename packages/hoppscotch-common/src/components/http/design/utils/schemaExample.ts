@@ -1,21 +1,77 @@
 import type { HoppRESTSchemaNode } from "@hoppscotch/data"
 
 /**
+ * Resolves a modelRef ID to its schema tree.
+ * Used by generateExampleFromSchema to expand model references.
+ */
+export type ModelResolver = (
+  modelRefId: string
+) => HoppRESTSchemaNode[] | undefined
+
+/**
  * Generate a JSON example string from a schema tree.
  * Used by EditView, PreviewView, and documentation Response.vue.
+ *
+ * @param tree - The schema tree to generate an example from.
+ * @param modelResolver - Optional function to resolve modelRef IDs to their
+ *   schema trees. When provided, nodes with `modelRef` set will be expanded
+ *   using the referenced model's schema instead of returning an empty object.
  */
 export function generateExampleFromSchema(
-  tree: HoppRESTSchemaNode[] | null | undefined
+  tree: HoppRESTSchemaNode[] | null | undefined,
+  modelResolver?: ModelResolver
 ): string {
   if (!tree || tree.length === 0) return "{}"
   const obj: Record<string, unknown> = {}
   for (const node of tree) {
-    obj[node.name || "field"] = generateNodeExample(node)
+    obj[node.name || "field"] = generateNodeExample(
+      node,
+      modelResolver,
+      new Set()
+    )
   }
   return JSON.stringify(obj, null, 2)
 }
 
-function generateNodeExample(node: HoppRESTSchemaNode): unknown {
+function generateNodeExample(
+  node: HoppRESTSchemaNode,
+  modelResolver?: ModelResolver,
+  visited?: Set<string>
+): unknown {
+  // v21: resolve modelRef — use the referenced model's schema tree
+  if (node.modelRef && modelResolver) {
+    // Guard against circular references
+    const visitedSet = visited ?? new Set<string>()
+    if (visitedSet.has(node.modelRef)) {
+      return { __circular_ref: node.modelRef }
+    }
+    visitedSet.add(node.modelRef)
+
+    const resolvedTree = modelResolver(node.modelRef)
+    if (resolvedTree && resolvedTree.length > 0) {
+      const obj: Record<string, unknown> = {}
+      for (const child of resolvedTree) {
+        obj[child.name || "field"] = generateNodeExample(
+          child,
+          modelResolver,
+          new Set(visitedSet)
+        )
+      }
+      return obj
+    }
+    // If resolver returned empty/undefined, fall through to normal handling
+  }
+
+  // v21: prefer explicit example value if provided
+  if (node.example) {
+    // Try to parse as JSON for proper typing (numbers, booleans, etc.)
+    try {
+      return JSON.parse(node.example)
+    } catch {
+      return node.example
+    }
+  }
+
   switch (node.type) {
     case "string":
       return node.mock || "string"
@@ -27,14 +83,24 @@ function generateNodeExample(node: HoppRESTSchemaNode): unknown {
       return true
     case "array":
       if (node.children && node.children.length > 0) {
-        return [generateNodeExample(node.children[0])]
+        return [
+          generateNodeExample(
+            node.children[0],
+            modelResolver,
+            visited ? new Set(visited) : undefined
+          ),
+        ]
       }
       return []
     case "object":
       if (node.children && node.children.length > 0) {
         const obj: Record<string, unknown> = {}
         for (const child of node.children) {
-          obj[child.name || "field"] = generateNodeExample(child)
+          obj[child.name || "field"] = generateNodeExample(
+            child,
+            modelResolver,
+            visited ? new Set(visited) : undefined
+          )
         }
         return obj
       }

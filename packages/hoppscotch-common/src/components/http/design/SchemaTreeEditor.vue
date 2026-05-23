@@ -8,6 +8,39 @@
       <span class="text-accent font-semibold">根节点</span>
       <span class="text-accent text-xs">object</span>
       <span class="flex-1" />
+
+      <!-- Insert model button -->
+      <div ref="modelPickerRef" class="relative">
+        <button
+          v-if="availableModels.length > 0"
+          class="text-secondaryLight hover:text-purple-500 transition-colors text-xs flex items-center gap-1"
+          @click="showModelPicker = !showModelPicker"
+        >
+          <IconLink class="w-3 h-3" />
+          插入模型
+        </button>
+
+        <!-- Model picker dropdown -->
+        <div
+          v-if="showModelPicker"
+          class="absolute right-0 top-full mt-1 z-50 bg-popover border border-divider rounded shadow-lg min-w-[180px] max-h-[240px] overflow-y-auto"
+        >
+          <button
+            v-for="model in availableModels"
+            :key="model.id"
+            class="w-full text-left px-3 py-2 text-xs hover:bg-primaryLight transition-colors flex flex-col"
+            @click="insertModelRef(model)"
+          >
+            <span class="text-accent font-medium">{{ model.name }}</span>
+            <span
+              v-if="model.description"
+              class="text-secondaryLight text-[10px] truncate"
+              >{{ model.description }}</span
+            >
+          </button>
+        </div>
+      </div>
+
       <button
         class="text-secondaryLight hover:text-accent transition-colors text-xs flex items-center gap-1"
         @click="addRootField"
@@ -47,9 +80,13 @@
 </template>
 
 <script setup lang="ts">
-import type { HoppRESTSchemaNode } from "@hoppscotch/data"
+import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue"
+import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
+import { useService } from "dioc/vue"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconPlus from "~icons/lucide/plus"
+import IconLink from "~icons/lucide/link"
 import SchemaTreeRow from "./SchemaTreeRow.vue"
 
 const props = defineProps<{
@@ -60,6 +97,41 @@ const emit = defineEmits<{
   (e: "update:modelValue", val: HoppRESTSchemaNode[]): void
 }>()
 
+// Workspace model service
+const workspaceModelService = useService(WorkspaceModelService)
+
+// Available models for insertion
+const availableModels = computed(() => workspaceModelService.models.value)
+
+// Model picker state
+const showModelPicker = ref(false)
+const modelPickerRef = ref<HTMLElement | null>(null)
+
+// Provide model name resolver to child SchemaTreeRow components
+const modelResolver = (id: string): string => {
+  const model = workspaceModelService.getModelById(id)
+  return model ? model.name : id.substring(0, 8)
+}
+provide("schemaModelResolver", modelResolver)
+
+// Close picker when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  if (
+    modelPickerRef.value &&
+    !modelPickerRef.value.contains(event.target as Node)
+  ) {
+    showModelPicker.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside)
+})
+
 function createEmptyNode(name = ""): HoppRESTSchemaNode {
   return {
     name,
@@ -69,6 +141,8 @@ function createEmptyNode(name = ""): HoppRESTSchemaNode {
     description: "",
     required: true,
     children: [],
+    example: "",
+    modelRef: "",
   }
 }
 
@@ -97,5 +171,27 @@ function addChildNode(parentIndex: number) {
   parent.type = parent.type === "array" ? "array" : "object"
   nodes[parentIndex] = parent
   emit("update:modelValue", nodes)
+}
+
+/**
+ * Insert a model reference node at the root level.
+ * Creates a new node with modelRef set to the selected model's ID.
+ */
+function insertModelRef(model: HoppWorkspaceModel) {
+  const nodes = [...(props.modelValue ?? [])]
+  const node: HoppRESTSchemaNode = {
+    name: model.name,
+    type: "object",
+    mock: "",
+    displayName: "",
+    description: model.description ?? "",
+    required: true,
+    children: [],
+    example: "",
+    modelRef: model.id,
+  }
+  nodes.push(node)
+  emit("update:modelValue", nodes)
+  showModelPicker.value = false
 }
 </script>

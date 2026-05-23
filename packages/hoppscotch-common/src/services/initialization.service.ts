@@ -6,6 +6,7 @@ import { PersistenceService } from "~/services/persistence"
 import { RESTTabService } from "~/services/tab/rest"
 import { GQLTabService } from "~/services/tab/graphql"
 import { KernelInterceptorService } from "~/services/kernel-interceptor.service"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
 
 import { platform } from "~/platform"
 import { NativeKernelInterceptorService } from "~/platform/std/kernel-interceptors/native"
@@ -172,10 +173,24 @@ export class InitializationService extends Service<InitEvent> {
     diag("init", "initAuthAndSync() sync done, initAuthAndSync complete")
   }
 
+  private async initWorkspaceModels() {
+    if (!this.initState.persistenceLater) {
+      throw new Error("Cannot initialize workspace models before persistence")
+    }
+
+    const workspaceModelService = getService(WorkspaceModelService)
+    await workspaceModelService.loadFromPersistence()
+    workspaceModelService.setupPersistence()
+
+    diag("init", "workspace models loaded")
+  }
+
   public async initPost() {
     diag("init", "initPost() start")
     await this.initPersistenceLater()
     diag("init", "initPost() persistenceLater done")
+    await this.initWorkspaceModels()
+    diag("init", "initPost() workspace models done")
     performMigrations()
     diag("init", "initPost() migrations done, initPost complete")
   }

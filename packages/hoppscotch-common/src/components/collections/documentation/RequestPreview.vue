@@ -96,7 +96,7 @@ import {
   Environment,
   HoppCollectionVariable,
   HoppRESTRequest,
-  HoppRESTResponseModelV20,
+  HoppRESTResponseModelV21,
   makeRESTRequest,
 } from "@hoppscotch/data"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
@@ -305,7 +305,7 @@ const responseExamples = computed<ResponseExample[] | null>(() => {
 
   // Priority 1: Read from v20 responseModels (design mode data)
   const responseModels = props.request.responseModels as
-    | HoppRESTResponseModelV20[]
+    | HoppRESTResponseModelV21[]
     | undefined
 
   if (responseModels && responseModels.length > 0) {

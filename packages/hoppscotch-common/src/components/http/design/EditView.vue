@@ -19,6 +19,9 @@
       :request="request"
       @update:request="emit('update:request', $event)"
     />
+
+    <!-- Area 4: Model Manager -->
+    <ModelManager />
   </div>
 </template>
 
@@ -29,6 +32,7 @@ import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedPropert
 import type { RESTOptionTabs } from "../RequestOptions.vue"
 import MetaInfoSection from "./MetaInfoSection.vue"
 import ResponseSection from "./ResponseSection.vue"
+import ModelManager from "./ModelManager.vue"
 import HttpRequestOptions from "../RequestOptions.vue"
 
 const props = withDefaults(

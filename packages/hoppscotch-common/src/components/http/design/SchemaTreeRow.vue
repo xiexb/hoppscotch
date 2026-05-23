@@ -32,12 +32,12 @@
         <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
       </select>
 
-      <!-- Mock -->
+      <!-- Example value -->
       <input
-        :value="node.mock"
+        :value="node.example ?? ''"
         class="text-xs bg-transparent outline-none w-20 min-w-[50px] text-secondaryDark placeholder:text-secondaryLight"
-        placeholder="Mock"
-        @input="onField('mock', $event)"
+        placeholder="示例值"
+        @input="onField('example', $event)"
       />
 
       <!-- Display name -->
@@ -55,6 +55,17 @@
         placeholder="说明"
         @input="onField('description', $event)"
       />
+
+      <!-- ModelRef badge -->
+      <button
+        v-if="node.modelRef"
+        class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 shrink-0 flex items-center gap-0.5"
+        :title="`引用模型: ${modelRefName}（点击清除）`"
+        @click="clearModelRef"
+      >
+        <IconLink class="w-2.5 h-2.5" />
+        {{ modelRefName }}
+      </button>
 
       <!-- Required toggle -->
       <button
@@ -106,11 +117,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, inject } from "vue"
 import type { HoppRESTSchemaNode } from "@hoppscotch/data"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconPlus from "~icons/lucide/plus"
 import IconTrash from "~icons/lucide/trash-2"
+import IconLink from "~icons/lucide/link"
 
 const props = defineProps<{
   node: HoppRESTSchemaNode
@@ -144,6 +156,23 @@ const hasChildren = computed(
 const canAddChild = computed(
   () => props.node.type === "object" || props.node.type === "array"
 )
+
+// Model ref support - injected from parent SchemaTreeEditor
+const modelResolver = inject<((id: string) => string) | null>(
+  "schemaModelResolver",
+  null
+)
+
+const modelRefName = computed(() => {
+  if (!props.node.modelRef) return ""
+  if (modelResolver) return modelResolver(props.node.modelRef)
+  return props.node.modelRef.substring(0, 8)
+})
+
+function clearModelRef() {
+  const updated = { ...props.node, modelRef: "" }
+  emit("update", updated)
+}
 
 function onField(field: string, event: Event) {
   const target = event.target as HTMLInputElement | HTMLSelectElement
@@ -192,6 +221,8 @@ function addChildToChild(index: number) {
       description: "",
       required: true,
       children: [],
+      example: "",
+      modelRef: "",
     },
   ]
   child.type = child.type === "array" ? "array" : "object"

@@ -200,7 +200,7 @@
 import { ref, computed } from "vue"
 import type {
   HoppRESTRequest,
-  HoppRESTResponseModelV20,
+  HoppRESTResponseModelV21,
   HoppRESTSchemaNode,
 } from "@hoppscotch/data"
 import IconTrash from "~icons/lucide/trash-2"
@@ -221,7 +221,7 @@ const emit = defineEmits<{
 const activeModel = ref(0)
 
 const responseModels = computed(
-  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV20[]
+  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV21[]
 )
 
 const currentModel = computed(
@@ -232,13 +232,13 @@ const currentSchemaTree = computed(
   () => currentModel.value?.bodySchemaTree ?? []
 )
 
-function ensureModels(): HoppRESTResponseModelV20[] {
-  return [...(props.request.responseModels ?? [])] as HoppRESTResponseModelV20[]
+function ensureModels(): HoppRESTResponseModelV21[] {
+  return [...(props.request.responseModels ?? [])] as HoppRESTResponseModelV21[]
 }
 
 function updateModel(
   index: number,
-  updated: Partial<HoppRESTResponseModelV20>
+  updated: Partial<HoppRESTResponseModelV21>
 ) {
   const models = ensureModels()
   models[index] = { ...models[index], ...updated }
