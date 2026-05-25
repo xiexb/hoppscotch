@@ -231,6 +231,8 @@ export function importModels(
       schemaTree,
       createdAt: now,
       updatedAt: now,
+      visibility: "public",
+      collectionIds: [],
     }
 
     models.push(model)
