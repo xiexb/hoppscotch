@@ -966,7 +966,9 @@
       "target_label": "导入目标：",
       "target_new": "导入为新集合（默认）",
       "target_existing": "导入到已有集合：",
-      "select_collection": "请选择集合..."
+      "select_collection": "请选择集合...",
+      "collection_name_placeholder": "请输入集合名称...",
+      "no_existing_collections": "当前无已有集合"
     }
   },
   "instances": {

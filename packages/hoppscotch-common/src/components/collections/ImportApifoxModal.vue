@@ -117,6 +117,13 @@
               {{ t("import.apifox.target_new") }}
             </span>
           </label>
+          <input
+            v-if="importTarget === 'new'"
+            v-model="newCollectionName"
+            type="text"
+            :placeholder="t('import.apifox.collection_name_placeholder')"
+            class="w-full px-3 py-2 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent ml-6"
+          />
           <label class="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
@@ -131,9 +138,10 @@
             </span>
           </label>
           <select
-            v-if="importTarget === 'existing'"
+            v-if="importTarget === 'existing' && existingCollections.length > 0"
+            :key="'coll-sel-' + existingCollections.length"
             v-model="selectedTargetIndex"
-            class="w-full px-3 py-2 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent"
+            class="w-full px-3 py-2 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent ml-6"
           >
             <option :value="-1" disabled>
               {{ t("import.apifox.select_collection") }}
@@ -146,6 +154,12 @@
               {{ coll.name }}
             </option>
           </select>
+          <p
+            v-else-if="importTarget === 'existing' && existingCollections.length === 0"
+            class="text-sm text-secondaryLight ml-6"
+          >
+            {{ t("import.apifox.no_existing_collections") }}
+          </p>
         </div>
       </div>
 
@@ -158,7 +172,10 @@
         />
         <HoppButtonPrimary
           :label="t('import.apifox.check_conflicts')"
-          :disabled="importTarget === 'existing' && selectedTargetIndex === -1"
+          :disabled="
+            (importTarget === 'existing' && (selectedTargetIndex === -1 || existingCollections.length === 0)) ||
+            (importTarget === 'new' && !newCollectionName.trim())
+          "
           class="flex-1"
           @click="checkConflicts"
         />
@@ -391,8 +408,8 @@
 <script setup lang="ts">
 import { useI18n } from "~/composables/i18n"
 import { useToast } from "~/composables/toast"
-import { computed, reactive, ref } from "vue"
-import { HoppCollection } from "@hoppscotch/data"
+import { computed, reactive, ref, watch } from "vue"
+import { HoppCollection, makeCollection } from "@hoppscotch/data"
 import { useReadonlyStream } from "~/composables/stream"
 import { restCollections$ } from "~/newstore/collections"
 import { useService } from "dioc/vue"
@@ -434,6 +451,7 @@ const projectName = ref("")
 // Target collection selector state
 const importTarget = ref<"new" | "existing">("new")
 const selectedTargetIndex = ref<number>(-1)
+const newCollectionName = ref("")
 
 const previewCounts = reactive({
   collections: 0,
@@ -482,6 +500,15 @@ const importResult = reactive({
   models: 0,
   skipped: 0,
 })
+
+// Watch existingCollections for reactivity debugging
+watch(
+  existingCollections,
+  (val) => {
+    console.log("[ImportApifox] existingCollections updated:", val.length)
+  },
+  { immediate: true }
+)
 
 const overallProgress = computed(() => {
   const total = importStages.length
@@ -616,6 +643,7 @@ async function parseAndPreview() {
     const data = JSON.parse(rawContent.value[0]) as ApifoxProject
     parsedData.value = data
     projectName.value = data.info?.name ?? ""
+    newCollectionName.value = data.info?.name ?? ""
 
     // Count items
     let apiCount = 0
@@ -851,13 +879,43 @@ async function startImport() {
         `${importedCollections.length} collections, ${importedApis} APIs`
       )
 
-      // Emit collections for parent to handle workspace import
-      // Pass target index if importing into existing collection
-      const targetIdx =
-        importTarget.value === "existing" && selectedTargetIndex.value >= 0
-          ? selectedTargetIndex.value
-          : undefined
-      emit("import-complete", importedCollections, targetIdx)
+      if (
+        importTarget.value === "existing" &&
+        selectedTargetIndex.value >= 0
+      ) {
+        // Wrap imported collections as a subfolder named with project name
+        const wrapperCollection = makeCollection({
+          name: projectName.value || "Apifox Import",
+          folders: importedCollections,
+          requests: [],
+          auth: { authType: "inherit", authActive: true },
+          headers: [],
+          variables: [],
+          description: null,
+          preRequestScript: "",
+          testScript: "",
+        })
+        emit(
+          "import-complete",
+          [wrapperCollection],
+          selectedTargetIndex.value
+        )
+      } else {
+        // Import as new: wrap all collections under a parent named newCollectionName
+        const wrapperCollection = makeCollection({
+          name:
+            newCollectionName.value || projectName.value || "Apifox Import",
+          folders: importedCollections,
+          requests: [],
+          auth: { authType: "inherit", authActive: true },
+          headers: [],
+          variables: [],
+          description: null,
+          preRequestScript: "",
+          testScript: "",
+        })
+        emit("import-complete", [wrapperCollection])
+      }
     } else {
       setStage(2, "error", "Import failed")
       importError.value = t("import.apifox.import_failed", {

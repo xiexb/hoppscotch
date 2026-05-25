@@ -971,7 +971,9 @@
       "target_label": "Import destination:",
       "target_new": "Import as new collections (default)",
       "target_existing": "Import into existing collection:",
-      "select_collection": "Select a collection..."
+      "select_collection": "Select a collection...",
+      "collection_name_placeholder": "Enter collection name...",
+      "no_existing_collections": "No existing collections found"
     }
   },
   "instances": {
