@@ -644,6 +644,16 @@ function openJsonParseDialog() {
 }
 
 function confirmJsonParse() {
+  const currentTree = currentSchemaTree.value
+  if (currentTree && currentTree.length > 0) {
+    if (
+      !confirm(
+        `当前已有 ${currentTree.length} 个字段，导入将覆盖现有内容。是否继续？`
+      )
+    ) {
+      return
+    }
+  }
   const tree = parseJsonToSchemaTree(jsonParseInput.value)
   if (tree === null) {
     jsonParseError.value = "JSON 解析失败，请检查格式"
