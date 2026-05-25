@@ -34,7 +34,11 @@ import { defineStep } from "~/composables/step-components"
 import AllCollectionImport from "~/components/importExport/ImportExportSteps/AllCollectionImport.vue"
 import { useI18n } from "~/composables/i18n"
 import { useToast } from "~/composables/toast"
-import { appendRESTCollections, restCollections$ } from "~/newstore/collections"
+import {
+  appendRESTCollections,
+  restCollections$,
+  editRESTCollection,
+} from "~/newstore/collections"
 
 import IconInsomnia from "~icons/hopp/insomnia"
 import IconPostman from "~icons/hopp/postman"
@@ -114,6 +118,35 @@ const handleImportToStore = async (collections: HoppCollection[]) => {
   } else {
     toast.error(t("import.failed"))
   }
+}
+
+const handleMergeIntoCollection = async (
+  collections: HoppCollection[],
+  targetIndex: number
+) => {
+  if (props.collectionsType.type !== "my-collections") {
+    // For team workspaces, fall back to appending (merge not supported yet)
+    await handleImportToStore(collections)
+    return
+  }
+
+  // Sanitize the imported collections
+  const sanitizedCollections = collections.map(sanitizeCollection)
+
+  // Get the target collection and merge
+  const targetCollection = myCollections.value[targetIndex]
+  if (!targetCollection) {
+    toast.error(t("import.failed"))
+    return
+  }
+
+  // Add imported collections as folders to the target collection
+  const updatedFolders = [...targetCollection.folders, ...sanitizedCollections]
+
+  // Update the target collection
+  editRESTCollection(targetIndex, { folders: updatedFolders })
+
+  toast.success(t("state.file_imported"))
 }
 
 /**
@@ -535,33 +568,38 @@ const HoppApifoxImporter: ImporterOrExporter = {
     format: "apifox",
   },
   importSummary: currentImportSummary,
-  component: defineStep(
-    "apifox_import_modal",
-    ImportApifoxModal,
-    () => ({
-      "onHide-modal": () => {
-        emit("hide-modal")
-      },
-      "onImport-complete": async (collections: HoppCollection[]) => {
-        isApifoxImporterInProgress.value = true
-        try {
+  component: defineStep("apifox_import_modal", ImportApifoxModal, () => ({
+    "onHide-modal": () => {
+      emit("hide-modal")
+    },
+    "onImport-complete": async (
+      collections: HoppCollection[],
+      targetIndex?: number
+    ) => {
+      isApifoxImporterInProgress.value = true
+      try {
+        if (targetIndex !== undefined && targetIndex >= 0) {
+          // Merge into existing collection's folders
+          await handleMergeIntoCollection(collections, targetIndex)
+        } else {
+          // Default: append as new collections
           await handleImportToStore(collections)
-          setCurrentImportSummary(collections)
-
-          platform.analytics?.logEvent({
-            platform: "rest",
-            type: "HOPP_IMPORT_COLLECTION",
-            importer: "import.from_apifox",
-            workspaceType: isTeamWorkspace.value ? "team" : "personal",
-          })
-        } catch (_e) {
-          showImportFailedError()
-          unsetCurrentImportSummary()
         }
-        isApifoxImporterInProgress.value = false
-      },
-    })
-  ),
+        setCurrentImportSummary(collections)
+
+        platform.analytics?.logEvent({
+          platform: "rest",
+          type: "HOPP_IMPORT_COLLECTION",
+          importer: "import.from_apifox",
+          workspaceType: isTeamWorkspace.value ? "team" : "personal",
+        })
+      } catch (_e) {
+        showImportFailedError()
+        unsetCurrentImportSummary()
+      }
+      isApifoxImporterInProgress.value = false
+    },
+  })),
 }
 
 const HoppGistImporter: ImporterOrExporter = {

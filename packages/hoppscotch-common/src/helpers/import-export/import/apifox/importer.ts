@@ -173,9 +173,7 @@ const getHoppParams = (params?: ApifoxParameter[]): HoppRESTParam[] => {
 /**
  * Convert Apifox path parameters to HoppRESTPathParam
  */
-const getHoppPathParams = (
-  params?: ApifoxParameter[]
-): HoppRESTPathParam[] => {
+const getHoppPathParams = (params?: ApifoxParameter[]): HoppRESTPathParam[] => {
   if (!params) return []
   return params.map((p) => ({
     key: replaceApifoxVarTemplating(p.name),
@@ -229,15 +227,12 @@ const getHoppBody = (body?: ApifoxRequestBody): HoppRESTReqBody => {
   }
 
   if (contentType === "multipart/form-data") {
-    const params = (body.parameters ?? []).map(
-      (p) =>
-        ({
-          key: replaceApifoxVarTemplating(p.name),
-          value: replaceApifoxVarTemplating(p.example ?? ""),
-          active: p.enable !== false,
-          isFile: false as const,
-        })
-    )
+    const params = (body.parameters ?? []).map((p) => ({
+      key: replaceApifoxVarTemplating(p.name),
+      value: replaceApifoxVarTemplating(p.example ?? ""),
+      active: p.enable !== false,
+      isFile: false as const,
+    }))
     return { contentType, body: params }
   }
 
@@ -391,7 +386,10 @@ const mapApifoxStatus = (
   status?: string
 ): "designing" | "developing" | "testing" | "published" | "deprecated" => {
   if (!status) return "developing"
-  const statusMap: Record<string, "designing" | "developing" | "testing" | "published" | "deprecated"> = {
+  const statusMap: Record<
+    string,
+    "designing" | "developing" | "testing" | "published" | "deprecated"
+  > = {
     designing: "designing",
     developing: "developing",
     testing: "testing",
@@ -560,9 +558,7 @@ export const hoppApifoxImporter = (content: string[], refMap?: RefMap) =>
               name: apiColl.name,
               items: apiColl.items,
             }
-            collections.push(
-              getHoppCollection(rootCollection, baseUrl, refMap)
-            )
+            collections.push(getHoppCollection(rootCollection, baseUrl, refMap))
           })
         }
 

@@ -17,7 +17,9 @@
         </p>
       </div>
 
-      <div class="flex flex-col border border-dashed rounded border-dividerDark">
+      <div
+        class="flex flex-col border border-dashed rounded border-dividerDark"
+      >
         <input
           id="apifoxFileInput"
           ref="fileInput"
@@ -96,6 +98,55 @@
             {{ t("import.apifox.saved_requests") }}
           </span>
         </div>
+
+        <!-- Target collection selector -->
+        <div class="space-y-2 pt-2 border-t border-dividerLight">
+          <p class="text-sm font-medium text-primary">
+            {{ t("import.apifox.target_label") }}
+          </p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="importTarget"
+              value="new"
+              :checked="importTarget === 'new'"
+              class="accent-accent"
+              @change="importTarget = 'new'"
+            />
+            <span class="text-sm text-secondary">
+              {{ t("import.apifox.target_new") }}
+            </span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="importTarget"
+              value="existing"
+              :checked="importTarget === 'existing'"
+              class="accent-accent"
+              @change="importTarget = 'existing'"
+            />
+            <span class="text-sm text-secondary">
+              {{ t("import.apifox.target_existing") }}
+            </span>
+          </label>
+          <select
+            v-if="importTarget === 'existing'"
+            v-model="selectedTargetIndex"
+            class="w-full px-3 py-2 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent"
+          >
+            <option :value="-1" disabled>
+              {{ t("import.apifox.select_collection") }}
+            </option>
+            <option
+              v-for="(coll, idx) in existingCollections"
+              :key="idx"
+              :value="idx"
+            >
+              {{ coll.name }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="flex gap-2 mt-4">
@@ -107,6 +158,7 @@
         />
         <HoppButtonPrimary
           :label="t('import.apifox.check_conflicts')"
+          :disabled="importTarget === 'existing' && selectedTargetIndex === -1"
           class="flex-1"
           @click="checkConflicts"
         />
@@ -124,9 +176,7 @@
           <div
             class="flex items-center p-3 rounded border border-green-500/30 bg-green-500/10"
           >
-            <icon-lucide-check-circle
-              class="svg-icons mr-2 text-green-500"
-            />
+            <icon-lucide-check-circle class="svg-icons mr-2 text-green-500" />
             <span class="text-sm text-green-500">{{
               t("import.apifox.no_conflicts")
             }}</span>
@@ -362,7 +412,11 @@ const existingCollections = useReadonlyStream(restCollections$, [])
 
 const emit = defineEmits<{
   (e: "hide-modal"): void
-  (e: "import-complete", collections: HoppCollection[]): void
+  (
+    e: "import-complete",
+    collections: HoppCollection[],
+    targetIndex?: number
+  ): void
 }>()
 
 // --- State ---
@@ -376,6 +430,10 @@ const parseError = ref("")
 const rawContent = ref<string[]>([])
 const parsedData = ref<ApifoxProject | null>(null)
 const projectName = ref("")
+
+// Target collection selector state
+const importTarget = ref<"new" | "existing">("new")
+const selectedTargetIndex = ref<number>(-1)
 
 const previewCounts = reactive({
   collections: 0,
@@ -510,7 +568,27 @@ async function onFileChange() {
 
     // Quick validation parse
     const data = JSON.parse(text)
-    if (!data.apiCollection && !data.requestCollection) {
+
+    // Check for Apifox-specific format markers
+    const hasApifoxField =
+      typeof data.apifox === "object" && data.apifox !== null
+    const hasApiCollection = Array.isArray(data.apiCollection)
+    const hasRequestCollection = Array.isArray(data.requestCollection)
+    const hasSchemaCollection = Array.isArray(data.schemaCollection)
+
+    if (
+      !hasApifoxField &&
+      !hasApiCollection &&
+      !hasRequestCollection &&
+      !hasSchemaCollection
+    ) {
+      // Not an Apifox file at all
+      parseError.value = t("import.apifox.invalid_file_generic").toString()
+      return
+    }
+
+    if (!hasApiCollection && !hasRequestCollection) {
+      // Has Apifox markers but no actual collections to import
       parseError.value = t("import.apifox.invalid_file").toString()
       return
     }
@@ -552,9 +630,7 @@ async function parseAndPreview() {
 
     let modelCount = 0
     if (data.schemaCollection) {
-      modelCount = countModelsInCollection(
-        data.schemaCollection as any[]
-      )
+      modelCount = countModelsInCollection(data.schemaCollection as any[])
     }
 
     previewCounts.collections = collCount
@@ -579,9 +655,7 @@ function checkConflicts() {
 
   if (!parsedData.value) return
 
-  const existingNames = new Set(
-    existingCollections.value.map((c) => c.name)
-  )
+  const existingNames = new Set(existingCollections.value.map((c) => c.name))
   const importNames = getCollectionNames(parsedData.value)
 
   for (const name of importNames) {
@@ -605,11 +679,7 @@ function setAllResolutions(resolution: ConflictResolution) {
 
 // --- Import execution ---
 
-function setStage(
-  idx: number,
-  status: StageStatus,
-  detail?: string
-) {
+function setStage(idx: number, status: StageStatus, detail?: string) {
   importStages[idx].status = status
   if (detail !== undefined) {
     importStages[idx].detail = detail
@@ -664,10 +734,7 @@ async function startImport() {
     ) {
       try {
         const apiRefs = collectApiRefs(data.apiCollection)
-        const modelResult = importModels(
-          data.schemaCollection as any,
-          apiRefs
-        )
+        const modelResult = importModels(data.schemaCollection as any, apiRefs)
 
         for (const model of modelResult.models) {
           workspaceModelService.importModel(model)
@@ -702,7 +769,7 @@ async function startImport() {
     await nextTick()
 
     // Filter content based on conflict resolution
-    let filteredData = { ...data }
+    const filteredData = { ...data }
 
     // Apply rename/override/skip to apiCollection
     if (data.apiCollection) {
@@ -711,26 +778,23 @@ async function startImport() {
       )
 
       // Apply rename
-      filteredData.apiCollection = filteredData.apiCollection.map(
-        (coll) => {
-          const resolution = conflictMap.get(coll.name)
-          if (resolution === "rename") {
-            let newName = `${coll.name} (imported)`
-            let counter = 1
-            while (
-              existingCollections.value.some((c) => c.name === newName) ||
-              filteredData.apiCollection!.some(
-                (c, i) =>
-                  c !== coll && c.name === newName
-              )
-            ) {
-              newName = `${coll.name} (imported ${++counter})`
-            }
-            return { ...coll, name: newName }
+      filteredData.apiCollection = filteredData.apiCollection.map((coll) => {
+        const resolution = conflictMap.get(coll.name)
+        if (resolution === "rename") {
+          let newName = `${coll.name} (imported)`
+          let counter = 1
+          while (
+            existingCollections.value.some((c) => c.name === newName) ||
+            filteredData.apiCollection!.some(
+              (c, i) => c !== coll && c.name === newName
+            )
+          ) {
+            newName = `${coll.name} (imported ${++counter})`
           }
-          return coll
+          return { ...coll, name: newName }
         }
-      )
+        return coll
+      })
     }
 
     // Apply same to requestCollection
@@ -748,8 +812,7 @@ async function startImport() {
             while (
               existingCollections.value.some((c) => c.name === newName) ||
               filteredData.requestCollection!.some(
-                (c, i) =>
-                  c !== coll && c.name === newName
+                (c, i) => c !== coll && c.name === newName
               )
             ) {
               newName = `${coll.name} (imported ${++counter})`
@@ -784,10 +847,17 @@ async function startImport() {
       )
 
       // Emit collections for parent to handle workspace import
-      emit("import-complete", importedCollections)
+      // Pass target index if importing into existing collection
+      const targetIdx =
+        importTarget.value === "existing" && selectedTargetIndex.value >= 0
+          ? selectedTargetIndex.value
+          : undefined
+      emit("import-complete", importedCollections, targetIdx)
     } else {
       setStage(2, "error", "Import failed")
-      importError.value = t("import.failed").toString()
+      importError.value = t("import.apifox.import_failed", {
+        error: t("import.failed").toString(),
+      }).toString()
       return
     }
 
@@ -799,11 +869,8 @@ async function startImport() {
 
     phase.value = "done"
   } catch (e) {
-    importError.value =
-      e instanceof Error ? e.message : String(e)
-    const activeIdx = importStages.findIndex(
-      (s) => s.status === "active"
-    )
+    importError.value = e instanceof Error ? e.message : String(e)
+    const activeIdx = importStages.findIndex((s) => s.status === "active")
     if (activeIdx >= 0) setStage(activeIdx, "error")
   }
 }

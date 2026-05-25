@@ -959,8 +959,14 @@
       "models_imported": "个数据模型已导入",
       "items_skipped": "项已跳过",
       "file_too_large": "文件过大（最大 50MB）",
-      "invalid_file": "无效的 Apifox 导出文件：未找到 apiCollection 或 requestCollection",
-      "parse_error": "解析文件失败：{error}"
+      "invalid_file": "无效的 Apifox 导出文件：未找到 apiCollection 或 requestCollection。请选择从 Apifox 导出的 .apifox.json 文件。",
+      "invalid_file_generic": "此文件不是有效的 Apifox 导出文件，请选择 .apifox.json 格式的文件。",
+      "parse_error": "解析文件失败：{error}",
+      "import_failed": "导入失败：{error}",
+      "target_label": "导入目标：",
+      "target_new": "导入为新集合（默认）",
+      "target_existing": "导入到已有集合：",
+      "select_collection": "请选择集合..."
     }
   },
   "instances": {
