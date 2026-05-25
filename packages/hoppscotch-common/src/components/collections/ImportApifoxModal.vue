@@ -760,6 +760,7 @@ async function startImport() {
 
     let modelCount = 0
     let savedRefMap: Map<string, string> | undefined
+    let importedModelIds: string[] = []
     if (
       data.schemaCollection &&
       data.schemaCollection.length > 0 &&
@@ -767,11 +768,32 @@ async function startImport() {
     ) {
       try {
         const apiRefs = collectApiRefs(data.apiCollection)
-        const modelResult = importModels(data.schemaCollection as any, apiRefs)
+
+        // For "existing" mode, scope models to the target collection immediately
+        let targetCollectionIds: string[] | undefined
+        if (
+          importTarget.value === "existing" &&
+          selectedTargetIndex.value >= 0
+        ) {
+          const existingColl =
+            existingCollections.value[selectedTargetIndex.value]
+          if (existingColl?.id) {
+            targetCollectionIds = [existingColl.id]
+          }
+        }
+
+        const modelResult = importModels(
+          data.schemaCollection as any,
+          apiRefs,
+          undefined,
+          targetCollectionIds
+        )
 
         for (const model of modelResult.models) {
           workspaceModelService.importModel(model)
         }
+
+        importedModelIds = modelResult.models.map((m) => m.id)
 
         savedRefMap = modelResult.refMap
         modelCount = modelResult.importedCount
@@ -902,7 +924,13 @@ async function startImport() {
         )
       } else {
         // Import as new: wrap all collections under a parent named newCollectionName
+        const wrapperId =
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `coll-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
         const wrapperCollection = makeCollection({
+          id: wrapperId,
           name:
             newCollectionName.value || projectName.value || "Apifox Import",
           folders: importedCollections,
@@ -914,6 +942,15 @@ async function startImport() {
           preRequestScript: "",
           testScript: "",
         })
+
+        // Scope imported models to the new wrapper collection
+        for (const modelId of importedModelIds) {
+          workspaceModelService.updateModel(modelId, {
+            visibility: "collection",
+            collectionIds: [wrapperId],
+          })
+        }
+
         emit("import-complete", [wrapperCollection])
       }
     } else {

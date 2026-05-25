@@ -153,6 +153,7 @@ function computeNeededClosure(
  * @param schemaCollection - The schemaCollection array from Apifox export
  * @param neededRefs - $ref paths directly referenced by API responses
  * @param options - Optional conversion settings passed to jsonSchemaToSchemaNode
+ * @param targetCollectionIds - Optional collection IDs to scope model visibility to
  * @returns Import result with models, refMap, count, and any errors
  *
  * @example
@@ -174,7 +175,8 @@ function computeNeededClosure(
 export function importModels(
   schemaCollection: ApifoxSchemaFolder[],
   neededRefs: string[],
-  options?: ConvertOptions
+  options?: ConvertOptions,
+  targetCollectionIds?: string[]
 ): ImportModelsResult {
   // Step 1: Flatten the tree into leaf models
   const flatModels = flattenSchemaCollection(
@@ -231,8 +233,8 @@ export function importModels(
       schemaTree,
       createdAt: now,
       updatedAt: now,
-      visibility: "public",
-      collectionIds: [],
+      visibility: targetCollectionIds ? "collection" : "public",
+      collectionIds: targetCollectionIds ?? [],
     }
 
     models.push(model)
