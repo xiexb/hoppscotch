@@ -22,3 +22,9 @@ export {
 } from "./types"
 
 export { hoppApifoxImporter } from "./importer"
+
+export {
+  importModels,
+  collectApiRefs,
+  type ImportModelsResult,
+} from "./modelImporter"
