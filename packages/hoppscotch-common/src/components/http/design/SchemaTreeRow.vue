@@ -2,6 +2,7 @@
   <div>
     <div
       class="flex items-center gap-1.5 py-1.5 px-2 border-b border-dividerLight hover:bg-primaryLight/50 transition-colors"
+      :class="{ 'bg-purple-500/5': hasModelRef }"
       :style="{ paddingLeft: `${(depth + 1) * 16 + 8}px` }"
     >
       <!-- Expand/collapse for object/array/modelRef -->
@@ -16,7 +17,12 @@
       <span v-else class="w-3" />
 
       <!-- Field name -->
+      <span
+        v-if="hasModelRef"
+        class="text-xs font-mono text-accent w-28 min-w-[60px] truncate"
+      >{{ node.name }}</span>
       <input
+        v-else
         :value="node.name"
         class="text-xs font-mono text-accent bg-transparent outline-none w-28 min-w-[60px]"
         placeholder="字段名"
@@ -24,7 +30,12 @@
       />
 
       <!-- Type selector -->
+      <span
+        v-if="hasModelRef"
+        class="text-xs text-accent w-20"
+      >{{ node.type }}</span>
       <select
+        v-else
         :value="node.type"
         class="text-xs text-accent bg-transparent outline-none w-20"
         @change="onField('type', $event)"
@@ -41,7 +52,12 @@
       />
 
       <!-- Display name -->
+      <span
+        v-if="hasModelRef"
+        class="text-xs text-secondaryDark w-24 min-w-[50px] truncate"
+      >{{ node.displayName || "" }}</span>
       <input
+        v-else
         :value="node.displayName"
         class="text-xs bg-transparent outline-none w-24 min-w-[50px] text-secondaryDark placeholder:text-secondaryLight"
         placeholder="中文名"
@@ -76,7 +92,15 @@
       </span>
 
       <!-- Required toggle -->
+      <span
+        v-if="hasModelRef"
+        class="px-1.5 py-0.5 text-[10px] rounded shrink-0"
+        :class="node.required ? 'bg-orange-500/15 text-orange-500' : 'bg-secondaryLight/10 text-secondaryLight'"
+      >
+        {{ node.required ? "必填" : "可选" }}
+      </span>
       <button
+        v-else
         class="px-1.5 py-0.5 text-[10px] rounded transition-colors shrink-0"
         :class="
           node.required
@@ -92,7 +116,7 @@
       <!-- Actions -->
       <div class="flex items-center gap-1 ml-1 shrink-0">
         <button
-          v-if="canAddChild"
+          v-if="canAddChild && !hasModelRef"
           class="text-secondaryLight hover:text-accent transition-colors"
           title="添加子字段"
           @click="addChild"
@@ -118,6 +142,7 @@
           <IconUnlink class="w-3 h-3" />
         </button>
         <button
+          v-if="!hasModelRef"
           class="text-secondaryLight hover:text-red-400 transition-colors"
           title="删除"
           @click="emit('delete')"
