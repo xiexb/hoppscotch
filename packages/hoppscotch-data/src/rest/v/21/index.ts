@@ -87,6 +87,8 @@ export const HoppRESTResponseModelV21 = z.object({
   bodyExample: z.string().catch(""),
   bodySchemaTree: z.array(z.any()).nullable().catch(null),
   contentType: z.string().catch("application/json"),
+  /** Reference ID of a HoppWorkspaceModel — when set, the root schema tree is resolved from that model (read-only) */
+  rootModelRef: z.string().catch(""),
 })
 
 export type HoppRESTResponseModelV21 = z.infer<typeof HoppRESTResponseModelV21>
@@ -127,9 +129,10 @@ const V21_VERSION = defineVersion({
     return {
       ...old,
       v: "21" as const,
-      // Migrate responseModels: patch bodySchemaTree nodes with new fields
+      // Migrate responseModels: patch bodySchemaTree nodes with new fields, add rootModelRef
       responseModels: (old.responseModels ?? []).map((m) => ({
         ...m,
+        rootModelRef: "",
         bodySchemaTree: Array.isArray(m.bodySchemaTree)
           ? m.bodySchemaTree.map((node: Record<string, unknown>) =>
               migrateSchemaNode(node)
