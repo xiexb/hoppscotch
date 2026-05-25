@@ -262,6 +262,19 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
     )
   }
 
+  /**
+   * Imports a model with its pre-assigned ID (used during batch import
+   * where IDs are generated upfront and referenced by schema nodes via
+   * `modelRef`). Unlike `createModel()`, this does NOT generate a new ID.
+   * @returns The imported model.
+   */
+  public importModel(model: HoppWorkspaceModel): HoppWorkspaceModel {
+    this.modelsMap.set(model.id, model)
+    this.emit({ type: "model-created", model })
+    diag("workspace-model", "model imported:", model.id, model.name)
+    return model
+  }
+
   // ─── Bulk Operations ────────────────────────────────────────────
 
   /**

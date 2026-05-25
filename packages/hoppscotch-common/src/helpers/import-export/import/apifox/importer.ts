@@ -10,30 +10,19 @@ import {
   makeRESTRequest,
   ValidContentTypes,
 } from "@hoppscotch/data"
+import type { HoppRESTResponseModelV21 } from "@hoppscotch/data"
 import * as A from "fp-ts/Array"
 import * as O from "fp-ts/Option"
 import * as TE from "fp-ts/TaskEither"
 import { pipe } from "fp-ts/function"
 import { safeParseJSON } from "~/helpers/functional/json"
 import { IMPORTER_INVALID_FILE_FORMAT } from "."
+import type { RefMap } from "./jsonSchemaToSchemaNode"
+import type { ApifoxProject } from "./types"
 
 /**
- * Apifox JSON format types
+ * Apifox JSON format types (internal to importer)
  */
-type ApifoxProject = {
-  apifoxProject?: string
-  info?: {
-    name?: string
-    description?: string
-  }
-  apiCollection?: ApifoxApiCollection[]
-  requestCollection?: ApifoxRequestCollection[]
-  environments?: ApifoxEnvironment[]
-  projectSetting?: {
-    servers?: ApifoxServer[]
-  }
-}
-
 type ApifoxServer = {
   name: string
   id: string
@@ -302,11 +291,69 @@ const generateJsonFromSchema = (schema: any): any => {
 }
 
 /**
+ * Extract all $ref strings from a JSON Schema tree.
+ */
+const collectRefsInSchema = (schema: unknown): string[] => {
+  const refs: string[] = []
+
+  function walk(node: unknown): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item)
+      return
+    }
+    const obj = node as Record<string, unknown>
+    if (typeof obj.$ref === "string") refs.push(obj.$ref)
+    for (const value of Object.values(obj)) walk(value)
+  }
+
+  walk(schema)
+  return refs
+}
+
+/**
+ * Build HoppRESTResponseModelV21[] from Apifox responses using refMap.
+ */
+const buildResponseModels = (
+  responses: ApifoxResponse[] | undefined,
+  refMap: RefMap | undefined
+): HoppRESTResponseModelV21[] => {
+  if (!responses || responses.length === 0 || !refMap) return []
+
+  const result: HoppRESTResponseModelV21[] = []
+
+  for (const resp of responses) {
+    if (!resp.jsonSchema) continue
+
+    const refs = collectRefsInSchema(resp.jsonSchema)
+    const modelIds = refs
+      .map((r) => refMap.get(r))
+      .filter((id): id is string => !!id)
+
+    if (modelIds.length === 0) continue
+
+    result.push({
+      statusCode: String(resp.code ?? 200),
+      description: resp.name ?? "",
+      headers: [],
+      bodySchema: "",
+      bodyExample: "",
+      bodySchemaTree: null,
+      contentType: resp.contentType ?? "application/json",
+      rootModelRef: modelIds[0],
+    })
+  }
+
+  return result
+}
+
+/**
  * Convert Apifox API to HoppRESTRequest
  */
 const getHoppRequest = (
   item: ApifoxApiCollectionItem,
-  baseUrl: string = ""
+  baseUrl: string = "",
+  refMap?: RefMap
 ): HoppRESTRequest => {
   const api = item.api!
   const endpoint = api.path.startsWith("http")
@@ -327,7 +374,7 @@ const getHoppRequest = (
     preRequestScript: "",
     testScript: "",
     description: api.description ?? null,
-    responseModels: [],
+    responseModels: buildResponseModels(api.responses, refMap),
     testCases: [],
     apiTitle: item.name,
     apiStatus: mapApifoxStatus(api.status),
@@ -395,7 +442,8 @@ const getHoppRequestFromRequestItem = (
  */
 const getHoppCollection = (
   node: ApifoxApiCollectionItem,
-  baseUrl: string
+  baseUrl: string,
+  refMap?: RefMap
 ): HoppCollection => {
   const folders: HoppCollection[] = []
   const requests: HoppRESTRequest[] = []
@@ -404,10 +452,10 @@ const getHoppCollection = (
     node.items.forEach((item) => {
       if (item.api) {
         // This is an API endpoint
-        requests.push(getHoppRequest(item, baseUrl))
+        requests.push(getHoppRequest(item, baseUrl, refMap))
       } else if (item.items) {
         // This is a folder
-        folders.push(getHoppCollection(item, baseUrl))
+        folders.push(getHoppCollection(item, baseUrl, refMap))
       }
     })
   }
@@ -465,8 +513,9 @@ const getHoppRequestCollection = (
  */
 const extractBaseUrl = (data: ApifoxProject): string => {
   // Try environments first
-  if (data.environments && data.environments.length > 0) {
-    const env = data.environments[0]
+  const environments = data.environments as ApifoxEnvironment[] | undefined
+  if (environments && environments.length > 0) {
+    const env = environments[0]
     if (env.baseUrl) return env.baseUrl
     if (env.baseUrls) {
       const firstUrl = Object.values(env.baseUrls).find((url) => url)
@@ -475,7 +524,9 @@ const extractBaseUrl = (data: ApifoxProject): string => {
   }
 
   // Try project settings servers
-  if (data.projectSetting?.servers && data.projectSetting.servers.length > 0) {
+  const servers = (data.projectSetting as Record<string, unknown> | undefined)
+    ?.servers as ApifoxServer[] | undefined
+  if (servers && servers.length > 0) {
     // Return empty string as servers don't have URLs in the sample
     return ""
   }
@@ -486,7 +537,7 @@ const extractBaseUrl = (data: ApifoxProject): string => {
 /**
  * Main Apifox importer function
  */
-export const hoppApifoxImporter = (content: string[]) =>
+export const hoppApifoxImporter = (content: string[], refMap?: RefMap) =>
   pipe(
     content,
     A.traverse(O.Applicative)((str) => safeParseJSON(str, true)),
@@ -496,26 +547,31 @@ export const hoppApifoxImporter = (content: string[]) =>
       const collections: HoppCollection[] = []
 
       dataArray.forEach((data) => {
-        const apifoxData = data as ApifoxProject
+        const apifoxData = data as unknown as ApifoxProject
         const baseUrl = extractBaseUrl(apifoxData)
 
         // Import apiCollection (API definitions)
-        if (apifoxData.apiCollection && apifoxData.apiCollection.length > 0) {
-          apifoxData.apiCollection.forEach((apiColl) => {
+        const apiCollections = apifoxData.apiCollection as
+          | ApifoxApiCollection[]
+          | undefined
+        if (apiCollections && apiCollections.length > 0) {
+          apiCollections.forEach((apiColl) => {
             const rootCollection: ApifoxApiCollectionItem = {
               name: apiColl.name,
               items: apiColl.items,
             }
-            collections.push(getHoppCollection(rootCollection, baseUrl))
+            collections.push(
+              getHoppCollection(rootCollection, baseUrl, refMap)
+            )
           })
         }
 
         // Import requestCollection (saved requests)
-        if (
-          apifoxData.requestCollection &&
-          apifoxData.requestCollection.length > 0
-        ) {
-          apifoxData.requestCollection.forEach((reqColl) => {
+        const requestCollections = apifoxData.requestCollection as
+          | ApifoxRequestCollection[]
+          | undefined
+        if (requestCollections && requestCollections.length > 0) {
+          requestCollections.forEach((reqColl) => {
             collections.push(getHoppRequestCollection(reqColl, baseUrl))
           })
         }

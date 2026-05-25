@@ -656,6 +656,7 @@ async function startImport() {
     await nextTick()
 
     let modelCount = 0
+    let savedRefMap: Map<string, string> | undefined
     if (
       data.schemaCollection &&
       data.schemaCollection.length > 0 &&
@@ -669,13 +670,10 @@ async function startImport() {
         )
 
         for (const model of modelResult.models) {
-          workspaceModelService.createModel({
-            name: model.name,
-            description: model.description,
-            schemaTree: model.schemaTree,
-          })
+          workspaceModelService.importModel(model)
         }
 
+        savedRefMap = modelResult.refMap
         modelCount = modelResult.importedCount
         importResult.models = modelCount
 
@@ -765,7 +763,7 @@ async function startImport() {
 
     // Use the standard importer on the filtered data
     const filteredContent = [JSON.stringify(filteredData)]
-    const importRes = await hoppApifoxImporter(filteredContent)()
+    const importRes = await hoppApifoxImporter(filteredContent, savedRefMap)()
 
     if (importRes._tag === "Right") {
       const importedCollections = importRes.right
@@ -819,6 +817,6 @@ function countRequestsInHoppCollection(coll: HoppCollection): number {
 }
 
 function nextTick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 50))
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()))
 }
 </script>
