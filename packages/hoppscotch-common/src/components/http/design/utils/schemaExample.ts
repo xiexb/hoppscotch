@@ -128,6 +128,94 @@ function generateNodeExample(
 }
 
 /**
+ * Parse a JSON string into a HoppRESTSchemaNode tree.
+ * Reverse of generateExampleFromSchema — infers types from actual values.
+ *
+ * @param json - The JSON string to parse.
+ * @returns The inferred schema tree, or null if parsing fails.
+ */
+export function parseJsonToSchemaTree(
+  json: string
+): HoppRESTSchemaNode[] | null {
+  if (!json || !json.trim()) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(json)
+  } catch {
+    return null
+  }
+  if (parsed === null || parsed === undefined) return []
+  if (typeof parsed !== "object") {
+    // Root is a primitive — wrap in a single field
+    return [inferNode("value", parsed)]
+  }
+  if (Array.isArray(parsed)) {
+    // Root is an array — infer from first element
+    if (parsed.length === 0) return []
+    return [inferNode("item", parsed[0])]
+  }
+  // Root is an object
+  const nodes: HoppRESTSchemaNode[] = []
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>
+  )) {
+    nodes.push(inferNode(key, value))
+  }
+  return nodes
+}
+
+function inferNode(name: string, value: unknown): HoppRESTSchemaNode {
+  if (value === null || value === undefined) {
+    return createSchemaNode(name, "string", String(value ?? ""))
+  }
+  if (typeof value === "string") {
+    return createSchemaNode(name, "string", value)
+  }
+  if (typeof value === "number") {
+    const isInt = Number.isInteger(value)
+    return createSchemaNode(name, isInt ? "integer" : "number", String(value))
+  }
+  if (typeof value === "boolean") {
+    return createSchemaNode(name, "boolean", String(value))
+  }
+  if (Array.isArray(value)) {
+    const node = createSchemaNode(name, "array", "")
+    if (value.length > 0) {
+      node.children = [inferNode("item", value[0])]
+    }
+    return node
+  }
+  if (typeof value === "object") {
+    const node = createSchemaNode(name, "object", "")
+    node.children = []
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      node.children.push(inferNode(k, v))
+    }
+    return node
+  }
+  return createSchemaNode(name, "string", String(value))
+}
+
+function createSchemaNode(
+  name: string,
+  type: HoppRESTSchemaNode["type"],
+  example: string
+): HoppRESTSchemaNode {
+  return {
+    name,
+    type,
+    mock: "",
+    displayName: "",
+    description: "",
+    required: true,
+    children: [],
+    example,
+    modelRef: "",
+    modelOverrides: {},
+  }
+}
+
+/**
  * Return CSS class string for status-code-based tab styling.
  * Used consistently across edit mode and preview mode.
  */

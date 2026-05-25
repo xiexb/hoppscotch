@@ -113,11 +113,7 @@
           </div>
           <div class="flex items-center gap-2">
             <!-- Unbound state: show model picker -->
-            <div
-              v-if="!isBoundToModel"
-              ref="modelPickerRef"
-              class="relative"
-            >
+            <div v-if="!isBoundToModel" ref="modelPickerRef" class="relative">
               <button
                 v-if="availableModels.length > 0"
                 class="text-xs text-secondaryLight hover:text-purple-500 transition-colors flex items-center gap-1"
@@ -186,15 +182,42 @@
       <!-- Response Example -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-secondary">示例</span>
-          <button
-            class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
-            title="从 Schema 生成示例"
-            @click="generateExample"
-          >
-            <IconSparkles class="w-3 h-3" />
-            从 Schema 生成
-          </button>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-secondary">示例</span>
+            <span
+              v-if="manualExampleModels[activeModel]"
+              class="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded"
+            >
+              手动编辑
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="!isBoundToModel"
+              class="text-xs text-secondaryLight hover:text-accent flex items-center gap-1"
+              title="从 JSON 反向解析 Schema"
+              @click="openJsonParseDialog"
+            >
+              <IconFileJson class="w-3 h-3" />
+              从 JSON 导入
+            </button>
+            <button
+              class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+              :title="
+                manualExampleModels[activeModel]
+                  ? '重置为自动生成的示例'
+                  : '从 Schema 生成示例'
+              "
+              @click="generateExample"
+            >
+              <IconSparkles class="w-3 h-3" />
+              {{
+                manualExampleModels[activeModel]
+                  ? "重置为自动"
+                  : "从 Schema 生成"
+              }}
+            </button>
+          </div>
         </div>
         <JsonExampleBlock
           :content="
@@ -296,10 +319,57 @@
       </button>
     </div>
   </div>
+
+  <!-- JSON Reverse Parse Dialog -->
+  <HoppSmartModal
+    v-if="showJsonParseDialog"
+    title="从 JSON 导入 Schema"
+    :full-width-body="true"
+    @close="closeJsonParseDialog"
+  >
+    <template #body>
+      <div class="flex flex-col space-y-3 px-2">
+        <p class="text-xs text-secondary">
+          粘贴 JSON 示例数据，系统将自动推断字段类型并生成 Schema 结构。 已有的
+          Schema 将被替换。
+        </p>
+        <textarea
+          v-model="jsonParseInput"
+          class="w-full text-xs font-mono bg-primaryLight text-secondaryDark border border-dividerLight rounded px-3 py-2 outline-none focus:border-accent resize-y min-h-[200px]"
+          spellcheck="false"
+          placeholder='{ "id": 1, "name": "example", "tags": ["a", "b"] }'
+        />
+        <p v-if="jsonParseError" class="text-xs text-red-400">
+          {{ jsonParseError }}
+        </p>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex items-center justify-between w-full">
+        <span v-if="jsonParseError" class="text-xs text-red-400">
+          {{ jsonParseError }}
+        </span>
+        <span v-else />
+        <span class="flex gap-2">
+          <HoppButtonPrimary
+            label="导入"
+            :disabled="!jsonParseInput.trim()"
+            @click="confirmJsonParse"
+          />
+          <HoppButtonSecondary
+            label="取消"
+            outline
+            filled
+            @click="closeJsonParseDialog"
+          />
+        </span>
+      </div>
+    </template>
+  </HoppSmartModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV21,
@@ -310,6 +380,7 @@ import IconTrash from "~icons/lucide/trash-2"
 import IconPlus from "~icons/lucide/plus"
 import IconX from "~icons/lucide/x"
 import IconSparkles from "~icons/lucide/sparkles"
+import IconFileJson from "~icons/lucide/file-json"
 import IconLink from "~icons/lucide/link"
 import IconUnlink from "~icons/lucide/unlink"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
@@ -318,6 +389,7 @@ import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import {
   generateExampleFromSchema,
+  parseJsonToSchemaTree,
   statusTabClass,
   statusDotClass,
 } from "./utils/schemaExample"
@@ -373,6 +445,11 @@ const emit = defineEmits<{
 
 const activeModel = ref(0)
 
+// --- JSON reverse-parse dialog ---
+const showJsonParseDialog = ref(false)
+const jsonParseInput = ref("")
+const jsonParseError = ref("")
+
 const responseModels = computed(
   () => (props.request.responseModels ?? []) as HoppRESTResponseModelV21[]
 )
@@ -404,6 +481,48 @@ const boundModelName = computed(() => {
   const model = workspaceModelService.getModelById(refId)
   return model?.name ?? "未知模型"
 })
+
+// --- Real-time example linkage ---
+// Track which response model indices have manually edited examples.
+// When the schema tree changes, auto-regenerate the example UNLESS it was manually edited.
+// Using a reactive record instead of Set for proper Vue reactivity.
+const manualExampleModels = ref<Record<number, boolean>>({})
+
+// Watch schema tree changes and auto-regenerate example
+watch(
+  () => currentModel.value?.bodySchemaTree,
+  (newTree) => {
+    const idx = activeModel.value
+    if (manualExampleModels.value[idx]) return // user manually edited, skip
+    if (isBoundToModel.value) return // bound mode uses resolved tree, handled below
+    if (!newTree || newTree.length === 0) return
+    const example = generateExampleFromSchema(newTree, modelResolver)
+    const models = ensureModels()
+    if (models[idx]?.bodyExample !== example) {
+      models[idx] = { ...models[idx], bodyExample: example }
+      emit("update:request", { ...props.request, responseModels: models })
+    }
+  },
+  { deep: true }
+)
+
+// Watch resolved model tree changes (bound mode) and auto-regenerate example
+watch(
+  resolvedModelTree,
+  (newTree) => {
+    const idx = activeModel.value
+    if (manualExampleModels.value[idx]) return
+    if (!isBoundToModel.value) return
+    if (!newTree || newTree.length === 0) return
+    const example = generateExampleFromSchema(newTree, modelResolver)
+    const models = ensureModels()
+    if (models[idx]?.bodyExample !== example) {
+      models[idx] = { ...models[idx], bodyExample: example }
+      emit("update:request", { ...props.request, responseModels: models })
+    }
+  },
+  { deep: true }
+)
 
 // Close picker when clicking outside
 function handleClickOutside(event: MouseEvent) {
@@ -496,15 +615,55 @@ function onSchemaTreeUpdate(tree: HoppRESTSchemaNode[]) {
 }
 
 function onExampleUpdate(val: string) {
+  // Mark this model as having a manually edited example
+  manualExampleModels.value = {
+    ...manualExampleModels.value,
+    [activeModel.value]: true,
+  }
   updateModel(activeModel.value, { bodyExample: val })
 }
 
 function generateExample() {
+  // Reset to auto mode — clear manual override flag
+  const updated = { ...manualExampleModels.value }
+  delete updated[activeModel.value]
+  manualExampleModels.value = updated
   const tree = isBoundToModel.value
     ? resolvedModelTree.value
     : currentModel.value?.bodySchemaTree
   const example = generateExampleFromSchema(tree, modelResolver)
   updateModel(activeModel.value, { bodyExample: example })
+}
+
+// --- JSON reverse-parse dialog ---
+
+function openJsonParseDialog() {
+  jsonParseInput.value = ""
+  jsonParseError.value = ""
+  showJsonParseDialog.value = true
+}
+
+function confirmJsonParse() {
+  const tree = parseJsonToSchemaTree(jsonParseInput.value)
+  if (tree === null) {
+    jsonParseError.value = "JSON 解析失败，请检查格式"
+    return
+  }
+  // Clear manual override since we're replacing the schema
+  const updated = { ...manualExampleModels.value }
+  delete updated[activeModel.value]
+  manualExampleModels.value = updated
+  // Update schema tree and regenerate example
+  const example = generateExampleFromSchema(tree, modelResolver)
+  updateModel(activeModel.value, {
+    bodySchemaTree: tree,
+    bodyExample: example,
+  })
+  showJsonParseDialog.value = false
+}
+
+function closeJsonParseDialog() {
+  showJsonParseDialog.value = false
 }
 
 // --- Model binding methods ---
