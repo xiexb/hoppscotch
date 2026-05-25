@@ -6,7 +6,7 @@
     >
       <!-- Expand/collapse for object/array/modelRef -->
       <button
-        v-if="hasChildren"
+        v-if="hasExpandableContent"
         class="text-secondary transition-transform"
         :class="{ 'rotate-90': expanded }"
         @click="expanded = !expanded"
@@ -57,15 +57,23 @@
       />
 
       <!-- ModelRef badge -->
-      <button
+      <span
         v-if="node.modelRef"
         class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 shrink-0 flex items-center gap-0.5"
-        :title="`引用模型: ${modelRefName}（点击清除）`"
-        @click="clearModelRef"
+        :title="`引用模型: ${modelRefName}`"
       >
         <IconLink class="w-2.5 h-2.5" />
         {{ modelRefName }}
-      </button>
+      </span>
+
+      <!-- Override indicator -->
+      <span
+        v-if="isOverrideActive"
+        class="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/15 text-amber-500 shrink-0"
+        title="已覆盖模型字段（本地编辑不影响原模型）"
+      >
+        已覆盖
+      </span>
 
       <!-- Required toggle -->
       <button
@@ -91,6 +99,24 @@
         >
           <IconPlus class="w-3 h-3" />
         </button>
+        <!-- Reset override button -->
+        <button
+          v-if="isOverrideActive"
+          class="text-secondaryLight hover:text-amber-500 transition-colors"
+          title="恢复模型默认字段（丢弃本地覆盖）"
+          @click="resetOverride"
+        >
+          <IconRefreshCw class="w-3 h-3" />
+        </button>
+        <!-- Clear modelRef button -->
+        <button
+          v-if="node.modelRef"
+          class="text-secondaryLight hover:text-red-400 transition-colors"
+          title="清除模型引用"
+          @click="clearModelRef"
+        >
+          <IconUnlink class="w-3 h-3" />
+        </button>
         <button
           class="text-secondaryLight hover:text-red-400 transition-colors"
           title="删除"
@@ -101,7 +127,60 @@
       </div>
     </div>
 
-    <!-- Direct children (for object/array with their own children) -->
+    <!-- ModelRef override toolbar: shown when expanded, modelRef set, no override yet -->
+    <div
+      v-if="hasModelRef && expanded && !isOverrideActive && resolvedModelChildren.length > 0"
+      class="flex items-center gap-2 py-1 px-4 border-b border-dividerLight bg-purple-500/5"
+      :style="{ paddingLeft: `${(depth + 2) * 16 + 8}px` }"
+    >
+      <span class="text-[10px] text-secondaryLight">
+        展示模型 <strong class="text-purple-500">{{ modelRefName }}</strong> 的 {{ resolvedModelChildren.length }} 个字段（只读预览）
+      </span>
+      <button
+        class="text-[10px] text-accent hover:text-accentDark flex items-center gap-0.5 transition-colors"
+        @click="materializeOverride"
+      >
+        <IconEdit class="w-2.5 h-2.5" />
+        编辑覆盖
+      </button>
+    </div>
+
+    <!-- Resolved modelRef children (read-only preview when no override) -->
+    <div
+      v-if="hasModelRef && expanded && !isOverrideActive && resolvedModelChildren.length > 0"
+      class="border-l-2 border-purple-500/20 ml-4"
+    >
+      <div
+        v-for="(child, index) in resolvedModelChildren"
+        :key="'ref-' + index"
+        class="flex items-center gap-1.5 py-1.5 px-2 border-b border-dividerLight/50 opacity-70"
+        :style="{ paddingLeft: `${(depth + 2) * 16 + 8}px` }"
+      >
+        <span class="w-3" />
+        <span class="text-xs font-mono text-accent">{{ child.name }}</span>
+        <span class="text-xs text-secondaryLight">{{ child.type }}</span>
+        <span
+          v-if="child.example"
+          class="text-xs text-secondaryDark font-mono bg-primaryLight px-1.5 py-0.5 rounded"
+        >
+          {{ child.example }}
+        </span>
+        <span
+          v-if="child.required"
+          class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+        >
+          必填
+        </span>
+        <span
+          v-if="child.description"
+          class="text-xs text-secondaryLight ml-auto truncate max-w-[200px]"
+        >
+          {{ child.description }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Direct children (for object/array, or modelRef with override active) -->
     <div v-if="hasDirectChildren && expanded">
       <SchemaTreeRow
         v-for="(child, index) in node.children"
@@ -113,79 +192,6 @@
         @add-child="() => addChildToChild(index)"
       />
     </div>
-
-    <!-- Resolved modelRef children (editable overrides) -->
-    <div v-if="hasModelRefChildren && expanded">
-      <div
-        v-for="(child, index) in resolvedModelChildren"
-        :key="'ref-' + index"
-        class="flex items-center gap-1.5 py-1.5 px-2 border-b border-dividerLight transition-colors"
-        :class="isOverridden(child.name) ? 'bg-blue-500/5' : 'hover:bg-primaryLight/50'"
-        :style="{ paddingLeft: `${(depth + 2) * 16 + 8}px` }"
-      >
-        <!-- No expand for model children (leaf display) -->
-        <span class="w-3" />
-
-        <!-- Field name (read-only from model) -->
-        <span class="text-xs font-mono text-accent w-28 min-w-[60px] truncate">
-          {{ child.name }}
-        </span>
-
-        <!-- Type (read-only from model) -->
-        <span class="text-xs text-accent w-20 opacity-60">{{ child.type }}</span>
-
-        <!-- Example value (editable override) -->
-        <input
-          :value="getOverrideExample(child)"
-          class="text-xs bg-transparent outline-none w-20 min-w-[50px] text-secondaryDark placeholder:text-secondaryLight"
-          :class="{ 'text-blue-600 font-medium': isOverridden(child.name) }"
-          :placeholder="child.example || '示例值'"
-          @input="onOverrideField(child.name, 'example', $event)"
-        />
-
-        <!-- Display name (read-only from model) -->
-        <span class="text-xs text-secondaryDark w-24 min-w-[50px] truncate opacity-60">
-          {{ child.displayName || '' }}
-        </span>
-
-        <!-- Description (editable override) -->
-        <input
-          :value="getOverrideDescription(child)"
-          class="text-xs bg-transparent outline-none flex-1 min-w-[60px] text-secondaryDark placeholder:text-secondaryLight"
-          :class="{ 'text-blue-600 font-medium': isOverridden(child.name) }"
-          :placeholder="child.description || '说明'"
-          @input="onOverrideField(child.name, 'description', $event)"
-        />
-
-        <!-- Override indicator -->
-        <span
-          v-if="isOverridden(child.name)"
-          class="px-1 py-0.5 text-[9px] rounded bg-blue-500/15 text-blue-500 shrink-0"
-          title="已覆盖模型默认值"
-        >
-          覆盖
-        </span>
-
-        <!-- Required badge (read-only from model) -->
-        <span
-          class="px-1.5 py-0.5 text-[10px] rounded shrink-0"
-          :class="child.required ? 'bg-orange-500/15 text-orange-500' : 'bg-secondaryLight/10 text-secondaryLight'"
-        >
-          {{ child.required ? '必填' : '可选' }}
-        </span>
-
-        <!-- Clear override button -->
-        <button
-          v-if="isOverridden(child.name)"
-          class="text-secondaryLight hover:text-blue-500 transition-colors shrink-0"
-          title="清除覆盖"
-          @click="clearOverride(child.name)"
-        >
-          <IconX class="w-3 h-3" />
-        </button>
-        <span v-else class="w-3 shrink-0" />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -196,7 +202,17 @@ import IconChevronRight from "~icons/lucide/chevron-right"
 import IconPlus from "~icons/lucide/plus"
 import IconTrash from "~icons/lucide/trash-2"
 import IconLink from "~icons/lucide/link"
-import IconX from "~icons/lucide/x"
+import IconUnlink from "~icons/lucide/unlink"
+import IconRefreshCw from "~icons/lucide/refresh-cw"
+import IconEdit from "~icons/lucide/pencil"
+
+/**
+ * Rich model resolver type: given a modelRef ID, returns the model's name
+ * and schemaTree so the editor can expand referenced models inline.
+ */
+type RichModelResolver = (
+  id: string
+) => { name: string; schemaTree: HoppRESTSchemaNode[] } | undefined
 
 const props = defineProps<{
   node: HoppRESTSchemaNode
@@ -221,45 +237,31 @@ const typeOptions = [
   "file",
 ]
 
-// ─── Model resolver (name only, for badge display) ─────────────────
-const modelResolver = inject<((id: string) => string) | null>(
+// ─── ModelRef support ─────────────────────────────────────────────
+
+// Name-only resolver (for badge display)
+const modelNameResolver = inject<((id: string) => string) | null>(
   "schemaModelResolver",
   null
 )
 
-// ─── Rich model resolver (name + schemaTree, for expand/collapse) ───
-const richModelResolver = inject<
-  ((id: string) => { name: string; schemaTree: HoppRESTSchemaNode[] } | undefined) | null
->("schemaRichModelResolver", null)
+// Rich resolver (for expand/collapse with schemaTree)
+const richModelResolver = inject<RichModelResolver | null>(
+  "schemaRichModelResolver",
+  null
+)
 
-// ─── Computed: resolved model children ─────────────────────────────
+const hasModelRef = computed(() => !!props.node.modelRef)
+
 const resolvedModelChildren = computed<HoppRESTSchemaNode[]>(() => {
   if (!props.node.modelRef || !richModelResolver) return []
   const resolved = richModelResolver(props.node.modelRef)
   return resolved?.schemaTree ?? []
 })
 
-const hasDirectChildren = computed(
-  () =>
-    (props.node.type === "object" || props.node.type === "array") &&
-    (props.node.children?.length ?? 0) > 0
-)
-
-const hasModelRefChildren = computed(
-  () => !!props.node.modelRef && resolvedModelChildren.value.length > 0
-)
-
-const hasChildren = computed(
-  () => hasDirectChildren.value || hasModelRefChildren.value
-)
-
-const canAddChild = computed(
-  () => props.node.type === "object" || props.node.type === "array"
-)
-
 const modelRefName = computed(() => {
   if (!props.node.modelRef) return ""
-  if (modelResolver) return modelResolver(props.node.modelRef)
+  if (modelNameResolver) return modelNameResolver(props.node.modelRef)
   if (richModelResolver) {
     const resolved = richModelResolver(props.node.modelRef)
     if (resolved) return resolved.name
@@ -267,10 +269,62 @@ const modelRefName = computed(() => {
   return props.node.modelRef.substring(0, 8)
 })
 
+/**
+ * Override is active when the node has a modelRef AND has local children
+ * that override the model's fields.
+ */
+const isOverrideActive = computed(
+  () => !!props.node.modelRef && (props.node.children?.length ?? 0) > 0
+)
+
+// ─── Expand/collapse logic ────────────────────────────────────────
+
+const hasDirectChildren = computed(
+  () =>
+    (props.node.type === "object" || props.node.type === "array") &&
+    (props.node.children?.length ?? 0) > 0
+)
+
+const canAddChild = computed(
+  () => props.node.type === "object" || props.node.type === "array"
+)
+
+/** Whether this node has anything to expand (direct children, modelRef children, or override) */
+const hasExpandableContent = computed(
+  () =>
+    hasDirectChildren.value ||
+    (hasModelRef.value && resolvedModelChildren.value.length > 0) ||
+    isOverrideActive.value
+)
+
+// ─── ModelRef actions ─────────────────────────────────────────────
+
 function clearModelRef() {
-  const updated = { ...props.node, modelRef: "", modelOverrides: {} }
+  const updated = { ...props.node, modelRef: "" }
   emit("update", updated)
 }
+
+/**
+ * Materialize the model's schemaTree into this node's children,
+ * creating a local editable override.
+ */
+function materializeOverride() {
+  const cloned = deepCloneNodes(resolvedModelChildren.value)
+  const updated = { ...props.node, children: cloned }
+  emit("update", updated)
+  expanded.value = true
+}
+
+/**
+ * Reset the override: clear local children so the node re-resolves
+ * from the referenced model.
+ */
+function resetOverride() {
+  const updated = { ...props.node, children: [] }
+  emit("update", updated)
+}
+
+// ─── Field editing ────────────────────────────────────────────────
 
 function onField(field: string, event: Event) {
   const target = event.target as HTMLInputElement | HTMLSelectElement
@@ -321,7 +375,6 @@ function addChildToChild(index: number) {
       children: [],
       example: "",
       modelRef: "",
-      modelOverrides: {},
     },
   ]
   child.type = child.type === "array" ? "array" : "object"
@@ -329,72 +382,16 @@ function addChildToChild(index: number) {
   emit("update", { ...props.node, children })
 }
 
-// ─── Override editing for modelRef children ────────────────────────
+// ─── Utilities ────────────────────────────────────────────────────
 
 /**
- * Get the effective example value for a modelRef child:
- * override value if set, otherwise the model's default.
+ * Deep clone an array of schema nodes so the override is independent
+ * from the model's original data.
  */
-function getOverrideExample(child: HoppRESTSchemaNode): string {
-  const overrides = props.node.modelOverrides ?? {}
-  const override = overrides[child.name]
-  if (override?.example !== undefined && override.example !== "") {
-    return override.example
-  }
-  return child.example ?? ""
-}
-
-/**
- * Get the effective description value for a modelRef child:
- * override value if set, otherwise the model's default.
- */
-function getOverrideDescription(child: HoppRESTSchemaNode): string {
-  const overrides = props.node.modelOverrides ?? {}
-  const override = overrides[child.name]
-  if (override?.description !== undefined && override.description !== "") {
-    return override.description
-  }
-  return child.description ?? ""
-}
-
-/**
- * Check if a modelRef child has any override values.
- */
-function isOverridden(childName: string): boolean {
-  const overrides = props.node.modelOverrides ?? {}
-  const override = overrides[childName]
-  if (!override) return false
-  return !!(override.example || override.description)
-}
-
-/**
- * Handle editing an override field on a modelRef child.
- * Updates the parent node's modelOverrides record.
- */
-function onOverrideField(childName: string, field: "example" | "description", event: Event) {
-  const target = event.target as HTMLInputElement
-  const value = target.value
-
-  const overrides = { ...(props.node.modelOverrides ?? {}) }
-  overrides[childName] = {
-    ...(overrides[childName] ?? {}),
-    [field]: value,
-  }
-
-  // Clean up empty overrides
-  if (!overrides[childName].example && !overrides[childName].description) {
-    delete overrides[childName]
-  }
-
-  emit("update", { ...props.node, modelOverrides: overrides })
-}
-
-/**
- * Clear all overrides for a specific modelRef child.
- */
-function clearOverride(childName: string) {
-  const overrides = { ...(props.node.modelOverrides ?? {}) }
-  delete overrides[childName]
-  emit("update", { ...props.node, modelOverrides: overrides })
+function deepCloneNodes(nodes: HoppRESTSchemaNode[]): HoppRESTSchemaNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    children: node.children ? deepCloneNodes(node.children) : [],
+  }))
 }
 </script>

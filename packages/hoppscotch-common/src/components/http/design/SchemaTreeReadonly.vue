@@ -104,7 +104,9 @@ const props = defineProps<{
   modelResolver?: ReadonlyModelResolver
 }>()
 
-const expanded = ref(true)
+// modelRef nodes default to collapsed to reduce visual noise;
+// direct object/array children default to expanded
+const expanded = ref(!props.node.modelRef)
 
 const hasDirectChildren = computed(
   () =>

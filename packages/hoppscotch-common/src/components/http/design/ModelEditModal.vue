@@ -35,6 +35,70 @@
           />
         </div>
 
+        <!-- Visibility -->
+        <div class="flex items-start gap-3">
+          <label
+            class="text-xs font-semibold text-secondary w-16 shrink-0 mt-1.5"
+          >
+            可见性
+          </label>
+          <div class="flex-1 space-y-2">
+            <div class="flex items-center gap-4">
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+                <input
+                  v-model="editingVisibility"
+                  type="radio"
+                  value="public"
+                  class="accent-accent"
+                />
+                <span class="text-secondaryDark">公共</span>
+                <span class="text-secondaryLight">（所有集合可见）</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+                <input
+                  v-model="editingVisibility"
+                  type="radio"
+                  value="collection"
+                  class="accent-accent"
+                />
+                <span class="text-secondaryDark">集合级</span>
+                <span class="text-secondaryLight">（仅指定集合可见）</span>
+              </label>
+            </div>
+
+            <!-- Collection picker (only when visibility is "collection") -->
+            <div
+              v-if="editingVisibility === 'collection'"
+              class="border border-dividerLight rounded p-2 max-h-[160px] overflow-y-auto"
+            >
+              <div
+                v-if="allCollections.length === 0"
+                class="text-xs text-secondaryLight text-center py-2"
+              >
+                暂无可用集合
+              </div>
+              <label
+                v-for="coll in allCollections"
+                :key="coll.id"
+                class="flex items-center gap-2 py-1 px-1 cursor-pointer hover:bg-primaryLight rounded text-xs"
+              >
+                <input
+                  type="checkbox"
+                  :checked="editingCollectionIds.includes(coll.id)"
+                  class="accent-accent"
+                  @change="toggleCollection(coll.id)"
+                />
+                <span class="text-secondaryDark truncate">{{
+                  coll.name
+                }}</span>
+                <span class="text-secondaryLight text-[10px] shrink-0">{{
+                  coll.tag
+                }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <!-- Schema Tree Editor -->
         <div>
           <div class="flex items-center justify-between mb-2">
@@ -71,9 +135,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { ref, watch, computed } from "vue"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
+import { restCollectionStore } from "~/newstore/collections"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
+
+/**
+ * Collection item for the picker: id (matching our convention), name, tag.
+ */
+type CollectionItem = {
+  id: string
+  name: string
+  tag: string
+}
 
 const props = defineProps<{
   show: boolean
@@ -89,6 +163,8 @@ const emit = defineEmits<{
       name: string
       description: string
       schemaTree: HoppRESTSchemaNode[]
+      visibility: "public" | "collection"
+      collectionIds: string[]
     }
   ): void
 }>()
@@ -97,8 +173,36 @@ const isEditing = ref(false)
 const editingName = ref("")
 const editingDescription = ref("")
 const editingSchemaTree = ref<HoppRESTSchemaNode[]>([])
+const editingVisibility = ref<"public" | "collection">("public")
+const editingCollectionIds = ref<string[]>([])
 const errorMessage = ref("")
 const saving = ref(false)
+
+// All available collections for the picker
+const allCollections = computed<CollectionItem[]>(() => {
+  const items: CollectionItem[] = []
+
+  // User collections from the store
+  const userCollections = restCollectionStore.value.state ?? []
+  userCollections.forEach((coll, idx) => {
+    items.push({
+      id: `user:${idx}`,
+      name: coll.name || `集合 ${idx + 1}`,
+      tag: "本地",
+    })
+  })
+
+  return items
+})
+
+function toggleCollection(id: string) {
+  const idx = editingCollectionIds.value.indexOf(id)
+  if (idx >= 0) {
+    editingCollectionIds.value.splice(idx, 1)
+  } else {
+    editingCollectionIds.value.push(id)
+  }
+}
 
 watch(
   () => props.show,
@@ -109,11 +213,15 @@ watch(
         editingName.value = props.model.name
         editingDescription.value = props.model.description ?? ""
         editingSchemaTree.value = [...(props.model.schemaTree ?? [])]
+        editingVisibility.value = props.model.visibility ?? "public"
+        editingCollectionIds.value = [...(props.model.collectionIds ?? [])]
       } else {
         isEditing.value = false
         editingName.value = ""
         editingDescription.value = ""
         editingSchemaTree.value = []
+        editingVisibility.value = "public"
+        editingCollectionIds.value = []
       }
       errorMessage.value = ""
       saving.value = false
@@ -128,6 +236,14 @@ function onSave() {
     return
   }
 
+  if (
+    editingVisibility.value === "collection" &&
+    editingCollectionIds.value.length === 0
+  ) {
+    errorMessage.value = "集合级可见性至少需要选择一个集合"
+    return
+  }
+
   errorMessage.value = ""
   saving.value = true
 
@@ -136,6 +252,11 @@ function onSave() {
     name,
     description: editingDescription.value.trim(),
     schemaTree: editingSchemaTree.value,
+    visibility: editingVisibility.value,
+    collectionIds:
+      editingVisibility.value === "collection"
+        ? editingCollectionIds.value
+        : [],
   })
 
   saving.value = false

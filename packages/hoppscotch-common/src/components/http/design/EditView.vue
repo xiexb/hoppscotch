@@ -17,6 +17,7 @@
     <!-- Area 3: Response Section -->
     <ResponseSection
       :request="request"
+      :collection-id="collectionId"
       @update:request="emit('update:request', $event)"
     />
 
@@ -39,9 +40,11 @@ const props = withDefaults(
   defineProps<{
     request: HoppRESTRequest
     inheritedProperties?: HoppInheritedProperty
+    collectionId?: string
   }>(),
   {
     inheritedProperties: undefined,
+    collectionId: undefined,
   }
 )
 

@@ -27,6 +27,8 @@ export type CreateWorkspaceModelInput = {
   name: string
   description?: string
   schemaTree?: HoppRESTSchemaNode[]
+  visibility?: "public" | "collection"
+  collectionIds?: string[]
 }
 
 /**
@@ -37,6 +39,8 @@ export type UpdateWorkspaceModelInput = {
   name?: string
   description?: string
   schemaTree?: HoppRESTSchemaNode[]
+  visibility?: "public" | "collection"
+  collectionIds?: string[]
 }
 
 /**
@@ -93,6 +97,8 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
       schemaTree: input.schemaTree ?? [],
       createdAt: now,
       updatedAt: now,
+      visibility: input.visibility ?? "public",
+      collectionIds: input.collectionIds ?? [],
     }
 
     this.modelsMap.set(model.id, model)
@@ -118,6 +124,37 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
   }
 
   /**
+   * Returns models visible to a specific collection.
+   * Includes all public models plus collection-scoped models
+   * whose `collectionIds` contains the given collectionId.
+   */
+  public getModelsForCollection(collectionId: string): HoppWorkspaceModel[] {
+    return Array.from(this.modelsMap.values())
+      .filter(
+        (m) =>
+          (m.visibility ?? "public") === "public" ||
+          (m.collectionIds ?? []).includes(collectionId)
+      )
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  /**
+   * Returns a reactive computed list of models visible to a specific collection.
+   */
+  public getModelsForCollectionRef(collectionId: () => string | undefined) {
+    return computed(() => {
+      const id = collectionId()
+      if (!id) {
+        // No collection context — only public models
+        return Array.from(this.modelsMap.values())
+          .filter((m) => (m.visibility ?? "public") === "public")
+          .sort((a, b) => a.name.localeCompare(b.name))
+      }
+      return this.getModelsForCollection(id)
+    })
+  }
+
+  /**
    * Updates an existing model. Only provided fields are changed.
    * @returns The updated model, or null if the model was not found.
    */
@@ -139,6 +176,12 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
         : {}),
       ...(input.schemaTree !== undefined
         ? { schemaTree: input.schemaTree }
+        : {}),
+      ...(input.visibility !== undefined
+        ? { visibility: input.visibility }
+        : {}),
+      ...(input.collectionIds !== undefined
+        ? { collectionIds: input.collectionIds }
         : {}),
       updatedAt: new Date().toISOString(),
     }
@@ -204,6 +247,11 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
                 : [],
               createdAt: model.createdAt ?? "",
               updatedAt: model.updatedAt ?? "",
+              visibility:
+                model.visibility === "collection" ? "collection" : "public",
+              collectionIds: Array.isArray(model.collectionIds)
+                ? model.collectionIds
+                : [],
             })
           }
         }

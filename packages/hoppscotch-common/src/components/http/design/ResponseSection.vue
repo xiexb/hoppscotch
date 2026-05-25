@@ -178,6 +178,7 @@
         <SchemaTreeEditor
           v-else
           :model-value="currentSchemaTree"
+          :collection-id="collectionId"
           @update:model-value="onSchemaTreeUpdate"
         />
       </div>
@@ -326,8 +327,16 @@ import { WorkspaceModelService } from "~/services/workspace-model.service"
 // Workspace model service for resolving modelRef
 const workspaceModelService = useService(WorkspaceModelService)
 
-// Available models for root-level binding
-const availableModels = computed(() => workspaceModelService.models.value)
+// Available models for root-level binding — filtered by collection context
+const availableModels = computed(() => {
+  if (props.collectionId) {
+    return workspaceModelService.getModelsForCollection(props.collectionId)
+  }
+  // No collection context — show only public models
+  return workspaceModelService.models.value.filter(
+    (m) => (m.visibility ?? "public") === "public"
+  )
+})
 
 // Model picker state
 const showModelPicker = ref(false)
@@ -355,6 +364,7 @@ const readonlyModelResolver: ReadonlyModelResolver = (modelRefId: string) => {
 
 const props = defineProps<{
   request: HoppRESTRequest
+  collectionId?: string
 }>()
 
 const emit = defineEmits<{

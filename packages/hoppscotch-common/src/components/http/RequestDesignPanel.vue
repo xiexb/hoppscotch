@@ -74,6 +74,7 @@
       v-if="subMode === 'edit'"
       :request="request"
       :inherited-properties="inheritedProperties"
+      :collection-id="collectionId"
       @update:request="onRequestUpdate"
       @save="onSave"
     />
@@ -127,6 +128,25 @@ const apiTitle = computed(() => request.value.apiTitle ?? "")
 const apiStatus = computed(
   () => (request.value.apiStatus ?? "developing") as ApiStatus
 )
+
+/**
+ * Derive the collection ID from the tab's saveContext for model visibility filtering.
+ * - Team collections: "team:<collectionID>"
+ * - User collections: "user:<rootIndex>"
+ * - No saveContext: undefined (only public models shown)
+ */
+const collectionId = computed(() => {
+  const ctx = tabModel.value?.document?.saveContext
+  if (!ctx) return undefined
+  if (ctx.originLocation === "team-collection") {
+    return ctx.collectionID ? `team:${ctx.collectionID}` : undefined
+  }
+  if (ctx.originLocation === "user-collection") {
+    const rootIndex = ctx.folderPath?.split("/")[0]
+    return rootIndex !== undefined ? `user:${rootIndex}` : undefined
+  }
+  return undefined
+})
 
 watch(subMode, (val) => {
   emit("update:subMode", val)

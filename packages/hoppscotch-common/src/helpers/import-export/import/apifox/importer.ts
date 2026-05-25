@@ -16,7 +16,7 @@ import * as O from "fp-ts/Option"
 import * as TE from "fp-ts/TaskEither"
 import { pipe } from "fp-ts/function"
 import { safeParseJSON } from "~/helpers/functional/json"
-import { IMPORTER_INVALID_FILE_FORMAT } from "."
+import { IMPORTER_INVALID_FILE_FORMAT } from ".."
 import type { RefMap } from "./jsonSchemaToSchemaNode"
 import type { ApifoxProject } from "./types"
 

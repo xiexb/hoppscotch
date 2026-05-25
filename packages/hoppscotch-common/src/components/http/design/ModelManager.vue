@@ -60,6 +60,12 @@
               >
                 {{ model.schemaTree?.length ?? 0 }} 字段
               </span>
+              <span
+                v-if="(model.visibility ?? 'public') === 'collection'"
+                class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-medium shrink-0"
+              >
+                集合级
+              </span>
             </div>
             <div
               v-if="model.description"
@@ -223,18 +229,24 @@ function onModelSave(data: {
   name: string
   description: string
   schemaTree: HoppRESTSchemaNode[]
+  visibility: "public" | "collection"
+  collectionIds: string[]
 }) {
   if (data.id) {
     workspaceModelService.updateModel(data.id, {
       name: data.name,
       description: data.description,
       schemaTree: data.schemaTree,
+      visibility: data.visibility,
+      collectionIds: data.collectionIds,
     })
   } else {
     workspaceModelService.createModel({
       name: data.name,
       description: data.description,
       schemaTree: data.schemaTree,
+      visibility: data.visibility,
+      collectionIds: data.collectionIds,
     })
   }
   showModal.value = false

@@ -91,6 +91,7 @@ declare module 'vue' {
     CollectionsGraphqlFolder: typeof import('./components/collections/graphql/Folder.vue')['default']
     CollectionsGraphqlImportExport: typeof import('./components/collections/graphql/ImportExport.vue')['default']
     CollectionsGraphqlRequest: typeof import('./components/collections/graphql/Request.vue')['default']
+    CollectionsImportApifoxModal: typeof import('./components/collections/ImportApifoxModal.vue')['default']
     CollectionsImportExport: typeof import('./components/collections/ImportExport.vue')['default']
     CollectionsMyCollections: typeof import('./components/collections/MyCollections.vue')['default']
     CollectionsProperties: typeof import('./components/collections/Properties.vue')['default']
