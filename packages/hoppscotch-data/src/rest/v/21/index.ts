@@ -25,6 +25,8 @@ export type HoppRESTSchemaNode = {
   example: string
   /** Reference ID of a HoppWorkspaceModel — when set, the node's children are resolved from that model */
   modelRef: string
+  /** Override values for resolved modelRef children (key = child field path) */
+  modelOverrides?: Record<string, { example?: string; description?: string }>
 }
 
 const schemaNodeShape = z.object({
@@ -40,6 +42,9 @@ const schemaNodeShape = z.object({
   // v21 additions
   example: z.string().catch(""),
   modelRef: z.string().catch(""),
+  modelOverrides: z
+    .record(z.string(), z.object({ example: z.string().optional(), description: z.string().optional() }))
+    .catch({}),
 })
 
 export const HoppRESTSchemaNodeSchema = schemaNodeShape
@@ -63,6 +68,10 @@ export const HoppWorkspaceModel = z.object({
   createdAt: z.string().catch(""),
   /** ISO timestamp of last modification */
   updatedAt: z.string().catch(""),
+  /** Visibility: "public" (all collections) or "collection" (specific collections only) */
+  visibility: z.enum(["public", "collection"]).catch("public"),
+  /** When visibility is "collection", the list of collection IDs that can use this model */
+  collectionIds: z.array(z.string()).catch([]),
 })
 
 export type HoppWorkspaceModel = z.infer<typeof HoppWorkspaceModel>
@@ -114,6 +123,10 @@ function migrateSchemaNode(node: Record<string, unknown>): Record<string, unknow
     ...node,
     example: typeof node.example === "string" ? node.example : "",
     modelRef: typeof node.modelRef === "string" ? node.modelRef : "",
+    modelOverrides:
+      node.modelOverrides && typeof node.modelOverrides === "object"
+        ? node.modelOverrides
+        : {},
     children: Array.isArray(node.children)
       ? node.children.map((child: Record<string, unknown>) => migrateSchemaNode(child))
       : [],

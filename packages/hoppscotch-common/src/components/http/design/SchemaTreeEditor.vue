@@ -91,6 +91,7 @@ import SchemaTreeRow from "./SchemaTreeRow.vue"
 
 const props = defineProps<{
   modelValue: HoppRESTSchemaNode[]
+  collectionId?: string
 }>()
 
 const emit = defineEmits<{
@@ -100,8 +101,16 @@ const emit = defineEmits<{
 // Workspace model service
 const workspaceModelService = useService(WorkspaceModelService)
 
-// Available models for insertion
-const availableModels = computed(() => workspaceModelService.models.value)
+// Available models for insertion — filtered by collection context
+const availableModels = computed(() => {
+  if (props.collectionId) {
+    return workspaceModelService.getModelsForCollection(props.collectionId)
+  }
+  // No collection context — show only public models
+  return workspaceModelService.models.value.filter(
+    (m) => (m.visibility ?? "public") === "public"
+  )
+})
 
 // Model picker state
 const showModelPicker = ref(false)
@@ -113,6 +122,19 @@ const modelResolver = (id: string): string => {
   return model ? model.name : id.substring(0, 8)
 }
 provide("schemaModelResolver", modelResolver)
+
+// Provide rich model resolver (name + schemaTree) for expand/collapse in edit mode
+const richModelResolver = (
+  id: string
+): { name: string; schemaTree: HoppRESTSchemaNode[] } | undefined => {
+  const model = workspaceModelService.getModelById(id)
+  if (!model) return undefined
+  return {
+    name: model.name,
+    schemaTree: (model.schemaTree ?? []) as HoppRESTSchemaNode[],
+  }
+}
+provide("schemaRichModelResolver", richModelResolver)
 
 // Close picker when clicking outside
 function handleClickOutside(event: MouseEvent) {
@@ -143,6 +165,7 @@ function createEmptyNode(name = ""): HoppRESTSchemaNode {
     children: [],
     example: "",
     modelRef: "",
+    modelOverrides: {},
   }
 }
 
@@ -189,6 +212,7 @@ function insertModelRef(model: HoppWorkspaceModel) {
     children: [],
     example: "",
     modelRef: model.id,
+    modelOverrides: {},
   }
   nodes.push(node)
   emit("update:modelValue", nodes)

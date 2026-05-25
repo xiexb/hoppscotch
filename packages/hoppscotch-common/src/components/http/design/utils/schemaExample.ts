@@ -50,9 +50,20 @@ function generateNodeExample(
     const resolvedTree = modelResolver(node.modelRef)
     if (resolvedTree && resolvedTree.length > 0) {
       const obj: Record<string, unknown> = {}
+      const overrides = node.modelOverrides ?? {}
       for (const child of resolvedTree) {
-        obj[child.name || "field"] = generateNodeExample(
-          child,
+        // Apply overrides from the parent node's modelOverrides
+        const override = overrides[child.name]
+        let effectiveChild = child
+        if (override) {
+          effectiveChild = {
+            ...child,
+            example: override.example || child.example,
+            description: override.description || child.description,
+          }
+        }
+        obj[effectiveChild.name || "field"] = generateNodeExample(
+          effectiveChild,
           modelResolver,
           new Set(visitedSet)
         )
