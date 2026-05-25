@@ -26,6 +26,7 @@ import {
   hoppOpenAPIImporter,
   hoppPostmanImporter,
   hoppRESTImporter,
+  hoppApifoxImporter,
   toTeamsImporter,
 } from "~/helpers/import-export/import/importers"
 
@@ -68,6 +69,7 @@ const isRESTImporterInProgress = ref(false)
 const isAllCollectionImporterInProgress = ref(false)
 const isHarImporterInProgress = ref(false)
 const isGistImporterInProgress = ref(false)
+const isApifoxImporterInProgress = ref(false)
 
 const t = useI18n()
 const toast = useToast()
@@ -522,6 +524,49 @@ const HoppInsomniaImporter: ImporterOrExporter = {
   }),
 }
 
+const HoppApifoxImporter: ImporterOrExporter = {
+  metadata: {
+    id: "hopp_apifox",
+    name: "import.from_apifox",
+    title: "import.from_apifox_description",
+    icon: IconFile,
+    disabled: false,
+    applicableTo: ["personal-workspace", "team-workspace", "url-import"],
+    format: "apifox",
+  },
+  importSummary: currentImportSummary,
+  component: FileSource({
+    caption: "import.from_file",
+    acceptedFileTypes: ".json",
+    description: "import.from_apifox_import_summary",
+    onImportFromFile: async (content) => {
+      isApifoxImporterInProgress.value = true
+
+      const res = await hoppApifoxImporter(content)()
+
+      if (E.isRight(res)) {
+        await handleImportToStore(res.right)
+
+        setCurrentImportSummary(res.right)
+
+        platform.analytics?.logEvent({
+          platform: "rest",
+          type: "HOPP_IMPORT_COLLECTION",
+          importer: "import.from_apifox",
+          workspaceType: isTeamWorkspace.value ? "team" : "personal",
+        })
+      } else {
+        showImportFailedError()
+
+        unsetCurrentImportSummary()
+      }
+
+      isApifoxImporterInProgress.value = false
+    },
+    isLoading: isApifoxImporterInProgress,
+  }),
+}
+
 const HoppGistImporter: ImporterOrExporter = {
   metadata: {
     id: "hopp_gist",
@@ -758,6 +803,7 @@ const importerModules = computed(() => {
     HoppOpenAPIImporter,
     HoppPostmanImporter,
     HoppInsomniaImporter,
+    HoppApifoxImporter,
     HoppGistImporter,
     HARImporter,
   ]
