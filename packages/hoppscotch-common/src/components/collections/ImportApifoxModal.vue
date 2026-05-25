@@ -408,7 +408,7 @@
 <script setup lang="ts">
 import { useI18n } from "~/composables/i18n"
 import { useToast } from "~/composables/toast"
-import { computed, reactive, ref, watch } from "vue"
+import { computed, reactive, ref } from "vue"
 import { HoppCollection, makeCollection } from "@hoppscotch/data"
 import { useReadonlyStream } from "~/composables/stream"
 import { restCollections$ } from "~/newstore/collections"
@@ -500,15 +500,6 @@ const importResult = reactive({
   models: 0,
   skipped: 0,
 })
-
-// Watch existingCollections for reactivity debugging
-watch(
-  existingCollections,
-  (val) => {
-    console.log("[ImportApifox] existingCollections updated:", val.length)
-  },
-  { immediate: true }
-)
 
 const overallProgress = computed(() => {
   const total = importStages.length
@@ -777,8 +768,9 @@ async function startImport() {
         ) {
           const existingColl =
             existingCollections.value[selectedTargetIndex.value]
-          if (existingColl?.id) {
-            targetCollectionIds = [existingColl.id]
+          const collId = existingColl?._ref_id ?? existingColl?.id
+          if (collId) {
+            targetCollectionIds = [collId]
           }
         }
 
