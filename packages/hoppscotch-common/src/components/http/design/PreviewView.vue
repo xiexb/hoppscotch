@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
     <!-- Method + URL row (read-only) + action buttons -->
-    <div class="border-b border-dividerLight px-4 py-3">
+    <div class="px-4 py-3">
       <div class="flex items-center gap-2">
         <span
           class="px-2 py-0.5 text-xs font-mono font-semibold rounded"
@@ -60,34 +60,50 @@
 
     <!-- Meta info row -->
     <div
-      class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-b border-dividerLight overflow-x-auto"
+      v-if="responsibility || tags.length > 0 || description"
+      class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-y border-dividerLight bg-primaryLight/30 overflow-x-auto"
     >
-      <span v-if="responsibility">负责人: {{ responsibility }}</span>
-      <span v-if="tags.length > 0">标签: {{ tags.join(", ") }}</span>
-      <span v-if="description" class="truncate max-w-xs"
-        >说明: {{ description }}</span
-      >
+      <span v-if="responsibility" class="shrink-0">
+        <span class="text-secondaryDark font-medium">负责人:</span>
+        {{ responsibility }}
+      </span>
+      <span v-if="tags.length > 0" class="shrink-0">
+        <span class="text-secondaryDark font-medium">标签:</span>
+        {{ tags.join(", ") }}
+      </span>
+      <span v-if="description" class="truncate max-w-xs">
+        <span class="text-secondaryDark font-medium">说明:</span>
+        {{ description }}
+      </span>
     </div>
 
     <!-- Area 4: Request Parameters (read-only) -->
-    <div class="border-b border-dividerLight p-4 space-y-4">
+    <div class="px-4 py-5 space-y-5">
+      <!-- Section title -->
+      <h3
+        class="text-xs font-bold text-secondaryDark uppercase tracking-wider"
+      >
+        请求参数
+      </h3>
+
       <!-- Authorization -->
       <div v-if="authType !== 'none' && authType !== 'inherit'">
         <div
-          class="flex items-center gap-2 cursor-pointer"
+          class="flex items-center gap-2 cursor-pointer group"
           @click="showAuth = !showAuth"
         >
           <component
             :is="showAuth ? IconChevronDown : IconChevronRight"
-            class="w-3.5 h-3.5 text-secondary"
+            class="w-3.5 h-3.5 text-secondary transition-transform"
           />
-          <span class="text-xs font-semibold text-secondaryDark"
+          <span
+            class="text-xs font-semibold text-secondaryDark group-hover:text-primary transition-colors"
             >Authorization</span
           >
         </div>
         <div
           v-if="showAuth"
-          class="mt-2 text-xs text-secondary bg-primaryLight rounded p-2"
+          class="mt-2 text-xs text-secondary bg-primaryLight rounded-lg p-3 ml-5 border border-dividerLight"
         >
           在 Header 添加参数 Authorization，其值为 Bearer 之后拼接 Token
         </div>
@@ -95,22 +111,31 @@
 
       <!-- Path Params -->
       <div v-if="activePathParams.length > 0">
-        <h4 class="text-xs font-semibold text-secondaryDark mb-2">Path 参数</h4>
-        <div class="space-y-1">
+        <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
+          Path 参数
+          <span class="text-secondaryLight font-normal">({{ activePathParams.length }})</span>
+        </h4>
+        <div class="space-y-0.5">
           <div
             v-for="(param, index) in activePathParams"
             :key="index"
-            class="flex items-center gap-3 py-1"
+            class="flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors hover:bg-primaryLight/60"
           >
-            <span class="font-mono text-xs text-accent">{{ param.key }}</span>
-            <span class="text-xs text-secondaryLight">string</span>
+            <span class="font-mono text-xs text-accent min-w-[80px]">{{
+              param.key
+            }}</span>
             <span
-              class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+              class="text-[11px] px-1.5 py-0.5 rounded font-mono"
+              :class="getTypeClass('string')"
+              >string</span
+            >
+            <span
+              class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium"
               >必填</span
             >
             <span
               v-if="param.description"
-              class="text-xs text-secondaryLight ml-2"
+              class="text-xs text-secondaryLight ml-auto truncate max-w-[200px]"
               >{{ param.description }}</span
             >
           </div>
@@ -119,28 +144,33 @@
 
       <!-- Headers -->
       <div v-if="activeHeaders.length > 0">
-        <h4 class="text-xs font-semibold text-secondaryDark mb-2">
+        <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
           Header 参数
+          <span class="text-secondaryLight font-normal">({{ activeHeaders.length }})</span>
         </h4>
-        <div class="space-y-2">
+        <div class="space-y-0.5">
           <div
             v-for="(header, index) in activeHeaders"
             :key="index"
-            class="py-1"
+            class="rounded-md transition-colors hover:bg-primaryLight/60 py-1.5 px-2"
           >
             <div class="flex items-center gap-3">
-              <span class="font-mono text-xs text-accent">{{
+              <span class="font-mono text-xs text-accent min-w-[80px]">{{
                 header.key
               }}</span>
-              <span class="text-xs text-secondaryLight">string</span>
               <span
-                class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
+                class="text-[11px] px-1.5 py-0.5 rounded font-mono"
+                :class="getTypeClass('string')"
+                >string</span
+              >
+              <span
+                class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium"
                 >必填</span
               >
             </div>
             <div
               v-if="header.value"
-              class="text-xs text-secondaryLight ml-4 mt-0.5"
+              class="text-xs text-secondaryLight ml-4 mt-1 font-mono"
             >
               示例: {{ header.value }}
             </div>
@@ -150,39 +180,94 @@
 
       <!-- Body (two-column layout) -->
       <div v-if="request.body.contentType">
-        <h4 class="text-xs font-semibold text-secondaryDark mb-2">
+        <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
           Body 参数
           <span class="text-secondaryLight font-normal font-mono ml-1">
             {{ request.body.contentType }}
           </span>
         </h4>
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <!-- Left: field list (60%) -->
-          <div class="lg:col-span-3 space-y-1">
+
+        <!-- Use bodySchemaTree for nested display if available -->
+        <div v-if="hasBodySchemaTree" class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <!-- Left: schema tree (read-only, nested) -->
+          <div class="lg:col-span-3">
             <div
-              v-for="(param, index) in bodyFields"
-              :key="index"
-              class="flex items-center gap-3 py-1 px-2 rounded hover:bg-primaryLight"
+              class="border border-dividerLight rounded-lg overflow-hidden bg-primaryLight/20"
             >
-              <span class="font-mono text-xs text-accent w-32 truncate">{{
-                param.key
-              }}</span>
-              <span class="text-xs text-secondaryLight w-20">{{
-                param.type
-              }}</span>
-              <span
-                class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500"
-                >必填</span
+              <div
+                class="flex items-center gap-2 px-3 py-2 bg-primaryLight/40 border-b border-dividerLight"
               >
-            </div>
-            <div
-              v-if="bodyFields.length === 0"
-              class="text-xs text-secondaryLight py-2"
-            >
-              暂无字段定义
+                <span class="text-xs font-semibold text-secondary"
+                  >字段结构</span
+                >
+              </div>
+              <div class="p-1">
+                <SchemaTreeReadonly
+                  v-for="(node, index) in bodySchemaTreeNodes"
+                  :key="index"
+                  :node="node"
+                  :depth="0"
+                  :model-resolver="readonlyModelResolver"
+                />
+              </div>
             </div>
           </div>
-          <!-- Right: JSON example (40%) -->
+          <!-- Right: JSON example -->
+          <div class="lg:col-span-2">
+            <JsonExampleBlock
+              :content="bodyExampleJson"
+              :content-type="request.body.contentType ?? 'application/json'"
+            />
+          </div>
+        </div>
+
+        <!-- Fallback: flat field list when no schema tree -->
+        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <!-- Left: field list -->
+          <div class="lg:col-span-3">
+            <div
+              class="border border-dividerLight rounded-lg overflow-hidden"
+            >
+              <div
+                v-if="bodyFields.length > 0"
+                class="divide-y divide-dividerLight"
+              >
+                <div
+                  v-for="(param, index) in bodyFields"
+                  :key="index"
+                  class="flex items-center gap-3 py-2 px-3 transition-colors hover:bg-primaryLight/60"
+                >
+                  <span
+                    class="font-mono text-xs text-accent w-32 truncate shrink-0"
+                    >{{ param.key }}</span
+                  >
+                  <span
+                    class="text-[11px] px-1.5 py-0.5 rounded font-mono shrink-0"
+                    :class="getTypeClass(param.type)"
+                    >{{ param.type }}</span
+                  >
+                  <span
+                    v-if="param.required"
+                    class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium shrink-0"
+                    >必填</span
+                  >
+                  <span
+                    v-if="param.description"
+                    class="text-xs text-secondaryLight ml-auto truncate"
+                    >{{ param.description }}</span
+                  >
+                </div>
+              </div>
+              <div
+                v-else
+                class="flex flex-col items-center justify-center py-8 text-secondaryLight"
+              >
+                <icon-lucide-inbox class="w-8 h-8 mb-2 opacity-40" />
+                <span class="text-xs">暂无字段定义</span>
+              </div>
+            </div>
+          </div>
+          <!-- Right: JSON example -->
           <div class="lg:col-span-2">
             <JsonExampleBlock
               :content="bodyExampleJson"
@@ -191,77 +276,113 @@
           </div>
         </div>
       </div>
+
+      <!-- Empty state when no params at all -->
+      <div
+        v-if="!hasAnyParams"
+        class="flex flex-col items-center justify-center py-10 text-secondaryLight"
+      >
+        <icon-lucide-file-json class="w-10 h-10 mb-3 opacity-30" />
+        <span class="text-sm">暂无请求参数</span>
+      </div>
     </div>
 
-    <!-- Area 5: Response (read-only) -->
-    <div class="p-4 space-y-4">
-      <h3 class="text-sm font-semibold text-secondaryDark">返回响应</h3>
+    <!-- Divider -->
+    <div class="border-t border-dividerLight mx-4" />
 
-      <!-- Response tabs (color-coded by status code) -->
+    <!-- Area 5: Response (read-only) -->
+    <div class="px-4 py-5 space-y-4">
+      <h3
+        class="text-xs font-bold text-secondaryDark uppercase tracking-wider"
+      >
+        返回响应
+      </h3>
+
+      <!-- Response tabs (compact, color-coded by status code) -->
       <div
         v-if="responseModels.length > 0"
-        class="flex items-center gap-2 border-b border-dividerLight pb-2 overflow-x-auto"
+        class="flex items-center gap-1 overflow-x-auto pb-1"
       >
         <button
           v-for="(model, index) in responseModels"
           :key="index"
-          class="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-t transition-colors shrink-0"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-all shrink-0 border"
           :class="
             activeResponseTab === index
-              ? 'border-b-2 font-bold ' + statusTabClass(model.statusCode)
-              : 'text-secondary hover:text-secondaryDark'
+              ? 'border-divider font-semibold bg-primaryLight ' +
+                statusTabClass(model.statusCode)
+              : 'border-transparent text-secondary hover:text-secondaryDark hover:bg-primaryLight/40'
           "
           @click="activeResponseTab = index"
         >
           <span
-            class="w-1.5 h-1.5 rounded-full"
+            class="w-1.5 h-1.5 rounded-full shrink-0"
             :class="statusDotClass(model.statusCode)"
           />
-          {{ model.statusCode }} {{ model.description || "响应" }}
+          <span class="font-mono">{{ model.statusCode }}</span>
+          <span class="max-w-[120px] truncate">{{
+            model.description || "响应"
+          }}</span>
           <IconLink
             v-if="model.rootModelRef"
-            class="w-3 h-3 text-purple-500"
+            class="w-3 h-3 text-purple-500 shrink-0"
             title="已绑定模型"
           />
         </button>
       </div>
 
       <!-- Active response body (two-column) -->
-      <div v-if="currentResponse" class="space-y-3">
-        <div class="text-xs text-secondary">
-          HTTP 状态码:
-          <span class="font-mono">{{ currentResponse.statusCode }}</span>
-          <span class="text-secondaryLight font-mono ml-2">{{
+      <div v-if="currentResponse" class="space-y-4">
+        <div
+          class="flex items-center gap-3 text-xs text-secondary bg-primaryLight/30 rounded-lg px-3 py-2"
+        >
+          <span>
+            HTTP 状态码:
+            <span class="font-mono font-semibold">{{
+              currentResponse.statusCode
+            }}</span>
+          </span>
+          <span class="text-secondaryLight font-mono">{{
             currentResponse.contentType
           }}</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <!-- Left: schema tree (read-only) -->
-          <div class="lg:col-span-3 space-y-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs font-semibold text-secondary"
-                >数据结构</span
+          <div class="lg:col-span-3">
+            <div
+              class="border border-dividerLight rounded-lg overflow-hidden bg-primaryLight/20"
+            >
+              <div
+                class="flex items-center gap-2 px-3 py-2 bg-primaryLight/40 border-b border-dividerLight"
               >
-              <span
-                v-if="isBoundToModel"
-                class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
+                <span class="text-xs font-semibold text-secondary"
+                  >数据结构</span
+                >
+                <span
+                  v-if="isBoundToModel"
+                  class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
+                >
+                  <IconLink class="w-2.5 h-2.5" />
+                  引用: {{ boundModelName }}
+                </span>
+              </div>
+              <div v-if="resolvedResponseTree.length > 0" class="p-1">
+                <SchemaTreeReadonly
+                  v-for="(node, index) in resolvedResponseTree"
+                  :key="index"
+                  :node="node"
+                  :depth="0"
+                  :model-resolver="readonlyModelResolver"
+                />
+              </div>
+              <div
+                v-else
+                class="flex flex-col items-center justify-center py-8 text-secondaryLight"
               >
-                <IconLink class="w-2.5 h-2.5" />
-                引用: {{ boundModelName }}
-              </span>
-            </div>
-            <template v-if="resolvedResponseTree.length > 0">
-              <SchemaTreeReadonly
-                v-for="(node, index) in resolvedResponseTree"
-                :key="index"
-                :node="node"
-                :depth="0"
-                :model-resolver="readonlyModelResolver"
-              />
-            </template>
-            <div v-else class="text-xs text-secondaryLight py-2">
-              暂无数据结构定义
+                <icon-lucide-tree-deciduous class="w-8 h-8 mb-2 opacity-40" />
+                <span class="text-xs">暂无数据结构定义</span>
+              </div>
             </div>
           </div>
           <!-- Right: example JSON -->
@@ -292,59 +413,67 @@
           v-if="currentResponse.headers && currentResponse.headers.length > 0"
         >
           <div
-            class="flex items-center gap-2 cursor-pointer"
+            class="flex items-center gap-2 cursor-pointer group"
             @click="showResponseHeaders = !showResponseHeaders"
           >
             <component
               :is="showResponseHeaders ? IconChevronDown : IconChevronRight"
-              class="w-3.5 h-3.5 text-secondary"
+              class="w-3.5 h-3.5 text-secondary transition-transform"
             />
-            <span class="text-xs font-semibold text-secondaryDark"
+            <span
+              class="text-xs font-semibold text-secondaryDark group-hover:text-primary transition-colors"
               >响应 Headers</span
             >
             <span class="text-xs text-secondaryLight"
               >({{ currentResponse.headers.length }})</span
             >
           </div>
-          <div v-if="showResponseHeaders" class="mt-2">
-            <table
-              class="w-full border-collapse text-xs border border-dividerLight rounded"
+          <div v-if="showResponseHeaders" class="mt-2 ml-5">
+            <div
+              class="border border-dividerLight rounded-lg overflow-hidden"
             >
-              <thead class="bg-primaryLight">
-                <tr>
-                  <th
-                    class="text-left py-1.5 px-3 font-semibold text-secondaryDark w-1/3"
+              <table class="w-full border-collapse text-xs">
+                <thead class="bg-primaryLight/40">
+                  <tr>
+                    <th
+                      class="text-left py-2 px-3 font-semibold text-secondaryDark w-1/3 border-b border-dividerLight"
+                    >
+                      Key
+                    </th>
+                    <th
+                      class="text-left py-2 px-3 font-semibold text-secondaryDark border-b border-dividerLight"
+                    >
+                      说明
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(header, hIdx) in currentResponse.headers"
+                    :key="hIdx"
+                    class="transition-colors hover:bg-primaryLight/40"
+                    :class="{ 'border-t border-dividerLight': hIdx > 0 }"
                   >
-                    Key
-                  </th>
-                  <th
-                    class="text-left py-1.5 px-3 font-semibold text-secondaryDark"
-                  >
-                    说明
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(header, hIdx) in currentResponse.headers"
-                  :key="hIdx"
-                  class="border-t border-dividerLight"
-                >
-                  <td class="py-1.5 px-3 font-mono text-accent">
-                    {{ header.key }}
-                  </td>
-                  <td class="py-1.5 px-3 text-secondaryLight">
-                    {{ header.description || "-" }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    <td class="py-2 px-3 font-mono text-accent">
+                      {{ header.key }}
+                    </td>
+                    <td class="py-2 px-3 text-secondaryLight">
+                      {{ header.description || "-" }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      <div v-else class="text-xs text-secondaryLight py-4 text-center">
-        暂无响应定义
+      <div
+        v-else
+        class="flex flex-col items-center justify-center py-10 text-secondaryLight"
+      >
+        <icon-lucide-inbox class="w-10 h-10 mb-3 opacity-30" />
+        <span class="text-sm">暂无响应定义</span>
       </div>
     </div>
   </div>
@@ -440,6 +569,17 @@ const currentResponse = computed(
   () => responseModels.value[activeResponseTab.value] ?? null
 )
 
+// --- Body schema tree ---
+const bodySchemaTreeNodes = computed<HoppRESTSchemaNode[]>(() => {
+  const tree = (props.request as any).bodySchemaTree
+  if (Array.isArray(tree) && tree.length > 0) {
+    return tree as HoppRESTSchemaNode[]
+  }
+  return []
+})
+
+const hasBodySchemaTree = computed(() => bodySchemaTreeNodes.value.length > 0)
+
 // --- Model binding computeds ---
 
 const isBoundToModel = computed(
@@ -487,7 +627,43 @@ const methodClass = computed(() => {
   }
 })
 
-// Parse body fields from JSON body or from bodySchemaTree
+/**
+ * Returns Tailwind CSS classes for type badges with color coding.
+ * string=blue, integer=green, number=orange, boolean=purple, object/array=gray
+ */
+function getTypeClass(type: string): string {
+  switch (type) {
+    case "string":
+      return "bg-blue-500/10 text-blue-500"
+    case "integer":
+      return "bg-green-500/10 text-green-500"
+    case "number":
+      return "bg-orange-500/10 text-orange-500"
+    case "boolean":
+      return "bg-purple-500/10 text-purple-500"
+    case "object":
+    case "array":
+      return "bg-gray-500/10 text-gray-500"
+    case "file":
+      return "bg-teal-500/10 text-teal-500"
+    default:
+      return "bg-secondaryLight/10 text-secondaryLight"
+  }
+}
+
+/**
+ * Whether any request parameters exist at all (auth, path, headers, body).
+ */
+const hasAnyParams = computed(() => {
+  return (
+    (authType.value !== "none" && authType.value !== "inherit") ||
+    activePathParams.value.length > 0 ||
+    activeHeaders.value.length > 0 ||
+    !!props.request.body.contentType
+  )
+})
+
+// Parse body fields from JSON body as fallback when no schema tree
 const bodyFields = computed(() => {
   const body = props.request.body
   if (body.contentType === null || body.body === null) return []
@@ -499,6 +675,8 @@ const bodyFields = computed(() => {
           key,
           type: Array.isArray(value) ? "array" : typeof value,
           value,
+          required: false,
+          description: "",
         }))
       }
     } catch {
