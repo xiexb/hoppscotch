@@ -2,6 +2,7 @@
   <div>
     <div
       class="flex items-center gap-3 py-1 px-2 rounded hover:bg-primaryLight/50"
+      :class="{ 'bg-blue-500/5': isOverridden }"
       :style="{ paddingLeft: `${depth * 16 + 8}px` }"
     >
       <!-- Expand indicator for objects/arrays/modelRef -->
@@ -24,7 +25,8 @@
       <!-- Example value -->
       <span
         v-if="node.example"
-        class="text-xs text-secondaryDark font-mono bg-primaryLight px-1.5 py-0.5 rounded"
+        class="text-xs text-secondaryDark font-mono px-1.5 py-0.5 rounded"
+        :class="isOverridden ? 'bg-blue-500/15 text-blue-500' : 'bg-primaryLight'"
       >
         {{ node.example }}
       </span>
@@ -46,6 +48,14 @@
         {{ modelRefName }}
       </span>
 
+      <!-- Override badge -->
+      <span
+        v-if="isOverridden"
+        class="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/15 text-blue-500 shrink-0"
+      >
+        已覆盖
+      </span>
+
       <!-- Display name -->
       <span v-if="node.displayName" class="text-xs text-secondary ml-2">
         {{ node.displayName }}
@@ -54,7 +64,8 @@
       <!-- Description -->
       <span
         v-if="node.description"
-        class="text-xs text-secondaryLight ml-auto truncate max-w-[200px]"
+        class="text-xs ml-auto truncate max-w-[200px]"
+        :class="isOverridden ? 'text-blue-500' : 'text-secondaryLight'"
       >
         {{ node.description }}
       </span>
@@ -71,7 +82,7 @@
       />
     </div>
 
-    <!-- Resolved modelRef children -->
+    <!-- Resolved modelRef children (with overrides applied) -->
     <div v-if="hasModelRefChildren && expanded">
       <SchemaTreeReadonly
         v-for="(child, index) in resolvedModelChildren"
@@ -79,6 +90,7 @@
         :node="child"
         :depth="depth + 1"
         :model-resolver="modelResolver"
+        :is-overridden="isChildOverridden(child.name)"
       />
     </div>
   </div>
@@ -102,6 +114,8 @@ const props = defineProps<{
   node: HoppRESTSchemaNode
   depth: number
   modelResolver?: ReadonlyModelResolver
+  /** True when this node's example/description was overridden from a parent's modelOverrides */
+  isOverridden?: boolean
 }>()
 
 // modelRef nodes default to collapsed to reduce visual noise;
@@ -114,10 +128,25 @@ const hasDirectChildren = computed(
     (props.node.children?.length ?? 0) > 0
 )
 
+/**
+ * Resolve modelRef children and apply modelOverrides from the parent node.
+ * Each resolved child is a shallow copy with example/description replaced
+ * by override values when present.
+ */
 const resolvedModelChildren = computed<HoppRESTSchemaNode[]>(() => {
   if (!props.node.modelRef || !props.modelResolver) return []
   const resolved = props.modelResolver(props.node.modelRef)
-  return resolved?.schemaTree ?? []
+  const tree = resolved?.schemaTree ?? []
+  const overrides = props.node.modelOverrides ?? {}
+  return tree.map((child) => {
+    const override = overrides[child.name]
+    if (!override) return child
+    return {
+      ...child,
+      example: override.example || child.example,
+      description: override.description || child.description,
+    }
+  })
 })
 
 const hasModelRefChildren = computed(
@@ -136,4 +165,14 @@ const modelRefName = computed(() => {
   }
   return props.node.modelRef.substring(0, 8)
 })
+
+/**
+ * Check if a child field name has an override in this node's modelOverrides.
+ * Used to pass isOverridden prop to child SchemaTreeReadonly instances.
+ */
+function isChildOverridden(childName: string): boolean {
+  const overrides = props.node.modelOverrides
+  if (!overrides) return false
+  return childName in overrides
+}
 </script>
