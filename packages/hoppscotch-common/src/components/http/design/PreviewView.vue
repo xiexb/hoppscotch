@@ -218,6 +218,11 @@
             :class="statusDotClass(model.statusCode)"
           />
           {{ model.statusCode }} {{ model.description || "响应" }}
+          <IconLink
+            v-if="model.rootModelRef"
+            class="w-3 h-3 text-purple-500"
+            title="已绑定模型"
+          />
         </button>
       </div>
 
@@ -234,14 +239,21 @@
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <!-- Left: schema tree (read-only) -->
           <div class="lg:col-span-3 space-y-1">
-            <template
-              v-if="
-                currentResponse.bodySchemaTree &&
-                currentResponse.bodySchemaTree.length > 0
-              "
-            >
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs font-semibold text-secondary"
+                >数据结构</span
+              >
+              <span
+                v-if="isBoundToModel"
+                class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
+              >
+                <IconLink class="w-2.5 h-2.5" />
+                引用: {{ boundModelName }}
+              </span>
+            </div>
+            <template v-if="resolvedResponseTree.length > 0">
               <SchemaTreeReadonly
-                v-for="(node, index) in currentResponse.bodySchemaTree"
+                v-for="(node, index) in resolvedResponseTree"
                 :key="index"
                 :node="node"
                 :depth="0"
@@ -259,7 +271,7 @@
                 :content="
                   currentResponse.bodyExample ||
                   generateExampleFromSchema(
-                    currentResponse.bodySchemaTree,
+                    resolvedResponseTree,
                     modelResolver
                   )
                 "
@@ -350,6 +362,7 @@ import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconSave from "~icons/lucide/save"
 import IconFolderPlus from "~icons/lucide/folder-plus"
+import IconLink from "~icons/lucide/link"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
@@ -426,6 +439,29 @@ const responseModels = computed(
 const currentResponse = computed(
   () => responseModels.value[activeResponseTab.value] ?? null
 )
+
+// --- Model binding computeds ---
+
+const isBoundToModel = computed(
+  () => !!(currentResponse.value?.rootModelRef ?? "")
+)
+
+const resolvedResponseTree = computed<HoppRESTSchemaNode[]>(() => {
+  if (isBoundToModel.value) {
+    const refId = currentResponse.value?.rootModelRef
+    if (!refId) return []
+    const model = workspaceModelService.getModelById(refId)
+    return (model?.schemaTree ?? []) as HoppRESTSchemaNode[]
+  }
+  return (currentResponse.value?.bodySchemaTree ?? []) as HoppRESTSchemaNode[]
+})
+
+const boundModelName = computed(() => {
+  const refId = currentResponse.value?.rootModelRef
+  if (!refId) return ""
+  const model = workspaceModelService.getModelById(refId)
+  return model?.name ?? "未知模型"
+})
 
 const fullEndpoint = computed(() => {
   const base = props.request.inheritedBaseUrl || ""

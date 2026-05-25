@@ -30,6 +30,14 @@
                   </span>
                 </div>
                 <div class="flex items-center gap-2">
+                  <!-- Model binding badge -->
+                  <span
+                    v-if="isExampleBound(example)"
+                    class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
+                  >
+                    <IconLink class="w-2.5 h-2.5" />
+                    引用: {{ getBoundModelName(example) }}
+                  </span>
                   <span
                     v-if="example.statusCode"
                     class="px-1 py-.5 text-tiny rounded"
@@ -47,9 +55,9 @@
               </div>
             </div>
 
-            <!-- Two-column layout when bodySchemaTree is present -->
+            <!-- Two-column layout when resolved schema tree is present -->
             <div
-              v-if="example.bodySchemaTree && example.bodySchemaTree.length > 0"
+              v-if="getResolvedTree(example).length > 0"
               class="p-4"
             >
               <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -58,15 +66,24 @@
                   <div
                     class="text-xs font-semibold text-secondaryDark mb-2 flex items-center justify-between"
                   >
-                    <span>{{
-                      t("documentation.response.schema") || "Schema"
-                    }}</span>
+                    <div class="flex items-center gap-2">
+                      <span>{{
+                        t("documentation.response.schema") || "Schema"
+                      }}</span>
+                      <span
+                        v-if="isExampleBound(example)"
+                        class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
+                      >
+                        <IconLink class="w-2.5 h-2.5" />
+                        {{ getBoundModelName(example) }}
+                      </span>
+                    </div>
                     <span class="text-secondaryLight font-mono">{{
                       example.contentType
                     }}</span>
                   </div>
                   <SchemaTreeReadonly
-                    v-for="(node, nodeIdx) in example.bodySchemaTree"
+                    v-for="(node, nodeIdx) in getResolvedTree(example)"
                     :key="nodeIdx"
                     :node="node"
                     :depth="0"
@@ -79,7 +96,7 @@
                     :content="
                       example.body ||
                       generateExampleFromSchema(
-                        example.bodySchemaTree,
+                        getResolvedTree(example),
                         modelResolver
                       )
                     "
@@ -131,11 +148,10 @@
               </HoppSmartTabs>
             </div>
 
-            <!-- Headers table shown below when bodySchemaTree is present and headers exist -->
+            <!-- Headers table shown below when resolved tree is present and headers exist -->
             <div
               v-if="
-                example.bodySchemaTree &&
-                example.bodySchemaTree.length > 0 &&
+                getResolvedTree(example).length > 0 &&
                 example.headers &&
                 example.headers.length > 0
               "
@@ -175,6 +191,7 @@
 <script lang="ts" setup>
 import { computed, ref, watch, reactive } from "vue"
 import IconCopy from "~icons/lucide/copy"
+import IconLink from "~icons/lucide/link"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import { useService } from "dioc/vue"
@@ -219,6 +236,37 @@ const readonlyModelResolver: ReadonlyModelResolver = (modelRefId: string) => {
 }
 
 /**
+ * Check if a response example is bound to a root model.
+ */
+function isExampleBound(example: ResponseExample): boolean {
+  return !!(example.rootModelRef ?? "")
+}
+
+/**
+ * Get the resolved schema tree for a response example.
+ * If bound to a root model, returns the model's tree; otherwise returns the example's own tree.
+ */
+function getResolvedTree(example: ResponseExample): HoppRESTSchemaNode[] {
+  if (isExampleBound(example)) {
+    const refId = example.rootModelRef
+    if (!refId) return []
+    const model = workspaceModelService.getModelById(refId)
+    return (model?.schemaTree ?? []) as HoppRESTSchemaNode[]
+  }
+  return (example.bodySchemaTree ?? []) as HoppRESTSchemaNode[]
+}
+
+/**
+ * Get the bound model name for display.
+ */
+function getBoundModelName(example: ResponseExample): string {
+  const refId = example.rootModelRef
+  if (!refId) return ""
+  const model = workspaceModelService.getModelById(refId)
+  return model?.name ?? "未知模型"
+}
+
+/**
  * Response headers can come from two sources:
  * 1. Design mode (responseModels): { key, description } — key is header name, description is explanation
  * 2. Legacy responses: { key, value } — key is header name, value is actual value
@@ -240,6 +288,7 @@ interface ResponseExample {
   body?: string
   contentType?: string
   bodySchemaTree?: any[] | null
+  rootModelRef?: string
 }
 
 const props = defineProps<{
