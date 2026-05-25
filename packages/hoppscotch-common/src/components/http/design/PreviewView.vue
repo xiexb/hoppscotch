@@ -254,16 +254,24 @@
           </div>
           <!-- Right: example JSON -->
           <div class="lg:col-span-2">
-            <JsonExampleBlock
-              :content="
-                currentResponse.bodyExample ||
-                generateExampleFromSchema(
-                  currentResponse.bodySchemaTree,
-                  modelResolver
-                )
-              "
-              :content-type="currentResponse.contentType"
-            />
+            <div class="relative">
+              <JsonExampleBlock
+                :content="
+                  currentResponse.bodyExample ||
+                  generateExampleFromSchema(
+                    currentResponse.bodySchemaTree,
+                    modelResolver
+                  )
+                "
+                :content-type="currentResponse.contentType"
+              />
+              <span
+                v-if="!currentResponse.bodyExample"
+                class="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] rounded bg-secondaryLight/20 text-secondaryLight"
+              >
+                自动生成
+              </span>
+            </div>
           </div>
         </div>
 

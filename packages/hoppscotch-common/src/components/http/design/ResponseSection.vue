@@ -42,6 +42,9 @@
           <span class="text-secondary">HTTP 状态码:</span>
           <input
             :value="currentModel.statusCode"
+            type="number"
+            min="100"
+            max="599"
             class="w-16 font-mono bg-transparent border border-dividerLight rounded px-2 py-1 text-secondaryDark outline-none focus:border-accent"
             placeholder="200"
             @input="onMetaInput('statusCode', $event)"
@@ -99,9 +102,23 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-secondary">示例</span>
+          <button
+            class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
+            title="从 Schema 生成示例"
+            @click="generateExample"
+          >
+            <IconSparkles class="w-3 h-3" />
+            从 Schema 生成
+          </button>
         </div>
         <JsonExampleBlock
-          :content="currentModel.bodyExample || ''"
+          :content="
+            currentModel.bodyExample ||
+            generateExampleFromSchema(
+              currentModel.bodySchemaTree,
+              modelResolver
+            )
+          "
           :content-type="currentModel.contentType"
           :editable="true"
           @update:content="onExampleUpdate"
@@ -203,12 +220,31 @@ import type {
   HoppRESTResponseModelV21,
   HoppRESTSchemaNode,
 } from "@hoppscotch/data"
+import { useService } from "dioc/vue"
 import IconTrash from "~icons/lucide/trash-2"
 import IconPlus from "~icons/lucide/plus"
 import IconX from "~icons/lucide/x"
+import IconSparkles from "~icons/lucide/sparkles"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
-import { statusTabClass, statusDotClass } from "./utils/schemaExample"
+import {
+  generateExampleFromSchema,
+  statusTabClass,
+  statusDotClass,
+} from "./utils/schemaExample"
+import type { ModelResolver } from "./utils/schemaExample"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
+
+// Workspace model service for resolving modelRef
+const workspaceModelService = useService(WorkspaceModelService)
+
+/**
+ * Resolver for generateExampleFromSchema: modelRef ID → schema tree
+ */
+const modelResolver: ModelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  return model?.schemaTree as HoppRESTSchemaNode[] | undefined
+}
 
 const props = defineProps<{
   request: HoppRESTRequest
@@ -253,7 +289,7 @@ function addResponseModel() {
     headers: [],
     bodySchema: "",
     bodyExample: "",
-    bodySchemaTree: null,
+    bodySchemaTree: [],
     contentType: "application/json",
   })
   emit("update:request", { ...props.request, responseModels: models })
@@ -281,7 +317,17 @@ function removeResponseModel(index: number) {
 
 function onMetaInput(field: string, event: Event) {
   const target = event.target as HTMLInputElement
-  updateModel(activeModel.value, { [field]: target.value })
+  if (field === "statusCode") {
+    // Validate: must be a number between 100-599
+    const num = parseInt(target.value, 10)
+    if (isNaN(num) || num < 100 || num > 599) {
+      // Keep the raw input but don't update the model with invalid values
+      return
+    }
+    updateModel(activeModel.value, { statusCode: String(num) })
+  } else {
+    updateModel(activeModel.value, { [field]: target.value })
+  }
 }
 
 function onContentTypeChange(event: Event) {
@@ -295,6 +341,12 @@ function onSchemaTreeUpdate(tree: HoppRESTSchemaNode[]) {
 
 function onExampleUpdate(val: string) {
   updateModel(activeModel.value, { bodyExample: val })
+}
+
+function generateExample() {
+  const tree = currentModel.value?.bodySchemaTree
+  const example = generateExampleFromSchema(tree, modelResolver)
+  updateModel(activeModel.value, { bodyExample: example })
 }
 
 // --- Headers editing ---
