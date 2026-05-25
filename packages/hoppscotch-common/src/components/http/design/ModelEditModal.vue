@@ -135,10 +135,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue"
+import { ref, watch, computed, onBeforeUnmount } from "vue"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
-import { restCollections$ } from "~/newstore/collections"
-import { useReadonlyStream } from "~/composables/stream"
+import { HoppCollection } from "@hoppscotch/data"
+import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 
 /**
@@ -179,8 +179,18 @@ const editingCollectionIds = ref<string[]>([])
 const errorMessage = ref("")
 const saving = ref(false)
 
-// All available collections for the picker - use useReadonlyStream for reactivity
-const existingCollections = useReadonlyStream(restCollections$, [])
+// Subscribe at setup phase for reliable reactivity in modal context.
+// Use spread to create new array references so Vue detects changes.
+const existingCollections = ref<HoppCollection[]>([
+  ...(restCollectionStore.value.state ?? []),
+])
+const collectionsSub = restCollections$.subscribe((cols) => {
+  existingCollections.value = [...cols]
+})
+onBeforeUnmount(() => {
+  collectionsSub.unsubscribe()
+})
+
 const allCollections = computed<CollectionItem[]>(() => {
   return existingCollections.value.map((coll, idx) => ({
     id: coll._ref_id || `user:${idx}`,

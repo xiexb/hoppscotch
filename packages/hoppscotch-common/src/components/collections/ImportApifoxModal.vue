@@ -408,7 +408,7 @@
 <script setup lang="ts">
 import { useI18n } from "~/composables/i18n"
 import { useToast } from "~/composables/toast"
-import { computed, reactive, ref, onMounted, onBeforeUnmount } from "vue"
+import { computed, reactive, ref, onBeforeUnmount } from "vue"
 import { HoppCollection, makeCollection } from "@hoppscotch/data"
 import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import { useService } from "dioc/vue"
@@ -419,28 +419,23 @@ import {
   collectApiRefs,
 } from "~/helpers/import-export/import/apifox"
 import type { ApifoxProject } from "~/helpers/import-export/import/apifox"
-import { Subscription } from "rxjs"
+
 
 const t = useI18n()
 const toast = useToast()
 
 const workspaceModelService = useService(WorkspaceModelService)
 
-// Use manual subscription pattern for reliable reactivity in modal context
-const existingCollections = ref<any[]>(
-  restCollectionStore.value.state ?? []
-)
-let collectionsSub: Subscription | null = null
-onMounted(() => {
-  collectionsSub = restCollections$.subscribe((collections) => {
-    existingCollections.value = collections
-  })
+// Subscribe at setup phase (not onMounted) for reliable reactivity in modal/dialog context.
+// Use spread to create new array references so Vue detects changes.
+const existingCollections = ref<HoppCollection[]>([
+  ...(restCollectionStore.value.state ?? []),
+])
+const collectionsSub = restCollections$.subscribe((collections) => {
+  existingCollections.value = [...collections]
 })
 onBeforeUnmount(() => {
-  if (collectionsSub) {
-    collectionsSub.unsubscribe()
-    collectionsSub = null
-  }
+  collectionsSub.unsubscribe()
 })
 
 const emit = defineEmits<{
