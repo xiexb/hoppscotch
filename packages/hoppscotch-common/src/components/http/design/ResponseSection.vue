@@ -202,20 +202,13 @@
               从 JSON 导入
             </button>
             <button
+              v-if="manualExampleModels[activeModel]"
               class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
-              :title="
-                manualExampleModels[activeModel]
-                  ? '重置为自动生成的示例'
-                  : '从 Schema 生成示例'
-              "
+              title="重置为自动生成的示例"
               @click="generateExample"
             >
               <IconSparkles class="w-3 h-3" />
-              {{
-                manualExampleModels[activeModel]
-                  ? "重置为自动"
-                  : "从 Schema 生成"
-              }}
+              重置为自动
             </button>
           </div>
         </div>
