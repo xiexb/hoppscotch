@@ -581,8 +581,15 @@ const HoppApifoxImporter: ImporterOrExporter = {
         if (targetIndex !== undefined && targetIndex >= 0) {
           // Merge into existing collection's folders
           await handleMergeIntoCollection(collections, targetIndex)
+        } else if (props.collectionsType.type === "my-collections") {
+          // Personal workspace: bypass backend GraphQL to prevent:
+          // 1. Deleted collections reappearing (backend returns ALL user collections)
+          // 2. Wrapper _ref_id stripped by sanitizeCollection (breaks model visibility scope)
+          // 3. Wrapper collection name lost in backend processing
+          appendRESTCollections(collections)
+          toast.success(t("state.file_imported"))
         } else {
-          // Default: append as new collections
+          // Team workspace: use existing backend flow
           await handleImportToStore(collections)
         }
         setCurrentImportSummary(collections)
