@@ -570,14 +570,19 @@ async function onFileChange() {
     const data = JSON.parse(text)
 
     // Check for Apifox-specific format markers
+    // Old format: apifox: {object}
+    // New format: apifoxProject: "1.0.0" (string)
     const hasApifoxField =
       typeof data.apifox === "object" && data.apifox !== null
+    const hasApifoxProjectField =
+      typeof data.apifoxProject === "string"
     const hasApiCollection = Array.isArray(data.apiCollection)
     const hasRequestCollection = Array.isArray(data.requestCollection)
     const hasSchemaCollection = Array.isArray(data.schemaCollection)
 
     if (
       !hasApifoxField &&
+      !hasApifoxProjectField &&
       !hasApiCollection &&
       !hasRequestCollection &&
       !hasSchemaCollection

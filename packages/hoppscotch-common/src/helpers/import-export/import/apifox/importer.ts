@@ -307,6 +307,22 @@ const collectRefsInSchema = (schema: unknown): string[] => {
 }
 
 /**
+ * Normalize Apifox contentType strings to standard MIME types.
+ * Apifox sometimes uses shorthand like "json" instead of "application/json".
+ */
+const normalizeContentType = (ct?: string): string => {
+  if (!ct) return "application/json"
+  const ctMap: Record<string, string> = {
+    json: "application/json",
+    xml: "application/xml",
+    html: "text/html",
+    text: "text/plain",
+    binary: "application/octet-stream",
+  }
+  return ctMap[ct] ?? ct
+}
+
+/**
  * Build HoppRESTResponseModelV21[] from Apifox responses using refMap.
  */
 const buildResponseModels = (
@@ -334,7 +350,7 @@ const buildResponseModels = (
       bodySchema: "",
       bodyExample: "",
       bodySchemaTree: null,
-      contentType: resp.contentType ?? "application/json",
+      contentType: normalizeContentType(resp.contentType),
       rootModelRef: modelIds[0],
     })
   }
@@ -448,12 +464,19 @@ const getHoppCollection = (
 
   if (node.items) {
     node.items.forEach((item) => {
-      if (item.api) {
-        // This is an API endpoint
-        requests.push(getHoppRequest(item, baseUrl, refMap))
-      } else if (item.items) {
-        // This is a folder
-        folders.push(getHoppCollection(item, baseUrl, refMap))
+      try {
+        if (item.api) {
+          // This is an API endpoint
+          requests.push(getHoppRequest(item, baseUrl, refMap))
+        } else if (item.items) {
+          // This is a folder
+          folders.push(getHoppCollection(item, baseUrl, refMap))
+        }
+      } catch (e) {
+        console.error(
+          `[Apifox Import] Failed to import item "${item.name}":`,
+          e instanceof Error ? e.message : String(e)
+        )
       }
     })
   }
@@ -540,7 +563,14 @@ export const hoppApifoxImporter = (content: string[], refMap?: RefMap) =>
     content,
     A.traverse(O.Applicative)((str) => safeParseJSON(str, true)),
     O.chain((parsedData) => {
-      const dataArray = Array.isArray(parsedData) ? parsedData : [parsedData]
+      // safeParseJSON(str, true) wraps each result in an array,
+      // and A.traverse collects them — so parsedData is [[obj1], [obj2], ...].
+      // Flatten one level to get [obj1, obj2, ...].
+      const rawArray = Array.isArray(parsedData) ? parsedData : [parsedData]
+      const dataArray = rawArray.flat().filter(
+        (d): d is Record<string, unknown> =>
+          d !== null && typeof d === "object" && !Array.isArray(d)
+      )
 
       const collections: HoppCollection[] = []
 
@@ -554,11 +584,20 @@ export const hoppApifoxImporter = (content: string[], refMap?: RefMap) =>
           | undefined
         if (apiCollections && apiCollections.length > 0) {
           apiCollections.forEach((apiColl) => {
-            const rootCollection: ApifoxApiCollectionItem = {
-              name: apiColl.name,
-              items: apiColl.items,
+            try {
+              const rootCollection: ApifoxApiCollectionItem = {
+                name: apiColl.name,
+                items: apiColl.items,
+              }
+              collections.push(
+                getHoppCollection(rootCollection, baseUrl, refMap)
+              )
+            } catch (e) {
+              console.error(
+                `[Apifox Import] Failed to import apiCollection "${apiColl.name}":`,
+                e
+              )
             }
-            collections.push(getHoppCollection(rootCollection, baseUrl, refMap))
           })
         }
 
@@ -568,7 +607,14 @@ export const hoppApifoxImporter = (content: string[], refMap?: RefMap) =>
           | undefined
         if (requestCollections && requestCollections.length > 0) {
           requestCollections.forEach((reqColl) => {
-            collections.push(getHoppRequestCollection(reqColl, baseUrl))
+            try {
+              collections.push(getHoppRequestCollection(reqColl, baseUrl))
+            } catch (e) {
+              console.error(
+                `[Apifox Import] Failed to import requestCollection "${reqColl.name}":`,
+                e
+              )
+            }
           })
         }
       })
