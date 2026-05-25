@@ -143,8 +143,14 @@ const resolvedModelChildren = computed<HoppRESTSchemaNode[]>(() => {
     if (!override) return child
     return {
       ...child,
-      example: override.example || child.example,
-      description: override.description || child.description,
+      example:
+        override.example && override.example !== ""
+          ? override.example
+          : child.example,
+      description:
+        override.description && override.description !== ""
+          ? override.description
+          : child.description,
     }
   })
 })

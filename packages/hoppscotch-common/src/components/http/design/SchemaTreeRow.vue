@@ -300,7 +300,7 @@ const hasExpandableContent = computed(
 // ─── ModelRef actions ─────────────────────────────────────────────
 
 function clearModelRef() {
-  const updated = { ...props.node, modelRef: "" }
+  const updated = { ...props.node, modelRef: "", modelOverrides: {} }
   emit("update", updated)
 }
 

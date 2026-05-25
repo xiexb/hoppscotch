@@ -58,8 +58,14 @@ function generateNodeExample(
         if (override) {
           effectiveChild = {
             ...child,
-            example: override.example || child.example,
-            description: override.description || child.description,
+            example:
+              override.example && override.example !== ""
+                ? override.example
+                : child.example,
+            description:
+              override.description && override.description !== ""
+                ? override.description
+                : child.description,
           }
         }
         obj[effectiveChild.name || "field"] = generateNodeExample(
