@@ -26,7 +26,6 @@ import {
   hoppOpenAPIImporter,
   hoppPostmanImporter,
   hoppRESTImporter,
-  hoppApifoxImporter,
   toTeamsImporter,
 } from "~/helpers/import-export/import/importers"
 
@@ -62,6 +61,7 @@ import { TeamWorkspace } from "~/services/workspace.service"
 import { invokeAction } from "~/helpers/actions"
 import { ReqType } from "~/helpers/backend/graphql"
 import { sanitizeCollection } from "~/helpers/import-export/import"
+import ImportApifoxModal from "~/components/collections/ImportApifoxModal.vue"
 
 const isInsomniaImporterInProgress = ref(false)
 const isOpenAPIImporterInProgress = ref(false)
@@ -531,40 +531,37 @@ const HoppApifoxImporter: ImporterOrExporter = {
     title: "import.from_apifox_description",
     icon: IconFile,
     disabled: false,
-    applicableTo: ["personal-workspace", "team-workspace", "url-import"],
+    applicableTo: ["personal-workspace", "team-workspace"],
     format: "apifox",
   },
   importSummary: currentImportSummary,
-  component: FileSource({
-    caption: "import.from_file",
-    acceptedFileTypes: ".json",
-    description: "import.from_apifox_import_summary",
-    onImportFromFile: async (content) => {
-      isApifoxImporterInProgress.value = true
+  component: defineStep(
+    "apifox_import_modal",
+    ImportApifoxModal,
+    () => ({
+      "onHide-modal": () => {
+        emit("hide-modal")
+      },
+      "onImport-complete": async (collections: HoppCollection[]) => {
+        isApifoxImporterInProgress.value = true
+        try {
+          await handleImportToStore(collections)
+          setCurrentImportSummary(collections)
 
-      const res = await hoppApifoxImporter(content)()
-
-      if (E.isRight(res)) {
-        await handleImportToStore(res.right)
-
-        setCurrentImportSummary(res.right)
-
-        platform.analytics?.logEvent({
-          platform: "rest",
-          type: "HOPP_IMPORT_COLLECTION",
-          importer: "import.from_apifox",
-          workspaceType: isTeamWorkspace.value ? "team" : "personal",
-        })
-      } else {
-        showImportFailedError()
-
-        unsetCurrentImportSummary()
-      }
-
-      isApifoxImporterInProgress.value = false
-    },
-    isLoading: isApifoxImporterInProgress,
-  }),
+          platform.analytics?.logEvent({
+            platform: "rest",
+            type: "HOPP_IMPORT_COLLECTION",
+            importer: "import.from_apifox",
+            workspaceType: isTeamWorkspace.value ? "team" : "personal",
+          })
+        } catch (_e) {
+          showImportFailedError()
+          unsetCurrentImportSummary()
+        }
+        isApifoxImporterInProgress.value = false
+      },
+    })
+  ),
 }
 
 const HoppGistImporter: ImporterOrExporter = {
