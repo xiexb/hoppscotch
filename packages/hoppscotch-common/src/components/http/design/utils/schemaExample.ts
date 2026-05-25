@@ -153,17 +153,23 @@ export function parseJsonToSchemaTree(
     // Root is an array — create an array node with children from first element
     if (parsed.length === 0) return []
     const firstElem = parsed[0]
-    let children: HoppRESTSchemaNode[] = []
+    const children: HoppRESTSchemaNode[] = []
     if (
       typeof firstElem === "object" &&
       firstElem !== null &&
       !Array.isArray(firstElem)
     ) {
+      // Wrap object fields in an "item" object node, consistent with
+      // inferNode's handling of nested arrays so that generateNodeExample
+      // can use children[0] as the element template
+      const itemNode = createSchemaNode("item", "object", "")
+      itemNode.children = []
       for (const [k, v] of Object.entries(
         firstElem as Record<string, unknown>
       )) {
-        children.push(inferNode(k, v))
+        itemNode.children.push(inferNode(k, v))
       }
+      children.push(itemNode)
     }
     const arrayNode = createSchemaNode("data", "array", "")
     arrayNode.description = "数组数据"
