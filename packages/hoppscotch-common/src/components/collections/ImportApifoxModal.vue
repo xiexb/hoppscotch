@@ -408,10 +408,9 @@
 <script setup lang="ts">
 import { useI18n } from "~/composables/i18n"
 import { useToast } from "~/composables/toast"
-import { computed, reactive, ref } from "vue"
+import { computed, reactive, ref, onMounted, onBeforeUnmount } from "vue"
 import { HoppCollection, makeCollection } from "@hoppscotch/data"
-import { useReadonlyStream } from "~/composables/stream"
-import { restCollections$ } from "~/newstore/collections"
+import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import { useService } from "dioc/vue"
 import { WorkspaceModelService } from "~/services/workspace-model.service"
 import {
@@ -420,12 +419,29 @@ import {
   collectApiRefs,
 } from "~/helpers/import-export/import/apifox"
 import type { ApifoxProject } from "~/helpers/import-export/import/apifox"
+import { Subscription } from "rxjs"
 
 const t = useI18n()
 const toast = useToast()
 
 const workspaceModelService = useService(WorkspaceModelService)
-const existingCollections = useReadonlyStream(restCollections$, [])
+
+// Use manual subscription pattern for reliable reactivity in modal context
+const existingCollections = ref<any[]>(
+  restCollectionStore.value.state ?? []
+)
+let collectionsSub: Subscription | null = null
+onMounted(() => {
+  collectionsSub = restCollections$.subscribe((collections) => {
+    existingCollections.value = collections
+  })
+})
+onBeforeUnmount(() => {
+  if (collectionsSub) {
+    collectionsSub.unsubscribe()
+    collectionsSub = null
+  }
+})
 
 const emit = defineEmits<{
   (e: "hide-modal"): void
@@ -935,11 +951,13 @@ async function startImport() {
           testScript: "",
         })
 
-        // Scope imported models to the new wrapper collection
+        // Scope imported models to the new wrapper collection using _ref_id
+        // (personal workspace collections use _ref_id, not id)
+        const wrapperRefId = wrapperCollection._ref_id
         for (const modelId of importedModelIds) {
           workspaceModelService.updateModel(modelId, {
             visibility: "collection",
-            collectionIds: [wrapperId],
+            collectionIds: [wrapperRefId],
           })
         }
 

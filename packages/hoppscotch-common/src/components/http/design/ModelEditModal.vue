@@ -137,7 +137,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
-import { restCollectionStore } from "~/newstore/collections"
+import { restCollections$ } from "~/newstore/collections"
+import { useReadonlyStream } from "~/composables/stream"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 
 /**
@@ -178,21 +179,14 @@ const editingCollectionIds = ref<string[]>([])
 const errorMessage = ref("")
 const saving = ref(false)
 
-// All available collections for the picker
+// All available collections for the picker - use useReadonlyStream for reactivity
+const existingCollections = useReadonlyStream(restCollections$, [])
 const allCollections = computed<CollectionItem[]>(() => {
-  const items: CollectionItem[] = []
-
-  // User collections from the store
-  const userCollections = restCollectionStore.value.state ?? []
-  userCollections.forEach((coll, idx) => {
-    items.push({
-      id: `user:${idx}`,
-      name: coll.name || `集合 ${idx + 1}`,
-      tag: "本地",
-    })
-  })
-
-  return items
+  return existingCollections.value.map((coll, idx) => ({
+    id: coll._ref_id || `user:${idx}`,
+    name: coll.name || `集合 ${idx + 1}`,
+    tag: "本地",
+  }))
 })
 
 function toggleCollection(id: string) {
