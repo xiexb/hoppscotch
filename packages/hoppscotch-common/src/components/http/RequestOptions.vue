@@ -32,7 +32,14 @@
       :label="`${t('tab.body')}`"
       :indicator="isBodyFilled"
     >
+      <DesignBody
+        v-if="isDesignMode"
+        :request="(request as HoppRESTRequest)"
+        :collection-id="collectionId"
+        @update:request="(val: HoppRESTRequest) => emit('update:modelValue', val)"
+      />
       <HttpBody
+        v-else
         v-model:headers="request.headers"
         v-model:body="request.body"
         :envs="envs"
@@ -122,6 +129,7 @@ import { hasActualScript } from "@hoppscotch/js-sandbox/scripting"
 import { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
 import { AggregateEnvironment } from "~/newstore/environments"
 import HttpPathParams from "./PathParams.vue"
+import DesignBody from "./design/DesignBody.vue"
 
 const _VALID_OPTION_TABS = [
   "params",
@@ -145,9 +153,13 @@ const props = withDefaults(
     properties?: string[]
     inheritedProperties?: HoppInheritedProperty
     envs?: AggregateEnvironment[]
+    isDesignMode?: boolean
+    collectionId?: string
   }>(),
   {
     optionTab: "params",
+    isDesignMode: false,
+    collectionId: undefined,
   }
 )
 

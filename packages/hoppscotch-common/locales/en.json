@@ -1245,7 +1245,16 @@
     "bind_model": "Reference Model",
     "unbind": "Unbind",
     "no_fields": "Bound model has no field definitions",
-    "unknown_model": "Unknown Model"
+    "unknown_model": "Unknown Model",
+    "text_placeholder": "Enter request body text...",
+    "param_name": "Parameter Name",
+    "param_type": "Type",
+    "param_example": "Example",
+    "param_description": "Description",
+    "param_name_ph": "name",
+    "param_example_ph": "example value",
+    "param_desc_ph": "description",
+    "add_param": "Add Parameter"
   },
   "request_mode": {
     "debug": "Debug",

@@ -1240,7 +1240,16 @@
     "bind_model": "引用模型",
     "unbind": "解除绑定",
     "no_fields": "绑定的模型暂无字段定义",
-    "unknown_model": "未知模型"
+    "unknown_model": "未知模型",
+    "text_placeholder": "输入请求体文本...",
+    "param_name": "参数名",
+    "param_type": "类型",
+    "param_example": "示例值",
+    "param_description": "说明",
+    "param_name_ph": "参数名",
+    "param_example_ph": "示例值",
+    "param_desc_ph": "说明",
+    "add_param": "添加参数"
   },
   "request_mode": {
     "debug": "调试",
