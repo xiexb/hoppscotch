@@ -397,12 +397,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, type Component } from "vue"
+import { ref, computed, reactive, onBeforeUnmount, type Component } from "vue"
 import { useService } from "dioc/vue"
 import { useI18n } from "@composables/i18n"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
+import { HoppCollection } from "@hoppscotch/data"
 import { WorkspaceModelService } from "~/services/workspace-model.service"
 import { TeamCollectionsService } from "~/services/team-collection.service"
+import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import type { TeamCollection } from "~/helpers/teams/TeamCollection"
 import type { ReadonlyModelResolver } from "~/components/http/design/SchemaTreeReadonly.vue"
 import SchemaTreeReadonly from "~/components/http/design/SchemaTreeReadonly.vue"
@@ -421,6 +423,17 @@ import IconX from "~icons/lucide/x"
 const t = useI18n()
 const workspaceModelService = useService(WorkspaceModelService)
 const teamCollectionsService = useService(TeamCollectionsService)
+
+// Subscribe to personal collections (reactive, manual subscribe for reliability)
+const personalCollections = ref<HoppCollection[]>([
+  ...(restCollectionStore.value.state ?? []),
+])
+const personalCollectionsSub = restCollections$.subscribe((cols) => {
+  personalCollections.value = [...cols]
+})
+onBeforeUnmount(() => {
+  personalCollectionsSub.unsubscribe()
+})
 
 /**
  * Resolver for SchemaTreeReadonly: modelRef ID -> { name, schemaTree }
@@ -575,14 +588,23 @@ const totalFilteredCollectionModels = computed(() => {
 })
 
 /**
- * Resolve a collection ID to its name from the TeamCollectionsService tree.
+ * Resolve a collection ID to its name.
+ * Searches team collections first, then personal collections, with truncated ID as fallback.
  */
 function resolveCollectionName(
   tree: TeamCollection[],
   collectionId: string
 ): string {
-  const found = findCollectionInTree(tree, collectionId)
-  return found?.title ?? collectionId.slice(0, 8) + "..."
+  // 1. Try team collections
+  const teamFound = findCollectionInTree(tree, collectionId)
+  if (teamFound) return teamFound.title
+
+  // 2. Try personal collections (recursive, including sub-folders)
+  const personalFound = findInPersonalCollections(collectionId)
+  if (personalFound) return personalFound.name
+
+  // 3. Fallback: truncated ID
+  return collectionId.slice(0, 8) + "..."
 }
 
 function findCollectionInTree(
@@ -595,6 +617,30 @@ function findCollectionInTree(
       const found = findCollectionInTree(coll.children, targetId)
       if (found) return found
     }
+  }
+  return null
+}
+
+function findInPersonalCollections(targetId: string): HoppCollection | null {
+  for (const coll of personalCollections.value) {
+    const id = coll._ref_id ?? coll.id
+    if (id === targetId) return coll
+    // Recursively search sub-folders
+    const found = findInSubCollections(coll, targetId)
+    if (found) return found
+  }
+  return null
+}
+
+function findInSubCollections(
+  coll: HoppCollection,
+  targetId: string
+): HoppCollection | null {
+  for (const folder of coll.folders ?? []) {
+    const id = folder._ref_id ?? folder.id
+    if (id === targetId) return folder
+    const found = findInSubCollections(folder, targetId)
+    if (found) return found
   }
   return null
 }
