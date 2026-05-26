@@ -180,6 +180,7 @@
     <ModelEditModal
       :show="showModal"
       :model="editingModel"
+      :collections="personalCollections"
       @close="showModal = false"
       @save="onModelSave"
     />

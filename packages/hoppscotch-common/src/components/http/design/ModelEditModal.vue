@@ -136,10 +136,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onBeforeUnmount } from "vue"
+import { ref, watch, computed } from "vue"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
 import { HoppCollection } from "@hoppscotch/data"
-import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 
 /**
@@ -154,6 +153,7 @@ type CollectionItem = {
 const props = defineProps<{
   show: boolean
   model?: HoppWorkspaceModel | null
+  collections: HoppCollection[]
 }>()
 
 const emit = defineEmits<{
@@ -180,20 +180,9 @@ const editingCollectionIds = ref<string[]>([])
 const errorMessage = ref("")
 const saving = ref(false)
 
-// Manual subscribe for ongoing updates + force refresh on modal open.
-// This dual approach ensures collections are always up-to-date regardless of timing.
-const existingCollections = ref<HoppCollection[]>([
-  ...(restCollectionStore.value.state ?? []),
-])
-const collectionsSub = restCollections$.subscribe((cols) => {
-  existingCollections.value = [...cols]
-})
-onBeforeUnmount(() => {
-  collectionsSub.unsubscribe()
-})
-
+// Use collections prop directly - no need to subscribe to store
 const allCollections = computed<CollectionItem[]>(() => {
-  return (existingCollections.value ?? []).map((coll, idx) => ({
+  return (props.collections ?? []).map((coll, idx) => ({
     id: coll._ref_id || `user:${idx}`,
     name: coll.name || `集合 ${idx + 1}`,
     tag: "本地",
@@ -213,10 +202,6 @@ watch(
   () => props.show,
   (visible) => {
     if (visible) {
-      // Force refresh collections from store on every modal open.
-      // This bypasses any subscription timing issues.
-      existingCollections.value = [...(restCollectionStore.value.state ?? [])]
-
       if (props.model) {
         isEditing.value = true
         editingName.value = props.model.name
