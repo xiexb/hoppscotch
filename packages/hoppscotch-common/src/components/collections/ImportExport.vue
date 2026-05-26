@@ -582,11 +582,15 @@ const HoppApifoxImporter: ImporterOrExporter = {
           // Merge into existing collection's folders
           await handleMergeIntoCollection(collections, targetIndex)
         } else if (props.collectionsType.type === "my-collections") {
-          // Personal workspace: bypass backend GraphQL to prevent:
-          // 1. Deleted collections reappearing (backend returns ALL user collections)
-          // 2. Wrapper _ref_id stripped by sanitizeCollection (breaks model visibility scope)
-          // 3. Wrapper collection name lost in backend processing
-          appendRESTCollections(collections)
+          // Personal workspace: use platform function to append WITHOUT triggering sync.
+          // This prevents the sync handler from calling importUserCollectionsFromJSON
+          // which triggers GraphQL subscriptions that create empty duplicate collections.
+          if (platform.sync.collections.appendCollectionsWithoutSync) {
+            platform.sync.collections.appendCollectionsWithoutSync(collections)
+          } else {
+            // Fallback for platforms without the function
+            appendRESTCollections(collections)
+          }
           toast.success(t("state.file_imported"))
         } else {
           // Team workspace: use existing backend flow

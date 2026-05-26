@@ -9,4 +9,11 @@ export type CollectionsPlatformDef = {
     collections: HoppCollection[],
     reqType: ReqType
   ) => Promise<E.Either<string, { success: boolean }>>
+  /**
+   * Append collections to local store WITHOUT triggering the sync handler.
+   * Used for Apifox import to prevent the sync handler from calling
+   * importUserCollectionsFromJSON which triggers subscriptions that create
+   * empty duplicate collections.
+   */
+  appendCollectionsWithoutSync?: (collections: HoppCollection[]) => void
 }

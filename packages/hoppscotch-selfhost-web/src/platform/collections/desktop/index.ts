@@ -17,7 +17,7 @@ import {
   runUserRequestUpdatedSubscription,
   runUserRootCollectionsSortedSubscription,
 } from "./api"
-import { collectionsSyncer, getStoreByCollectionType } from "./sync"
+import { collectionsSyncer, getStoreByCollectionType, recursivelySyncCollections } from "./sync"
 
 import {
   ReqType,
@@ -30,6 +30,7 @@ import {
   addGraphqlFolder,
   addRESTCollection,
   addRESTFolder,
+  appendRESTCollections,
   editGraphqlCollection,
   editGraphqlFolder,
   editGraphqlRequest,
@@ -1060,6 +1061,15 @@ export const def: CollectionsPlatformDef = {
   initCollectionsSync,
   loadUserCollections,
   importToPersonalWorkspace,
+  appendCollectionsWithoutSync: (collections: HoppCollection[]) => {
+    runDispatchWithOutSyncing(() => {
+      appendRESTCollections(collections)
+    })
+    const startIndex = restCollectionStore.value.state.length - collections.length
+    collections.forEach((collection, index) => {
+      recursivelySyncCollections(collection, `${startIndex + index}`)
+    })
+  },
 }
 
 function getCollectionPathFromCollectionID(

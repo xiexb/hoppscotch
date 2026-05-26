@@ -17,7 +17,7 @@ import {
   runUserRequestUpdatedSubscription,
   runUserRootCollectionsSortedSubscription,
 } from "./api"
-import { collectionsSyncer, getStoreByCollectionType } from "./sync"
+import { collectionsSyncer, getStoreByCollectionType, recursivelySyncCollections } from "./sync"
 
 import {
   ReqType,
@@ -30,6 +30,7 @@ import {
   addGraphqlFolder,
   addRESTCollection,
   addRESTFolder,
+  appendRESTCollections,
   editGraphqlCollection,
   editGraphqlFolder,
   editGraphqlRequest,
@@ -1057,6 +1058,21 @@ export const def: CollectionsPlatformDef = {
   initCollectionsSync,
   loadUserCollections,
   importToPersonalWorkspace,
+  appendCollectionsWithoutSync: (collections: HoppCollection[]) => {
+    // Append to local store without triggering sync handler
+    runDispatchWithOutSyncing(() => {
+      appendRESTCollections(collections)
+    })
+    // Manually sync each collection to backend using individual create calls.
+    // This avoids the bulk importUserCollectionsFromJSON API which triggers
+    // subscriptions that create empty duplicate collections.
+    // recursivelySyncCollections assigns backend IDs to local collections,
+    // so when subscriptions fire, the handler finds them and skips.
+    const startIndex = restCollectionStore.value.state.length - collections.length
+    collections.forEach((collection, index) => {
+      recursivelySyncCollections(collection, `${startIndex + index}`)
+    })
+  },
 }
 
 function getCollectionPathFromCollectionID(

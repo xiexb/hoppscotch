@@ -67,7 +67,7 @@ export const restRequestsMapper = createMapper<string, string>()
 
 // Optimized implementation using importUserCollectionsFromJSON for bulk operations
 // This replaces individual createRESTRootUserCollection/createRESTChildUserCollection/createRESTUserRequest calls
-const recursivelySyncCollections = async (
+export const recursivelySyncCollections = async (
   collection: HoppCollection,
   collectionPath: string,
   parentUserCollectionID?: string
