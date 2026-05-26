@@ -118,13 +118,29 @@
             </span>
           </label>
 
-          <!-- Individual collection naming when "new" mode is selected -->
+          <!-- Parent collection naming when "new" mode is selected -->
+          <div
+            v-if="importTarget === 'new'"
+            class="space-y-2 ml-6 mt-2"
+          >
+            <p class="text-xs text-secondaryLight mb-1">
+              {{ t("import.apifox.parent_collection_name") }}
+            </p>
+            <input
+              v-model="newCollectionName"
+              type="text"
+              :placeholder="t('import.apifox.parent_collection_name_placeholder')"
+              class="w-full px-3 py-1.5 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          <!-- Folder naming when "new" mode is selected -->
           <div
             v-if="importTarget === 'new' && collectionNames.length > 0"
             class="space-y-2 ml-6 mt-2"
           >
             <p class="text-xs text-secondaryLight mb-2">
-              {{ t("import.apifox.edit_collection_names") }}
+              {{ t("import.apifox.edit_folder_names") }}
             </p>
             <div
               v-for="(name, idx) in collectionNames"
@@ -134,7 +150,7 @@
               <input
                 v-model="collectionNames[idx]"
                 type="text"
-                :placeholder="t('import.apifox.collection_name_placeholder')"
+                :placeholder="t('import.apifox.folder_name_placeholder')"
                 class="flex-1 px-3 py-1.5 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent"
               />
             </div>
@@ -190,7 +206,7 @@
           :label="t('import.apifox.check_conflicts')"
           :disabled="
             (importTarget === 'existing' && (selectedTargetIndex === -1 || existingCollections.length === 0)) ||
-            (importTarget === 'new' && collectionNames.some(n => !n.trim()))
+            (importTarget === 'new' && (!newCollectionName.trim() || collectionNames.some(n => !n.trim())))
           "
           class="flex-1"
           @click="checkConflicts"
@@ -957,10 +973,9 @@ async function startImport() {
           selectedTargetIndex.value
         )
       } else {
-        // Import as new: emit raw collections directly (no wrapper).
-        // Each Apifox apiCollection becomes its own root collection.
-        // Apply user-edited names from collectionNames
-        const namedCollections = importedCollections.map((coll, idx) => {
+        // Import as new: create a parent collection, put each Apifox collection as a folder.
+        // Apply user-edited folder names from collectionNames
+        const folders = importedCollections.map((coll, idx) => {
           const editedName = collectionNames.value[idx]
           if (editedName && editedName.trim()) {
             return { ...coll, name: editedName.trim() }
@@ -968,20 +983,34 @@ async function startImport() {
           return coll
         })
 
-        // Scope imported models to all imported collection IDs.
-        const importedRefIds = namedCollections
-          .map((c) => c._ref_id)
-          .filter((id): id is string => !!id)
-        if (importedRefIds.length > 0 && importedModelIds.length > 0) {
+        // Create parent collection with all imported collections as folders
+        const parentCollection = makeCollection({
+          name:
+            newCollectionName.value.trim() ||
+            projectName.value ||
+            "Apifox Import",
+          folders: folders,
+          requests: [],
+          auth: { authType: "inherit", authActive: true },
+          headers: [],
+          variables: [],
+          description: null,
+          preRequestScript: "",
+          testScript: "",
+        })
+
+        // Scope imported models to the parent collection's _ref_id
+        const parentRefId = parentCollection._ref_id
+        if (parentRefId && importedModelIds.length > 0) {
           for (const modelId of importedModelIds) {
             workspaceModelService.updateModel(modelId, {
               visibility: "collection",
-              collectionIds: importedRefIds,
+              collectionIds: [parentRefId],
             })
           }
         }
 
-        emit("import-complete", namedCollections)
+        emit("import-complete", [parentCollection])
       }
     } else {
       setStage(2, "error", "Import failed")

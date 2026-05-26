@@ -969,12 +969,16 @@
       "parse_error": "Failed to parse file: {error}",
       "import_failed": "Import failed: {error}",
       "target_label": "Import destination:",
-      "target_new": "Import as new collections (default)",
+      "target_new": "Create as new collection (with folders)",
       "target_existing": "Import into existing collection:",
       "select_collection": "Select a collection...",
       "collection_name_placeholder": "Enter collection name...",
       "no_existing_collections": "No existing collections found",
-      "edit_collection_names": "Edit collection names (one per line):"
+      "edit_collection_names": "Edit collection names (one per line):",
+      "parent_collection_name": "Parent collection name:",
+      "parent_collection_name_placeholder": "Enter parent collection name...",
+      "edit_folder_names": "Edit folder names (each Apifox collection becomes a folder):",
+      "folder_name_placeholder": "Enter folder name..."
     }
   },
   "instances": {

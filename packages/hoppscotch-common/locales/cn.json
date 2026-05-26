@@ -964,12 +964,16 @@
       "parse_error": "解析文件失败：{error}",
       "import_failed": "导入失败：{error}",
       "target_label": "导入目标：",
-      "target_new": "导入为新集合（默认）",
+      "target_new": "创建为新集合（含文件夹）",
       "target_existing": "导入到已有集合：",
       "select_collection": "请选择集合...",
       "collection_name_placeholder": "请输入集合名称...",
       "no_existing_collections": "当前无已有集合",
-      "edit_collection_names": "编辑集合名称（每行一个）："
+      "edit_collection_names": "编辑集合名称（每行一个）：",
+      "parent_collection_name": "父集合名称：",
+      "parent_collection_name_placeholder": "请输入父集合名称...",
+      "edit_folder_names": "编辑文件夹名称（每个 Apifox 集合将作为一个文件夹）：",
+      "folder_name_placeholder": "请输入文件夹名称..."
     }
   },
   "instances": {
