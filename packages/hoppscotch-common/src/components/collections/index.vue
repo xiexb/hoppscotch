@@ -1971,25 +1971,13 @@ const onRemoveCollection = async () => {
 
     if (collectionIndex === null) return
 
-    // Check for associated models
+    // Delete associated models automatically
     const collectionId = collectionToRemove?._ref_id ?? collectionToRemove?.id
     if (collectionId) {
       const associatedModels = workspaceModelService.getCollectionScopedModels(collectionId)
-      if (associatedModels.length > 0) {
-        const shouldDeleteModels = window.confirm(
-          t("confirm.delete_associated_models", {
-            count: associatedModels.length,
-            collectionName: collectionToRemove?.name || "this collection",
-          })
-        )
-        
-        if (shouldDeleteModels) {
-          // Delete all associated models
-          associatedModels.forEach((model) => {
-            workspaceModelService.deleteModel(model.id)
-          })
-        }
-      }
+      associatedModels.forEach((model) => {
+        workspaceModelService.deleteModel(model.id)
+      })
     }
 
     if (
@@ -2030,23 +2018,11 @@ const onRemoveCollection = async () => {
 
     if (!collectionID) return
 
-    // Check for associated models
+    // Delete associated models automatically
     const associatedModels = workspaceModelService.getCollectionScopedModels(collectionID)
-    if (associatedModels.length > 0) {
-      const shouldDeleteModels = window.confirm(
-        t("confirm.delete_associated_models", {
-          count: associatedModels.length,
-          collectionName: "this collection",
-        })
-      )
-      
-      if (shouldDeleteModels) {
-        // Delete all associated models
-        associatedModels.forEach((model) => {
-          workspaceModelService.deleteModel(model.id)
-        })
-      }
-    }
+    associatedModels.forEach((model) => {
+      workspaceModelService.deleteModel(model.id)
+    })
 
     if (
       isSelected({
