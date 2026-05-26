@@ -233,6 +233,13 @@
       @resolve="resolveConfirmModal"
     />
 
+    <HoppSmartConfirmModal
+      :show="showDeleteModelsConfirmModal"
+      :title="`${t('confirm.delete_associated_models', { count: pendingDeleteModelCount })}`"
+      @hide-modal="onDeleteModelsModalCancel"
+      @resolve="onDeleteModelsModalConfirm"
+    />
+
     <CollectionsImportExport
       v-if="showModalImportExport"
       :collections-type="collectionsType"
@@ -291,6 +298,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import { useI18n } from "@composables/i18n"
 import { useToast } from "@composables/toast"
 import {
@@ -393,7 +401,7 @@ import { RESTOptionTabs } from "../http/RequestOptions.vue"
 import { Collection as NodeCollection } from "./MyCollections.vue"
 import { EditingProperties } from "./Properties.vue"
 import { CollectionRunnerData } from "../http/test/RunnerModal.vue"
-import { HoppCollectionVariable } from "@hoppscotch/data"
+import { HoppCollectionVariable, type EnvironmentService } from "@hoppscotch/data"
 import { SecretEnvironmentService } from "~/services/secret-environment.service"
 import { CurrentValueService } from "~/services/current-environment-value.service"
 import { TeamCollectionsService } from "~/services/team-collection.service"
@@ -466,6 +474,12 @@ const editingProperties = ref<EditingProperties>({
 })
 
 const confirmModalTitle = ref<string | null>(null)
+
+// State for the "delete associated models" confirmation modal
+const showDeleteModelsConfirmModal = ref(false)
+const pendingDeleteModelCount = ref(0)
+/** Whether to delete models when the collection is removed (set by the second modal) */
+const shouldDeleteAssociatedModels = ref(true)
 
 const filterTexts = ref("")
 
@@ -1928,6 +1942,57 @@ const removeCollection = (id: string) => {
     editingCollectionIndex.value = parseInt(id)
   else editingCollectionID.value = id
 
+  // Check for associated models before showing the delete confirmation
+  let collectionId: string | undefined
+  if (collectionsType.value.type === "my-collections") {
+    const collectionIndex = editingCollectionIndex.value
+    const collectionToRemove =
+      collectionIndex || collectionIndex === 0
+        ? navigateToFolderWithIndexPath(restCollectionStore.value.state, [
+            collectionIndex,
+          ])
+        : undefined
+    collectionId = collectionToRemove?._ref_id ?? collectionToRemove?.id
+  } else {
+    collectionId = editingCollectionID.value ?? undefined
+  }
+
+  if (collectionId) {
+    const associatedModels =
+      workspaceModelService.getCollectionScopedModels(collectionId)
+    if (associatedModels.length > 0) {
+      // Show the model deletion confirmation first
+      pendingDeleteModelCount.value = associatedModels.length
+      shouldDeleteAssociatedModels.value = true
+      showDeleteModelsConfirmModal.value = true
+      return
+    }
+  }
+
+  // No associated models — proceed directly to collection deletion confirmation
+  shouldDeleteAssociatedModels.value = false
+  confirmModalTitle.value = `${t("confirm.remove_collection")}`
+  displayConfirmModal(true)
+}
+
+/**
+ * User confirmed they want to delete associated models.
+ * Now show the collection deletion confirmation.
+ */
+const onDeleteModelsModalConfirm = () => {
+  shouldDeleteAssociatedModels.value = true
+  showDeleteModelsConfirmModal.value = false
+  confirmModalTitle.value = `${t("confirm.remove_collection")}`
+  displayConfirmModal(true)
+}
+
+/**
+ * User chose to keep associated models.
+ * Now show the collection deletion confirmation (models will be preserved).
+ */
+const onDeleteModelsModalCancel = () => {
+  shouldDeleteAssociatedModels.value = false
+  showDeleteModelsConfirmModal.value = false
   confirmModalTitle.value = `${t("confirm.remove_collection")}`
   displayConfirmModal(true)
 }
@@ -1971,9 +2036,9 @@ const onRemoveCollection = async () => {
 
     if (collectionIndex === null) return
 
-    // Delete associated models automatically
+    // Delete associated models only if user confirmed
     const collectionId = collectionToRemove?._ref_id ?? collectionToRemove?.id
-    if (collectionId) {
+    if (shouldDeleteAssociatedModels.value && collectionId) {
       const associatedModels = workspaceModelService.getCollectionScopedModels(collectionId)
       associatedModels.forEach((model) => {
         workspaceModelService.deleteModel(model.id)
@@ -2018,11 +2083,13 @@ const onRemoveCollection = async () => {
 
     if (!collectionID) return
 
-    // Delete associated models automatically
-    const associatedModels = workspaceModelService.getCollectionScopedModels(collectionID)
-    associatedModels.forEach((model) => {
-      workspaceModelService.deleteModel(model.id)
-    })
+    // Delete associated models only if user confirmed
+    if (shouldDeleteAssociatedModels.value) {
+      const associatedModels = workspaceModelService.getCollectionScopedModels(collectionID)
+      associatedModels.forEach((model) => {
+        workspaceModelService.deleteModel(model.id)
+      })
+    }
 
     if (
       isSelected({
@@ -3365,6 +3432,7 @@ const editProperties = async (payload: {
         description: data.description,
         preRequestScript: data.preRequestScript ?? "",
         testScript: data.testScript ?? "",
+        selectedServiceId: data.selectedServiceId ?? null,
       }
 
       coll = {

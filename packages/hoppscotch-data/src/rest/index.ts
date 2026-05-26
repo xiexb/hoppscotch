@@ -96,8 +96,13 @@ export type {
   HoppRESTSchemaNode,
 } from "./v/21"
 
+// v22 extended test case with overrides and metadata
+export {
+  HoppRESTTestCaseV22,
+  HoppRESTRequestOverrides,
+} from "./v/22"
+
 // v22 request-level fields are part of the HoppRESTRequest type (InferredEntity)
-// No additional named exports needed from v22
 
 // Backward-compatible re-exports from v20
 export type { HoppRESTResponseModelV20 } from "./v/20"
