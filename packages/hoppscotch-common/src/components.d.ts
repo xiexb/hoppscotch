@@ -197,6 +197,8 @@ declare module 'vue' {
     HttpBodyParameters: typeof import('./components/http/BodyParameters.vue')['default']
     HttpCodegen: typeof import('./components/http/Codegen.vue')['default']
     HttpCodegenModal: typeof import('./components/http/CodegenModal.vue')['default']
+    HttpDesignDesignBody: typeof import('./components/http/design/DesignBody.vue')['default']
+    HttpDesignDesignBodyParams: typeof import('./components/http/design/DesignBodyParams.vue')['default']
     HttpDesignEditView: typeof import('./components/http/design/EditView.vue')['default']
     HttpDesignJsonExampleBlock: typeof import('./components/http/design/JsonExampleBlock.vue')['default']
     HttpDesignMetaInfoSection: typeof import('./components/http/design/MetaInfoSection.vue')['default']
