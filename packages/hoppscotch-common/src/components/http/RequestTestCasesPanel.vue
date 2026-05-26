@@ -423,6 +423,7 @@
 import { computed, ref } from "vue"
 import { useI18n } from "@composables/i18n"
 import { useVModel } from "@vueuse/core"
+import { cloneDeep } from "lodash-es"
 import * as E from "fp-ts/Either"
 import type { HoppRESTRequest } from "@hoppscotch/data"
 import type { HoppRESTTestCaseV22 as HoppRESTTestCase } from "@hoppscotch/data"
@@ -696,12 +697,15 @@ async function runSingleTestCase(testCase: HoppRESTTestCase) {
   const details: Array<{ pass: boolean; message: string }> = []
 
   try {
-    // Apply request overrides before running
+    // Clone the request so overrides don't mutate the shared request object
+    const requestCopy = cloneDeep(request.value)
+
+    // Apply request overrides to the clone before running
     const overrides = testCase.requestOverrides
     if (overrides) {
       // Apply body override
       if (overrides.body !== null) {
-        request.value.body = {
+        requestCopy.body = {
           contentType: "application/json",
           body: overrides.body,
         }
@@ -710,13 +714,13 @@ async function runSingleTestCase(testCase: HoppRESTTestCase) {
       if (overrides.params && overrides.params.length > 0) {
         for (const p of overrides.params) {
           if (p.active && p.key) {
-            const existing = request.value.params.find(
-              (ep) => ep.key === p.key
+            const existing = requestCopy.params.find(
+              (ep: any) => ep.key === p.key
             )
             if (existing) {
               existing.value = p.value
             } else {
-              request.value.params.push({
+              requestCopy.params.push({
                 key: p.key,
                 value: p.value,
                 active: true,
@@ -730,13 +734,13 @@ async function runSingleTestCase(testCase: HoppRESTTestCase) {
       if (overrides.headers && overrides.headers.length > 0) {
         for (const h of overrides.headers) {
           if (h.active && h.key) {
-            const existing = request.value.headers.find(
-              (eh) => eh.key === h.key
+            const existing = requestCopy.headers.find(
+              (eh: any) => eh.key === h.key
             )
             if (existing) {
               existing.value = h.value
             } else {
-              request.value.headers.push({
+              requestCopy.headers.push({
                 key: h.key,
                 value: h.value,
                 active: true,
@@ -750,13 +754,13 @@ async function runSingleTestCase(testCase: HoppRESTTestCase) {
       if (overrides.pathParams && overrides.pathParams.length > 0) {
         for (const pp of overrides.pathParams) {
           if (pp.active && pp.key) {
-            const existing = request.value.pathParams.find(
-              (epp) => epp.key === pp.key
+            const existing = requestCopy.pathParams.find(
+              (epp: any) => epp.key === pp.key
             )
             if (existing) {
               existing.value = pp.value
             } else {
-              request.value.pathParams.push({
+              requestCopy.pathParams.push({
                 key: pp.key,
                 value: pp.value,
                 active: true,
@@ -767,113 +771,122 @@ async function runSingleTestCase(testCase: HoppRESTTestCase) {
       }
     }
 
-    // Execute the real request
-    const startTime = performance.now()
-    const [cancel, streamPromise] = runRESTRequest$(tab as any)
-    const streamResult = await streamPromise
+    // Temporarily swap the tab's request with our override copy
+    const originalRequest = tab.value.document.request
+    tab.value.document.request = requestCopy
 
-    if (E.isLeft(streamResult)) {
-      details.push({
-        pass: false,
-        message: `Script error: ${streamResult.left}`,
-      })
-      testCaseResults.value[testCase.id] = {
-        status: "fail",
-        details,
+    try {
+      // Execute the real request
+      const startTime = performance.now()
+      const [cancel, streamPromise] = runRESTRequest$(tab as any)
+      const streamResult = await streamPromise
+
+      if (E.isLeft(streamResult)) {
+        details.push({
+          pass: false,
+          message: `Script error: ${streamResult.left}`,
+        })
+        testCaseResults.value[testCase.id] = {
+          status: "fail",
+          details,
+        }
+        return
       }
-      return
-    }
-
-    // Subscribe to the response stream and collect the first terminal response
-    const response = await new Promise<HoppRESTSuccessResponse | HoppRESTFailureResponse | null>((resolve) => {
-      const subscription = streamResult.right.subscribe({
-        next: (res: any) => {
-          if (res.type === "success" || res.type === "failure") {
-            resolve(res)
+  
+      // Subscribe to the response stream and collect the first terminal response
+      const response = await new Promise<HoppRESTSuccessResponse | HoppRESTFailureResponse | null>((resolve) => {
+        const subscription = streamResult.right.subscribe({
+          next: (res: any) => {
+            if (res.type === "success" || res.type === "failure") {
+              resolve(res)
+              subscription.unsubscribe()
+            }
+          },
+          error: () => {
+            resolve(null)
             subscription.unsubscribe()
-          }
-        },
-        error: () => {
-          resolve(null)
-          subscription.unsubscribe()
-        },
-        complete: () => {
-          cancel()
-          resolve(null)
-        },
+          },
+          complete: () => {
+            cancel()
+            resolve(null)
+          },
+        })
       })
-    })
-
-    const endTime = performance.now()
-    const responseTime = Math.round(endTime - startTime)
-
-    testCase.responseTime = responseTime
-    testCase.lastRunAt = new Date().toISOString()
-
-    if (!response) {
-      details.push({
-        pass: false,
-        message: "No response received",
-      })
-      testCaseResults.value[testCase.id] = {
-        status: "fail",
-        details,
+  
+      const endTime = performance.now()
+      const responseTime = Math.round(endTime - startTime)
+  
+      testCase.responseTime = responseTime
+      testCase.lastRunAt = new Date().toISOString()
+  
+      if (!response) {
+        details.push({
+          pass: false,
+          message: "No response received",
+        })
+        testCaseResults.value[testCase.id] = {
+          status: "fail",
+          details,
+        }
+        return
       }
-      return
-    }
-
-    // Check status code assertion
-    if (testCase.expectations.statusCode !== null) {
-      details.push(
-        evaluateAssertion(
-          "statusCode",
-          testCase.expectations.statusCode,
-          response.statusCode
-        )
-      )
-    }
-
-    const bodyStr = decodeBody(response.body)
-    const parsedJson = tryParseJSON(bodyStr)
-
-    // Check body contains assertions
-    for (const text of testCase.expectations.bodyContains) {
-      if (text) {
-        details.push(
-          evaluateAssertion("bodyContains", text, bodyStr)
-        )
-      }
-    }
-
-    // Check header exists assertions
-    for (const header of testCase.expectations.headerExists) {
-      if (header) {
-        details.push(
-          evaluateAssertion("headerExists", header, response.headers)
-        )
-      }
-    }
-
-    // Check JSON path assertions
-    for (const jp of testCase.expectations.jsonPath) {
-      if (jp.path) {
-        const actualValue = parsedJson
-          ? evaluateJSONPath(parsedJson, jp.path)
-          : undefined
+  
+      // Check status code assertion
+      if (testCase.expectations.statusCode !== null) {
         details.push(
           evaluateAssertion(
-            "jsonPath",
-            jp.value,
-            actualValue ?? "(not found)",
-            jp.operator
+            "statusCode",
+            testCase.expectations.statusCode,
+            response.statusCode
           )
         )
       }
-    }
-
-    testCaseResults.value[testCase.id] = {
-      status: details.every((d) => d.pass) ? "pass" : "fail",
-      details,
+  
+      const bodyStr = decodeBody(response.body)
+      const parsedJson = tryParseJSON(bodyStr)
+  
+      // Check body contains assertions
+      for (const text of testCase.expectations.bodyContains) {
+        if (text) {
+          details.push(
+            evaluateAssertion("bodyContains", text, bodyStr)
+          )
+        }
+      }
+  
+      // Check header exists assertions
+      for (const header of testCase.expectations.headerExists) {
+        if (header) {
+          details.push(
+            evaluateAssertion("headerExists", header, response.headers)
+          )
+        }
+      }
+  
+      // Check JSON path assertions
+      for (const jp of testCase.expectations.jsonPath) {
+        if (jp.path) {
+          const actualValue = parsedJson
+            ? evaluateJSONPath(parsedJson, jp.path)
+            : undefined
+          details.push(
+            evaluateAssertion(
+              "jsonPath",
+              jp.value,
+              actualValue ?? "(not found)",
+              jp.operator
+            )
+          )
+        }
+      }
+  
+      testCaseResults.value[testCase.id] = {
+        status: details.every((d) => d.pass) ? "pass" : "fail",
+        details,
+      }
+    } finally {
+      // Always restore the original request to prevent side effects
+      tab.value.document.request = originalRequest
     }
   } catch (err) {
     details.push({
