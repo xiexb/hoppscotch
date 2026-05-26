@@ -999,18 +999,47 @@ async function startImport() {
           testScript: "",
         })
 
-        // Scope imported models to the parent collection's _ref_id
-        const parentRefId = parentCollection._ref_id
-        if (parentRefId && importedModelIds.length > 0) {
-          for (const modelId of importedModelIds) {
-            workspaceModelService.updateModel(modelId, {
-              visibility: "collection",
-              collectionIds: [parentRefId],
-            })
-          }
-        }
+        // Track old refId; poll for new one after backend sync reload
+        const oldRefId = parentCollection._ref_id
+        const parentName = parentCollection.name
+        const modelIdsToUpdate = [...importedModelIds]
 
         emit("import-complete", [parentCollection])
+
+        if (modelIdsToUpdate.length > 0 && oldRefId) {
+          const maxAttempts = 20 // 20 * 500ms = 10s
+          let attempts = 0
+          const timer = setInterval(() => {
+            attempts++
+            const currentCols = restCollectionStore.value.state ?? []
+            const found = currentCols.find(
+              (c: HoppCollection) => c.name === parentName
+            )
+            const currentRefId = found?._ref_id
+            if (currentRefId && currentRefId !== oldRefId) {
+              // Backend reload completed - _ref_id changed
+              for (const mid of modelIdsToUpdate) {
+                workspaceModelService.updateModel(mid, {
+                  visibility: "collection",
+                  collectionIds: [currentRefId],
+                })
+              }
+              clearInterval(timer)
+            } else if (attempts >= maxAttempts) {
+              // Timeout fallback: use whatever refId we have
+              const fallbackId = currentRefId || oldRefId
+              if (fallbackId) {
+                for (const mid of modelIdsToUpdate) {
+                  workspaceModelService.updateModel(mid, {
+                    visibility: "collection",
+                    collectionIds: [fallbackId],
+                  })
+                }
+              }
+              clearInterval(timer)
+            }
+          }, 500)
+        }
       }
     } else {
       setStage(2, "error", "Import failed")
