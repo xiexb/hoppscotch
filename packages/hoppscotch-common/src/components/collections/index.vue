@@ -397,6 +397,7 @@ import { HoppCollectionVariable } from "@hoppscotch/data"
 import { SecretEnvironmentService } from "~/services/secret-environment.service"
 import { CurrentValueService } from "~/services/current-environment-value.service"
 import { TeamCollectionsService } from "~/services/team-collection.service"
+import { WorkspaceModelService } from "~/services/workspace-model.service"
 import { SortOptions } from "~/helpers/backend/graphql"
 import { CurrentSortValuesService } from "~/services/current-sort.service"
 
@@ -494,6 +495,7 @@ const REMEMBERED_TEAM_ID = useLocalState("REMEMBERED_TEAM_ID")
 
 // Team Collection Service
 const teamCollectionService = useService(TeamCollectionsService)
+const workspaceModelService = useService(WorkspaceModelService)
 const teamCollections = teamCollectionService.collections
 
 const teamEnvironmentAdapter = new TeamEnvironmentAdapter(undefined)
@@ -1969,6 +1971,27 @@ const onRemoveCollection = async () => {
 
     if (collectionIndex === null) return
 
+    // Check for associated models
+    const collectionId = collectionToRemove?._ref_id ?? collectionToRemove?.id
+    if (collectionId) {
+      const associatedModels = workspaceModelService.getCollectionScopedModels(collectionId)
+      if (associatedModels.length > 0) {
+        const shouldDeleteModels = window.confirm(
+          t("confirm.delete_associated_models", {
+            count: associatedModels.length,
+            collectionName: collectionToRemove?.name || "this collection",
+          })
+        )
+        
+        if (shouldDeleteModels) {
+          // Delete all associated models
+          associatedModels.forEach((model) => {
+            workspaceModelService.deleteModel(model.id)
+          })
+        }
+      }
+    }
+
     if (
       isSelected({
         collectionIndex,
@@ -2006,6 +2029,24 @@ const onRemoveCollection = async () => {
     const collectionID = editingCollectionID.value
 
     if (!collectionID) return
+
+    // Check for associated models
+    const associatedModels = workspaceModelService.getCollectionScopedModels(collectionID)
+    if (associatedModels.length > 0) {
+      const shouldDeleteModels = window.confirm(
+        t("confirm.delete_associated_models", {
+          count: associatedModels.length,
+          collectionName: "this collection",
+        })
+      )
+      
+      if (shouldDeleteModels) {
+        // Delete all associated models
+        associatedModels.forEach((model) => {
+          workspaceModelService.deleteModel(model.id)
+        })
+      }
+    }
 
     if (
       isSelected({

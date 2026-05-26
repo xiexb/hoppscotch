@@ -363,6 +363,7 @@
     "exit_team": "您确定要离开此团队吗？",
     "logout": "您确定要退出登录吗？",
     "remove_collection": "您确定要永久删除该集合吗？",
+    "delete_associated_models": "该集合有 {count} 个关联的模型。是否同时删除这些模型？\n\n点击\"确定\"删除模型，点击\"取消\"保留模型。",
     "remove_environment": "您确定要永久删除该环境吗？",
     "remove_folder": "您确定要永久删除该文件夹吗？",
     "remove_history": "您确定要永久删除全部历史记录吗？",

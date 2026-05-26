@@ -155,6 +155,19 @@ export class WorkspaceModelService extends Service<WorkspaceModelServiceEvent> {
   }
 
   /**
+   * Returns models that are scoped to a specific collection (visibility === "collection"
+   * and collectionIds includes the given collectionId).
+   * This is useful for cleanup when deleting a collection.
+   */
+  public getCollectionScopedModels(collectionId: string): HoppWorkspaceModel[] {
+    return Array.from(this.modelsMap.values()).filter(
+      (m) =>
+        m.visibility === "collection" &&
+        (m.collectionIds ?? []).includes(collectionId)
+    )
+  }
+
+  /**
    * Updates an existing model. Only provided fields are changed.
    * @returns The updated model, or null if the model was not found.
    */
