@@ -203,6 +203,7 @@ declare module 'vue' {
     HttpDesignModelEditModal: typeof import('./components/http/design/ModelEditModal.vue')['default']
     HttpDesignModelManager: typeof import('./components/http/design/ModelManager.vue')['default']
     HttpDesignPreviewView: typeof import('./components/http/design/PreviewView.vue')['default']
+    HttpDesignRequestBodySection: typeof import('./components/http/design/RequestBodySection.vue')['default']
     HttpDesignRequestParamsSection: typeof import('./components/http/design/RequestParamsSection.vue')['default']
     HttpDesignResponseSection: typeof import('./components/http/design/ResponseSection.vue')['default']
     HttpDesignSchemaTreeEditor: typeof import('./components/http/design/SchemaTreeEditor.vue')['default']

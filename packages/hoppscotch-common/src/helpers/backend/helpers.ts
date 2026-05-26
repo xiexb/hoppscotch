@@ -42,6 +42,7 @@ export type CollectionDataProps = {
   description: string | null
   preRequestScript: string
   testScript: string
+  selectedServiceId: string | null
 }
 
 export const BACKEND_PAGE_SIZE = 10
@@ -125,6 +126,7 @@ const parseCollectionData = (
     description: null,
     preRequestScript: "",
     testScript: "",
+    selectedServiceId: null,
   }
 
   if (!data) {
@@ -173,6 +175,11 @@ const parseCollectionData = (
       ? parsedData.testScript
       : defaultDataProps.testScript
 
+  const selectedServiceId =
+    typeof parsedData?.selectedServiceId === "string"
+      ? parsedData.selectedServiceId
+      : defaultDataProps.selectedServiceId
+
   return {
     auth,
     headers,
@@ -180,6 +187,7 @@ const parseCollectionData = (
     description,
     preRequestScript,
     testScript,
+    selectedServiceId,
   }
 }
 

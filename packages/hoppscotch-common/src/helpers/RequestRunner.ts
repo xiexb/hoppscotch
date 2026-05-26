@@ -1,6 +1,7 @@
 import {
   Cookie,
   Environment,
+  EnvironmentService,
   HoppCollectionVariable,
   HoppRESTHeader,
   HoppRESTHeaders,
@@ -76,6 +77,34 @@ const kernelInterceptorService = getService(KernelInterceptorService)
 const EXPERIMENTAL_SCRIPTING_SANDBOX = useSetting(
   "EXPERIMENTAL_SCRIPTING_SANDBOX"
 )
+
+/**
+ * Resolves a service URL from the current environment's services array
+ * using the collection's selectedServiceId.
+ *
+ * @param selectedServiceId The service ID selected on the collection
+ * @returns The resolved base URL string, or null if not found
+ */
+function resolveServiceUrlFromEnvironment(
+  selectedServiceId: string | null
+): string | null {
+  if (!selectedServiceId) return null
+
+  try {
+    const currentEnv = getCurrentEnvironment()
+    // Environment v3 has a `services` array; older versions don't
+    const services = (currentEnv as any).services as
+      | EnvironmentService[]
+      | undefined
+
+    if (!services || !Array.isArray(services)) return null
+
+    const service = services.find((s) => s.id === selectedServiceId)
+    return service?.url ?? null
+  } catch {
+    return null
+  }
+}
 
 export type InitialEnvironmentState = {
   initialGlobalEnvs: Environment["variables"]
@@ -478,6 +507,11 @@ export function runRESTRequest$(
 
   const { request, inheritedProperties } = tab.value.document
 
+  // Resolve service URL from the collection's selectedServiceId + environment services
+  const resolvedServiceUrl = resolveServiceUrlFromEnvironment(
+    inheritedProperties?.selectedServiceId ?? null
+  )
+
   const requestAuth =
     request.auth.authType === "inherit" && request.auth.authActive
       ? inheritedProperties?.auth.inheritedAuth
@@ -578,7 +612,7 @@ export function runRESTRequest$(
       v: 2,
       name: "Env",
       variables: finalEnvsWithNonEmptyValues,
-    })
+    }, false, false, resolvedServiceUrl)
 
     const [stream, cancelRun] =
       await createRESTNetworkRequestStream(effectiveRequest)
@@ -819,7 +853,8 @@ export async function runTestRunnerRequest(
   inheritedVariables: HoppCollectionVariable[] = [],
   initialEnvironmentState: InitialEnvironmentState,
   inheritedPreRequestScripts: string[] = [],
-  inheritedTestScripts: string[] = []
+  inheritedTestScripts: string[] = [],
+  selectedServiceId: string | null = null
 ): Promise<
   | E.Left<"script_fail">
   | E.Right<{
@@ -830,6 +865,9 @@ export async function runTestRunnerRequest(
   | undefined
 > {
   const cookieJarEntries = getCookieJarEntries()
+
+  // Resolve service URL for test runner requests
+  const resolvedServiceUrl = resolveServiceUrlFromEnvironment(selectedServiceId)
 
   const {
     initialGlobalEnvs,
@@ -887,7 +925,7 @@ export async function runTestRunnerRequest(
           collectionVariables: inheritedVariables,
         })
       ),
-    })
+    }, false, false, resolvedServiceUrl)
 
     const [stream] = createRESTNetworkRequestStream(effectiveRequest)
 

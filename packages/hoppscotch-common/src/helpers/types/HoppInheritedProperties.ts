@@ -29,4 +29,10 @@ export type HoppInheritedProperty = {
     preRequestScript: string
     testScript: string
   }[]
+  /**
+   * The selectedServiceId from the closest collection/folder in the hierarchy
+   * that has a non-null value. Used to resolve the service (prepend) URL
+   * from the environment's services array.
+   */
+  selectedServiceId?: string | null
 }

@@ -100,6 +100,7 @@ function parseCollectionDataFromString(data?: string): CollectionDataProps {
     description: null,
     preRequestScript: "",
     testScript: "",
+    selectedServiceId: null,
   }
 
   if (!data) {
@@ -116,6 +117,7 @@ function parseCollectionDataFromString(data?: string): CollectionDataProps {
       preRequestScript:
         parsed.preRequestScript || defaultDataProps.preRequestScript,
       testScript: parsed.testScript || defaultDataProps.testScript,
+      selectedServiceId: parsed.selectedServiceId ?? defaultDataProps.selectedServiceId,
     }
   } catch (error) {
     console.error("Failed to parse collection data:", error)

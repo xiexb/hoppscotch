@@ -385,7 +385,8 @@ export async function getEffectiveRESTRequest(
   request: HoppRESTRequest,
   environment: Environment,
   showKeyIfSecret = false,
-  showKeyIfNotFound = false
+  showKeyIfNotFound = false,
+  serviceUrl?: string | null
 ): Promise<EffectiveHoppRESTRequest> {
   // <<variable>> resolves from environment variables ONLY.
   // {variable} resolves from pathParams via replacePathParams().
@@ -482,16 +483,30 @@ export async function getEffectiveRESTRequest(
       ? replacePathParams(effectiveFinalBodyRaw, pathParamsList)
       : effectiveFinalBodyRaw
 
+  // Resolve <<variable>> templates in the endpoint
+  let resolvedEndpoint = parseTemplateString(
+    request.endpoint,
+    envVars,
+    false,
+    showKeyIfSecret,
+    showKeyIfNotFound
+  )
+
+  // Prepend service (base) URL if:
+  // 1. A serviceUrl is provided (from the collection's selectedServiceId)
+  // 2. The resolved endpoint is NOT already a full URL (doesn't start with http:// or https://)
+  if (serviceUrl && resolvedEndpoint && !/^https?:\/\//i.test(resolvedEndpoint.trim())) {
+    const base = serviceUrl.endsWith("/") ? serviceUrl.slice(0, -1) : serviceUrl
+    const path = resolvedEndpoint.startsWith("/")
+      ? resolvedEndpoint
+      : "/" + resolvedEndpoint
+    resolvedEndpoint = base + path
+  }
+
   return {
     ...request,
     effectiveFinalURL: replacePathParams(
-      parseTemplateString(
-        request.endpoint,
-        envVars,
-        false,
-        showKeyIfSecret,
-        showKeyIfNotFound
-      ),
+      resolvedEndpoint,
       request.pathParams ?? []
     ),
     effectiveFinalHeaders,

@@ -99,6 +99,8 @@ export type {
 // v22 extended test case with overrides and metadata
 export {
   HoppRESTTestCaseV22,
+} from "./v/22"
+export type {
   HoppRESTRequestOverrides,
 } from "./v/22"
 

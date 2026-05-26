@@ -1122,14 +1122,16 @@ export class TeamCollectionsService extends Service<void> {
 
     const scripts: HoppInheritedProperty["scripts"] = []
 
-    if (!folderPath) return { auth, headers, variables, scripts }
+    let selectedServiceId: string | null = null
+
+    if (!folderPath) return { auth, headers, variables, scripts, selectedServiceId }
 
     const path = folderPath.split("/")
 
     // Check if the path is empty or invalid
     if (!path || path.length === 0) {
       console.error("Invalid path:", folderPath)
-      return { auth, headers, variables, scripts }
+      return { auth, headers, variables, scripts, selectedServiceId }
     }
 
     // Loop through the path and get the last parent folder with authType other than 'inherit'
@@ -1139,7 +1141,7 @@ export class TeamCollectionsService extends Service<void> {
       // Check if parentFolder is undefined or null
       if (!parentFolder) {
         console.error("Parent folder not found for path:", path)
-        return { auth, headers, variables, scripts }
+        return { auth, headers, variables, scripts, selectedServiceId }
       }
 
       const data: Partial<CollectionDataProps> = parentFolder.data
@@ -1239,9 +1241,18 @@ export class TeamCollectionsService extends Service<void> {
           testScript: parentTestScript,
         })
       }
+
+      // Track selectedServiceId from the deepest collection/folder that has one
+      const parentSelectedServiceId =
+        typeof data.selectedServiceId === "string"
+          ? data.selectedServiceId
+          : null
+      if (parentSelectedServiceId) {
+        selectedServiceId = parentSelectedServiceId
+      }
     }
 
-    return { auth, headers, variables, scripts }
+    return { auth, headers, variables, scripts, selectedServiceId }
   }
 
   private async waitForCollectionLoading(collectionID: string) {
@@ -1270,6 +1281,7 @@ export class TeamCollectionsService extends Service<void> {
         headers: [],
         variables: [],
         scripts: [],
+        selectedServiceId: null,
       }
 
     const path = folderPath.split("/")
@@ -1289,6 +1301,7 @@ export class TeamCollectionsService extends Service<void> {
         headers: [],
         variables: [],
         scripts: [],
+        selectedServiceId: null,
       }
     }
 

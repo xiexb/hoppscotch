@@ -71,6 +71,7 @@ export class TestRunnerService extends Service {
       description: collection.description ?? null,
       preRequestScript: collection.preRequestScript ?? "",
       testScript: collection.testScript ?? "",
+      selectedServiceId: collection.selectedServiceId ?? null,
     }
 
     this.runTestCollection(
@@ -114,7 +115,8 @@ export class TestRunnerService extends Service {
     parentVariables: HoppCollection["variables"] = [],
     parentID?: string,
     parentPreRequestScripts: string[] = [],
-    parentTestScripts: string[] = []
+    parentTestScripts: string[] = [],
+    parentSelectedServiceId: string | null = null
   ) {
     try {
       // Compute inherited auth and headers for this collection
@@ -152,6 +154,10 @@ export class TestRunnerService extends Service {
           : []),
       ]
 
+      // Track selectedServiceId: deepest non-null wins
+      const currentSelectedServiceId =
+        collection.selectedServiceId ?? parentSelectedServiceId
+
       // Process folders progressively
       for (let i = 0; i < collection.folders.length; i++) {
         if (options.stopRef?.value) {
@@ -183,7 +189,8 @@ export class TestRunnerService extends Service {
           inheritedVariables,
           collection._ref_id || collection.id,
           inheritedPreRequestScripts,
-          inheritedTestScripts
+          inheritedTestScripts,
+          currentSelectedServiceId
         )
       }
 
@@ -222,7 +229,8 @@ export class TestRunnerService extends Service {
           currentPath,
           inheritedVariables,
           inheritedPreRequestScripts,
-          inheritedTestScripts
+          inheritedTestScripts,
+          currentSelectedServiceId
         )
 
         if (options.delay && options.delay > 0) {
@@ -315,7 +323,8 @@ export class TestRunnerService extends Service {
     path: number[],
     inheritedVariables: HoppCollectionVariable[] = [],
     inheritedPreRequestScripts: string[] = [],
-    inheritedTestScripts: string[] = []
+    inheritedTestScripts: string[] = [],
+    selectedServiceId: string | null = null
   ) {
     if (options.stopRef?.value) {
       throw new Error("Test execution stopped")
@@ -343,7 +352,8 @@ export class TestRunnerService extends Service {
         inheritedVariables,
         initialEnvironmentState,
         inheritedPreRequestScripts,
-        inheritedTestScripts
+        inheritedTestScripts,
+        selectedServiceId
       )
 
       if (options.stopRef?.value) {
