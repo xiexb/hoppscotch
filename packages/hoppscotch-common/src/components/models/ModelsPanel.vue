@@ -93,103 +93,17 @@
           >
         </div>
         <div v-if="!collapsedGroups.has('public')" class="divide-y divide-dividerLight">
-          <div
+          <ModelRow
             v-for="model in filteredPublicModels"
             :key="model.id"
-            class="group"
-          >
-            <!-- Model row -->
-            <div
-              class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-primaryLight/50 transition-colors"
-              @click="toggleExpand(model.id)"
-            >
-              <!-- Expand icon -->
-              <IconChevronRight
-                class="w-3.5 h-3.5 text-secondaryLight shrink-0 transition-transform"
-                :class="{ 'rotate-90': expandedId === model.id }"
-              />
-              <!-- Model info -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="text-xs font-semibold text-secondaryDark truncate"
-                  >
-                    {{ model.name }}
-                  </span>
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium shrink-0"
-                  >
-                    {{ model.schemaTree?.length ?? 0 }}
-                    {{ t("models_panel.fields") }}
-                  </span>
-                </div>
-                <div
-                  v-if="model.description"
-                  class="text-[11px] text-secondaryLight truncate mt-0.5"
-                >
-                  {{ model.description }}
-                </div>
-              </div>
-              <!-- Actions -->
-              <div
-                class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <button
-                  v-tippy="{
-                    theme: 'tooltip',
-                    content: t('models_panel.edit'),
-                  }"
-                  class="p-1.5 text-secondaryLight hover:text-accent transition-colors rounded"
-                  @click.stop="openEditModal(model)"
-                >
-                  <IconEdit class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  v-tippy="{
-                    theme: 'tooltip',
-                    content: t('models_panel.delete'),
-                  }"
-                  class="p-1.5 text-secondaryLight hover:text-red-400 transition-colors rounded"
-                  @click.stop="confirmDelete(model)"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Expanded schema preview -->
-            <div
-              v-if="expandedId === model.id"
-              class="px-4 py-2 bg-primaryLight/30 border-t border-dividerLight"
-            >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-[11px] font-semibold text-secondary">
-                  {{ t("models_panel.schema_preview") }}
-                </span>
-                <span class="text-[10px] text-secondaryLight">
-                  {{ t("models_panel.updated_at") }}
-                  {{ formatTime(model.updatedAt) }}
-                </span>
-              </div>
-              <div
-                v-if="model.schemaTree && model.schemaTree.length > 0"
-              >
-                <SchemaTreeReadonly
-                  v-for="(node, nIdx) in model.schemaTree"
-                  :key="nIdx"
-                  :node="node"
-                  :depth="0"
-                  :model-resolver="readonlyModelResolver"
-                />
-              </div>
-              <div
-                v-else
-                class="text-[11px] text-secondaryLight py-2 text-center"
-              >
-                {{ t("models_panel.no_fields") }}
-              </div>
-            </div>
-          </div>
+            :model="model"
+            :is-expanded="expandedId === model.id"
+            row-class="px-4"
+            :model-resolver="readonlyModelResolver"
+            @toggle-expand="toggleExpand(model.id)"
+            @edit="openEditModal(model)"
+            @delete="confirmDelete(model)"
+          />
         </div>
       </div>
 
@@ -245,100 +159,17 @@
               v-if="!collapsedGroups.has('folder:' + folder.key)"
               class="divide-y divide-dividerLight"
             >
-              <div
+              <ModelRow
                 v-for="model in folder.models"
                 :key="model.id"
-                class="group"
-              >
-                <!-- Model row (indented) -->
-                <div
-                  class="flex items-center gap-2 pl-10 pr-4 py-2.5 cursor-pointer hover:bg-primaryLight/50 transition-colors"
-                  @click="toggleExpand(model.id)"
-                >
-                  <IconChevronRight
-                    class="w-3.5 h-3.5 text-secondaryLight shrink-0 transition-transform"
-                    :class="{ 'rotate-90': expandedId === model.id }"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="text-xs font-semibold text-secondaryDark truncate"
-                      >
-                        {{ model.name }}
-                      </span>
-                      <span
-                        class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium shrink-0"
-                      >
-                        {{ model.schemaTree?.length ?? 0 }}
-                        {{ t("models_panel.fields") }}
-                      </span>
-                    </div>
-                    <div
-                      v-if="model.description"
-                      class="text-[11px] text-secondaryLight truncate mt-0.5"
-                    >
-                      {{ model.description }}
-                    </div>
-                  </div>
-                  <div
-                    class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <button
-                      v-tippy="{
-                        theme: 'tooltip',
-                        content: t('models_panel.edit'),
-                      }"
-                      class="p-1.5 text-secondaryLight hover:text-accent transition-colors rounded"
-                      @click.stop="openEditModal(model)"
-                    >
-                      <IconEdit class="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      v-tippy="{
-                        theme: 'tooltip',
-                        content: t('models_panel.delete'),
-                      }"
-                      class="p-1.5 text-secondaryLight hover:text-red-400 transition-colors rounded"
-                      @click.stop="confirmDelete(model)"
-                    >
-                      <IconTrash class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Expanded schema preview -->
-                <div
-                  v-if="expandedId === model.id"
-                  class="px-4 py-2 bg-primaryLight/30 border-t border-dividerLight"
-                >
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11px] font-semibold text-secondary">
-                      {{ t("models_panel.schema_preview") }}
-                    </span>
-                    <span class="text-[10px] text-secondaryLight">
-                      {{ t("models_panel.updated_at") }}
-                      {{ formatTime(model.updatedAt) }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="model.schemaTree && model.schemaTree.length > 0"
-                  >
-                    <SchemaTreeReadonly
-                      v-for="(node, nIdx) in model.schemaTree"
-                      :key="nIdx"
-                      :node="node"
-                      :depth="0"
-                      :model-resolver="readonlyModelResolver"
-                    />
-                  </div>
-                  <div
-                    v-else
-                    class="text-[11px] text-secondaryLight py-2 text-center"
-                  >
-                    {{ t("models_panel.no_fields") }}
-                  </div>
-                </div>
-              </div>
+                :model="model"
+                :is-expanded="expandedId === model.id"
+                row-class="pl-10 pr-4"
+                :model-resolver="readonlyModelResolver"
+                @toggle-expand="toggleExpand(model.id)"
+                @edit="openEditModal(model)"
+                @delete="confirmDelete(model)"
+              />
             </div>
           </template>
         </div>
@@ -397,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onBeforeUnmount, type Component } from "vue"
+import { ref, computed, reactive, onBeforeUnmount } from "vue"
 import { useService } from "dioc/vue"
 import { useI18n } from "@composables/i18n"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
@@ -407,11 +238,9 @@ import { TeamCollectionsService } from "~/services/team-collection.service"
 import { restCollections$, restCollectionStore } from "~/newstore/collections"
 import type { TeamCollection } from "~/helpers/teams/TeamCollection"
 import type { ReadonlyModelResolver } from "~/components/http/design/SchemaTreeReadonly.vue"
-import SchemaTreeReadonly from "~/components/http/design/SchemaTreeReadonly.vue"
 import ModelEditModal from "~/components/http/design/ModelEditModal.vue"
+import ModelRow from "./ModelRow.vue"
 import IconPlus from "~icons/lucide/plus"
-import IconEdit from "~icons/lucide/pencil"
-import IconTrash from "~icons/lucide/trash-2"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconDatabase from "~icons/lucide/database"
 import IconGlobe from "~icons/lucide/globe"
@@ -473,18 +302,26 @@ function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
 }
 
+// Shared search filter utility
+function filterByQuery<T extends { name: string; description?: string | null }>(
+  items: T[],
+  query: string
+): T[] {
+  if (!query) return items
+  return items.filter(
+    (m) =>
+      m.name.toLowerCase().includes(query) ||
+      (m.description ?? "").toLowerCase().includes(query)
+  )
+}
+
 // Filtered models by search query
 const filteredPublicModels = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   const publicModels = models.value.filter(
     (m) => (m.visibility ?? "public") === "public"
   )
-  if (!query) return publicModels
-  return publicModels.filter(
-    (m) =>
-      m.name.toLowerCase().includes(query) ||
-      (m.description ?? "").toLowerCase().includes(query)
-  )
+  return filterByQuery(publicModels, query)
 })
 
 // Collection models grouped by collection folder
@@ -496,7 +333,6 @@ const collectionFolderGroups = computed(() => {
   // Build a map of collectionId -> models
   const folderMap = new Map<string, HoppWorkspaceModel[]>()
   const uncategorized: HoppWorkspaceModel[] = []
-  const seenModelIds = new Set<string>()
 
   for (const model of collectionModels) {
     const ids = model.collectionIds ?? []
@@ -513,7 +349,6 @@ const collectionFolderGroups = computed(() => {
         }
       }
     }
-    seenModelIds.add(model.id)
   }
 
   // Resolve collection names from TeamCollectionsService
@@ -563,11 +398,7 @@ const filteredCollectionFolderGroups = computed(() => {
   }> = []
 
   for (const folder of collectionFolderGroups.value) {
-    const filtered = folder.models.filter(
-      (m) =>
-        m.name.toLowerCase().includes(query) ||
-        (m.description ?? "").toLowerCase().includes(query)
-    )
+    const filtered = filterByQuery(folder.models, query)
     if (filtered.length > 0) {
       result.push({ ...folder, models: filtered })
     }
