@@ -26,18 +26,20 @@ export type SelectedEnvironmentIndex =
     }
 
 const defaultGlobalEnvironmentState: GlobalEnvironment = {
-  v: 2,
+  v: 3,
   variables: [],
+  services: [],
 }
 
 const defaultEnvironmentsState = {
   environments: [
     {
-      v: 2,
+      v: 3 as 2 | 3,
       id: uniqueID(),
       name: "My Environment Variables",
       variables: [],
-    },
+      services: [],
+    } as Environment,
   ] as Environment[],
 
   // as a temp fix for identifying global env when syncing
@@ -50,7 +52,6 @@ const defaultEnvironmentsState = {
 }
 
 type EnvironmentStore = typeof defaultEnvironmentsState
-
 const dispatchers = defineDispatchers({
   setSelectedEnvironmentIndex(
     store: EnvironmentStore,
@@ -104,15 +105,17 @@ const dispatchers = defineDispatchers({
         envID
           ? {
               id: envID,
-              v: 2,
+              v: 3,
               name,
               variables,
+              services: [],
             }
           : {
-              v: 2,
+              v: 3,
               id: uniqueID(),
               name,
               variables,
+              services: [],
             },
       ],
     }

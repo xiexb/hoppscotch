@@ -185,6 +185,14 @@
           <span class="text-secondaryLight font-normal font-mono ml-1">
             {{ request.body.contentType }}
           </span>
+          <!-- Model binding badge -->
+          <span
+            v-if="request.bodyModelRef"
+            class="ml-2 px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 inline-flex items-center gap-0.5"
+          >
+            <IconLink class="w-2.5 h-2.5" />
+            {{ bodyBoundModelName }}
+          </span>
         </h4>
 
         <!-- Use bodySchemaTree for nested display if available -->
@@ -589,6 +597,13 @@ const bodySchemaTreeNodes = computed<HoppRESTSchemaNode[]>(() => {
 })
 
 const hasBodySchemaTree = computed(() => bodySchemaTreeNodes.value.length > 0)
+
+const bodyBoundModelName = computed(() => {
+  const refId = props.request.bodyModelRef ?? ""
+  if (!refId) return ""
+  const model = workspaceModelService.getModelById(refId)
+  return model?.name ?? "未知模型"
+})
 
 // --- Model binding computeds ---
 

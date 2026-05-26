@@ -1234,6 +1234,14 @@
   "remove": {
     "star": "移除星标"
   },
+  "request_body_schema": {
+    "title": "请求 Body Schema",
+    "structure": "数据结构",
+    "bind_model": "引用模型",
+    "unbind": "解除绑定",
+    "no_fields": "绑定的模型暂无字段定义",
+    "unknown_model": "未知模型"
+  },
   "request_mode": {
     "debug": "调试",
     "design_tab": "设计",

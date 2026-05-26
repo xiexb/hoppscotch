@@ -1239,6 +1239,14 @@
   "remove": {
     "star": "Remove star"
   },
+  "request_body_schema": {
+    "title": "Request Body Schema",
+    "structure": "Data Structure",
+    "bind_model": "Reference Model",
+    "unbind": "Unbind",
+    "no_fields": "Bound model has no field definitions",
+    "unknown_model": "Unknown Model"
+  },
   "request_mode": {
     "debug": "Debug",
     "design_tab": "Design",

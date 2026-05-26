@@ -700,11 +700,16 @@ const saveEnvironment = () => {
     }))
   )
 
+  const filteredServices = services.value.filter(
+    (s) => s.name !== "" && s.url !== ""
+  )
+
   const environmentUpdated: Environment = {
-    v: 2,
+    v: 3,
     id: uniqueID(),
     name: editingName.value,
     variables,
+    services: filteredServices,
   }
 
   if (props.action === "new") {
