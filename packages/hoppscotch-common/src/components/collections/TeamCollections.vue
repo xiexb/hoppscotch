@@ -1050,6 +1050,16 @@ class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
   }
 
   getChildren(id: string | null): Ref<ChildrenResult<TeamCollectionNode>> {
+    // Trigger expansion outside of computed to avoid side effects in pure function.
+    // Vue 3 computed must be pure — emit inside computed is unreliable and can cause
+    // the loading state to get stuck on first expand.
+    if (id !== null) {
+      const parsedID = id.split("/")[id.split("/").length - 1]
+      if (!props.teamLoadingCollections.includes(parsedID)) {
+        emit("expand-team-collection", parsedID)
+      }
+    }
+
     return computed(() => {
       if (id === null) {
         if (props.teamLoadingCollections.includes("root")) {
@@ -1075,9 +1085,6 @@ class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
       }
       const parsedID = id.split("/")[id.split("/").length - 1]
 
-      if (!props.teamLoadingCollections.includes(parsedID))
-        emit("expand-team-collection", parsedID)
-
       if (props.teamLoadingCollections.includes(parsedID)) {
         return {
           status: "loading",
@@ -1085,6 +1092,13 @@ class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
       }
       const items = this.findCollInTree(this.data.value, parsedID)
       if (items) {
+        // If children haven't been loaded yet (null), show loading state
+        // while the expand-team-collection emit triggers the async fetch
+        if (items.children === null) {
+          return {
+            status: "loading",
+          }
+        }
         const data = [
           ...(items.children
             ? items.children.map((item, index) => ({
