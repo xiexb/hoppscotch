@@ -17,7 +17,7 @@ import {
   runUserRequestUpdatedSubscription,
   runUserRootCollectionsSortedSubscription,
 } from "./api"
-import { collectionsSyncer, getStoreByCollectionType, recursivelySyncCollections } from "./sync"
+import { collectionsSyncer, getStoreByCollectionType } from "./sync"
 
 import {
   ReqType,
@@ -371,6 +371,23 @@ function setupUserCollectionCreatedSubscription() {
 
       // only folders will have parent collection id
       if (parentCollectionID && parentCollectionPath) {
+        // Check for existing folder by name (race condition fix)
+        const parentCollection = navigateToFolderWithIndexPath(
+          collectionStore.value.state,
+          parentCollectionPath
+            .split("/")
+            .map((pathIndex) => parseInt(pathIndex))
+        )
+
+        const existingFolder = parentCollection?.folders.find(
+          (f) => f.name === res.right.userCollectionCreated.title && !f.id
+        )
+
+        if (existingFolder) {
+          existingFolder.id = userCollectionBackendID
+          return
+        }
+
         runDispatchWithOutSyncing(() => {
           collectionType == "GQL"
             ? addGraphqlFolder(
@@ -382,17 +399,17 @@ function setupUserCollectionCreatedSubscription() {
                 parentCollectionPath
               )
 
-          const parentCollection = navigateToFolderWithIndexPath(
+          const updatedParent = navigateToFolderWithIndexPath(
             collectionStore.value.state,
             parentCollectionPath
               .split("/")
               .map((pathIndex) => parseInt(pathIndex))
           )
 
-          if (parentCollection) {
-            const folderIndex = parentCollection.folders.length - 1
+          if (updatedParent) {
+            const folderIndex = updatedParent.folders.length - 1
 
-            const addedFolder = parentCollection.folders[folderIndex]
+            const addedFolder = updatedParent.folders[folderIndex]
             addedFolder.id = userCollectionBackendID
           }
         })
@@ -1062,13 +1079,7 @@ export const def: CollectionsPlatformDef = {
   loadUserCollections,
   importToPersonalWorkspace,
   appendCollectionsWithoutSync: (collections: HoppCollection[]) => {
-    runDispatchWithOutSyncing(() => {
-      appendRESTCollections(collections)
-    })
-    const startIndex = restCollectionStore.value.state.length - collections.length
-    collections.forEach((collection, index) => {
-      recursivelySyncCollections(collection, `${startIndex + index}`)
-    })
+    appendRESTCollections(collections)
   },
 }
 

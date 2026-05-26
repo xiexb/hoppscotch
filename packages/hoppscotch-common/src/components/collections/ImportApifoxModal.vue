@@ -926,37 +926,22 @@ async function startImport() {
           selectedTargetIndex.value
         )
       } else {
-        // Import as new: wrap all collections under a parent named newCollectionName
-        const wrapperId =
-          typeof crypto !== "undefined" &&
-          typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `coll-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-        const wrapperCollection = makeCollection({
-          id: wrapperId,
-          name:
-            newCollectionName.value || projectName.value || "Apifox Import",
-          folders: importedCollections,
-          requests: [],
-          auth: { authType: "inherit", authActive: true },
-          headers: [],
-          variables: [],
-          description: null,
-          preRequestScript: "",
-          testScript: "",
-        })
-
-        // Scope imported models to the new wrapper collection using _ref_id
-        // (personal workspace collections use _ref_id, not id)
-        const wrapperRefId = wrapperCollection._ref_id
-        for (const modelId of importedModelIds) {
-          workspaceModelService.updateModel(modelId, {
-            visibility: "collection",
-            collectionIds: [wrapperRefId],
-          })
+        // Import as new: emit raw collections directly (no wrapper).
+        // Each Apifox apiCollection becomes its own root collection.
+        // Scope imported models to all imported collection IDs.
+        const importedRefIds = importedCollections
+          .map((c) => c._ref_id)
+          .filter((id): id is string => !!id)
+        if (importedRefIds.length > 0 && importedModelIds.length > 0) {
+          for (const modelId of importedModelIds) {
+            workspaceModelService.updateModel(modelId, {
+              visibility: "collection",
+              collectionIds: importedRefIds,
+            })
+          }
         }
 
-        emit("import-complete", [wrapperCollection])
+        emit("import-complete", importedCollections)
       }
     } else {
       setStage(2, "error", "Import failed")

@@ -17,7 +17,7 @@ import {
   runUserRequestUpdatedSubscription,
   runUserRootCollectionsSortedSubscription,
 } from "./api"
-import { collectionsSyncer, getStoreByCollectionType, recursivelySyncCollections } from "./sync"
+import { collectionsSyncer, getStoreByCollectionType } from "./sync"
 
 import {
   ReqType,
@@ -370,6 +370,29 @@ function setupUserCollectionCreatedSubscription() {
 
       // only folders will have parent collection id
       if (parentCollectionID && parentCollectionPath) {
+        // Before creating a new folder, check if a folder with the same name
+        // already exists at the parent level without a backend ID.
+        // This handles the race condition where recursivelySyncCollections
+        // creates a child on the backend, and the subscription fires before
+        // the local store has the backend ID assigned.
+        const parentCollection = navigateToFolderWithIndexPath(
+          collectionStore.value.state,
+          parentCollectionPath
+            .split("/")
+            .map((pathIndex) => parseInt(pathIndex))
+        )
+
+        const existingFolder = parentCollection?.folders.find(
+          (f) => f.name === res.right.userCollectionCreated.title && !f.id
+        )
+
+        if (existingFolder) {
+          // Folder was created locally (by recursivelySyncCollections),
+          // just assign the backend ID
+          existingFolder.id = userCollectionBackendID
+          return
+        }
+
         runDispatchWithOutSyncing(() => {
           collectionType == "GQL"
             ? addGraphqlFolder(
@@ -381,17 +404,17 @@ function setupUserCollectionCreatedSubscription() {
                 parentCollectionPath
               )
 
-          const parentCollection = navigateToFolderWithIndexPath(
+          const updatedParent = navigateToFolderWithIndexPath(
             collectionStore.value.state,
             parentCollectionPath
               .split("/")
               .map((pathIndex) => parseInt(pathIndex))
           )
 
-          if (parentCollection) {
-            const folderIndex = parentCollection.folders.length - 1
+          if (updatedParent) {
+            const folderIndex = updatedParent.folders.length - 1
 
-            const addedFolder = parentCollection.folders[folderIndex]
+            const addedFolder = updatedParent.folders[folderIndex]
             addedFolder.id = userCollectionBackendID
           }
         })
@@ -1059,19 +1082,11 @@ export const def: CollectionsPlatformDef = {
   loadUserCollections,
   importToPersonalWorkspace,
   appendCollectionsWithoutSync: (collections: HoppCollection[]) => {
-    // Append to local store without triggering sync handler
-    runDispatchWithOutSyncing(() => {
-      appendRESTCollections(collections)
-    })
-    // Manually sync each collection to backend using individual create calls.
-    // This avoids the bulk importUserCollectionsFromJSON API which triggers
-    // subscriptions that create empty duplicate collections.
-    // recursivelySyncCollections assigns backend IDs to local collections,
-    // so when subscriptions fire, the handler finds them and skips.
-    const startIndex = restCollectionStore.value.state.length - collections.length
-    collections.forEach((collection, index) => {
-      recursivelySyncCollections(collection, `${startIndex + index}`)
-    })
+    // Use normal appendRESTCollections. The sync handler will call
+    // importUserCollectionsFromJSON for backend sync. The subscription
+    // handler has been fixed to detect existing folders by name, preventing
+    // duplicate empty folders from race conditions.
+    appendRESTCollections(collections)
   },
 }
 
