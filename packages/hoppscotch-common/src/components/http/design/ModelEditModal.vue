@@ -139,6 +139,7 @@
 import { ref, watch, computed } from "vue"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
 import { HoppCollection } from "@hoppscotch/data"
+import type { TeamCollection } from "~/helpers/teams/TeamCollection"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 
 /**
@@ -153,7 +154,8 @@ type CollectionItem = {
 const props = defineProps<{
   show: boolean
   model?: HoppWorkspaceModel | null
-  collections: HoppCollection[]
+  personalCollections: HoppCollection[]
+  teamCollections: TeamCollection[]
 }>()
 
 const emit = defineEmits<{
@@ -180,13 +182,35 @@ const editingCollectionIds = ref<string[]>([])
 const errorMessage = ref("")
 const saving = ref(false)
 
-// Use collections prop directly - no need to subscribe to store
+// Combine personal and team collections for the picker
 const allCollections = computed<CollectionItem[]>(() => {
-  return (props.collections ?? []).map((coll, idx) => ({
-    id: coll._ref_id || `user:${idx}`,
-    name: coll.name || `集合 ${idx + 1}`,
-    tag: "本地",
-  }))
+  const items: CollectionItem[] = []
+
+  // Personal collections
+  for (const [idx, coll] of (props.personalCollections ?? []).entries()) {
+    items.push({
+      id: coll._ref_id || `user:${idx}`,
+      name: coll.name || `集合 ${idx + 1}`,
+      tag: "本地",
+    })
+  }
+
+  // Team collections (recursive flatten)
+  function addTeamCollections(collections: TeamCollection[]) {
+    for (const coll of collections) {
+      items.push({
+        id: coll.id,
+        name: coll.title,
+        tag: "团队",
+      })
+      if (coll.children) {
+        addTeamCollections(coll.children)
+      }
+    }
+  }
+  addTeamCollections(props.teamCollections ?? [])
+
+  return items
 })
 
 function toggleCollection(id: string) {
