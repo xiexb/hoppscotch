@@ -7,6 +7,7 @@ import { z } from "zod"
 import V0_VERSION from "./v/0"
 import V1_VERSION, { uniqueID } from "./v/1"
 import V2_VERSION from "./v/2"
+import V3_VERSION, { EnvironmentServiceSchema, type EnvironmentService } from "./v/3"
 import { HOPP_SUPPORTED_PREDEFINED_VARIABLES } from "../predefinedVariables"
 
 const versionedObject = z.object({
@@ -14,11 +15,12 @@ const versionedObject = z.object({
 })
 
 export const Environment = createVersionedEntity({
-  latestVersion: 2,
+  latestVersion: 3,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
     2: V2_VERSION,
+    3: V3_VERSION,
   },
   getVersion(data) {
     const versionCheck = versionedObject.safeParse(data)
@@ -50,7 +52,10 @@ const ENV_MAX_EXPAND_LIMIT = 10
  */
 const ENV_EXPAND_LOOP = "ENV_EXPAND_LOOP" as const
 
-export const EnvironmentSchemaVersion = 2
+export { EnvironmentServiceSchema }
+export type { EnvironmentService }
+
+export const EnvironmentSchemaVersion = 3
 
 export function parseBodyEnvVariablesE(
   body: string,
@@ -231,5 +236,6 @@ export const translateToNewEnvironment = (x: any): Environment => {
     id,
     name,
     variables,
+    services: x.services ?? [],
   }
 }

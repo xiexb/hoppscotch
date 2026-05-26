@@ -669,7 +669,14 @@
     "variables": "变量",
     "variable_list": "变量列表",
     "properties": "环境属性",
-    "details": "详情"
+    "details": "详情",
+    "services": "服务/前置URL",
+    "service_name": "名称",
+    "service_url": "URL",
+    "add_service": "添加服务",
+    "no_services": "暂无服务",
+    "select_service": "选择服务",
+    "service_url_description": "服务的请求地址。可使用 <<variable>> 引用环境变量。"
   },
   "error": {
     "network": {
@@ -1270,7 +1277,13 @@
       "expect_header_exists": "Header存在",
       "add_header_exists": "添加Header存在检查",
       "expect_json_path": "JSON Path断言",
-      "add_json_path": "添加JSON Path断言"
+      "add_json_path": "添加JSON Path断言",
+      "category": "分类",
+      "category_placeholder": "例如：正向、负向、边界",
+      "all_categories": "全部分类",
+      "tags": "标签",
+      "request_overrides": "请求覆盖",
+      "override_body": "覆盖请求体"
     }
   },
   "request": {

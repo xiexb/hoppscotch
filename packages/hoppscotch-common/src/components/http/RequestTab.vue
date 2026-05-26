@@ -40,6 +40,7 @@
     <HttpRequestTestCasesPanel
       v-if="currentMode === 'testcases'"
       v-model="tab.document.request"
+      v-model:tab="tab"
     />
   </div>
 </template>

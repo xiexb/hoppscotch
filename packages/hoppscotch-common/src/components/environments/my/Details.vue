@@ -34,71 +34,81 @@
                   :title="t('app.wiki')"
                   :icon="IconHelpCircle"
                 />
-                <HoppButtonSecondary
-                  v-tippy="{ theme: 'tooltip' }"
-                  :title="t('action.clear_all')"
-                  :icon="clearIcon"
-                  @click="clearContent()"
-                />
-                <HoppButtonSecondary
-                  v-tippy="{ theme: 'tooltip' }"
-                  :icon="IconPlus"
-                  :title="t('add.new')"
-                  @click="addEnvironmentVariable"
-                />
-                <tippy
-                  ref="options"
-                  interactive
-                  trigger="click"
-                  theme="popover"
-                  :on-shown="() => tippyActions!.focus()"
-                >
+                <template v-if="selectedEnvOption !== 'services'">
                   <HoppButtonSecondary
                     v-tippy="{ theme: 'tooltip' }"
-                    :title="t('action.more')"
-                    :icon="IconMoreVertical"
+                    :title="t('action.clear_all')"
+                    :icon="clearIcon"
+                    @click="clearContent()"
                   />
-                  <template #content="{ hide }">
-                    <div
-                      ref="tippyActions"
-                      class="flex flex-col focus:outline-none"
-                      tabindex="0"
-                      role="menu"
-                      @keyup.escape="hide()"
-                    >
-                      <HoppSmartItem
-                        v-tippy="{ theme: 'tooltip' }"
-                        :icon="IconCopyLeft"
-                        :label="
-                          t('environment.replace_all_initial_with_current')
-                        "
-                        @click="
-                          () => {
-                            vars.forEach((v) => {
-                              v.env.initialValue = v.env.currentValue
-                            })
-                            hide()
-                          }
-                        "
-                      />
-                      <HoppSmartItem
-                        v-tippy="{ theme: 'tooltip' }"
-                        :icon="IconCopyRight"
-                        :label="
-                          t('environment.replace_all_current_with_initial')
-                        "
-                        @click="
-                          () => {
-                            vars.forEach((v) => {
-                              v.env.currentValue = v.env.initialValue
-                            })
-                            hide()
-                          }
-                        "
-                      />
-                    </div>
-                  </template>
-                </tippy>
+                  <HoppButtonSecondary
+                    v-tippy="{ theme: 'tooltip' }"
+                    :icon="IconPlus"
+                    :title="t('add.new')"
+                    @click="addEnvironmentVariable"
+                  />
+                  <tippy
+                    ref="options"
+                    interactive
+                    trigger="click"
+                    theme="popover"
+                    :on-shown="() => tippyActions!.focus()"
+                  >
+                    <HoppButtonSecondary
+                      v-tippy="{ theme: 'tooltip' }"
+                      :title="t('action.more')"
+                      :icon="IconMoreVertical"
+                    />
+                    <template #content="{ hide }">
+                      <div
+                        ref="tippyActions"
+                        class="flex flex-col focus:outline-none"
+                        tabindex="0"
+                        role="menu"
+                        @keyup.escape="hide()"
+                      >
+                        <HoppSmartItem
+                          v-tippy="{ theme: 'tooltip' }"
+                          :icon="IconCopyLeft"
+                          :label="
+                            t('environment.replace_all_initial_with_current')
+                          "
+                          @click="
+                            () => {
+                              vars.forEach((v) => {
+                                v.env.initialValue = v.env.currentValue
+                              })
+                              hide()
+                            }
+                          "
+                        />
+                        <HoppSmartItem
+                          v-tippy="{ theme: 'tooltip' }"
+                          :icon="IconCopyRight"
+                          :label="
+                            t('environment.replace_all_current_with_initial')
+                          "
+                          @click="
+                            () => {
+                              vars.forEach((v) => {
+                                v.env.currentValue = v.env.initialValue
+                              })
+                              hide()
+                            }
+                          "
+                        />
+                      </div>
+                    </template>
+                  </tippy>
+                </template>
+                <template v-else>
+                  <HoppButtonSecondary
+                    v-tippy="{ theme: 'tooltip' }"
+                    :icon="IconPlus"
+                    :title="t('environment.add_service')"
+                    @click="addService"
+                  />
+                </template>
               </div>
             </template>
 
@@ -202,6 +212,62 @@
                 </template>
               </div>
             </HoppSmartTab>
+
+            <HoppSmartTab
+              id="services"
+              :label="t('environment.services')"
+            >
+              <div class="divide-y divide-dividerLight">
+                <HoppSmartPlaceholder
+                  v-if="services.length === 0"
+                  :src="`/images/states/${colorMode.value}/blockchain.svg`"
+                  :alt="t('environment.no_services')"
+                  :text="t('environment.no_services')"
+                >
+                  <template #body>
+                    <HoppButtonSecondary
+                      :label="`${t('environment.add_service')}`"
+                      filled
+                      :icon="IconPlus"
+                      @click="addService"
+                    />
+                  </template>
+                </HoppSmartPlaceholder>
+
+                <template v-else>
+                  <div
+                    v-for="(service, index) in services"
+                    :key="service.id"
+                    class="flex divide-x divide-dividerLight"
+                  >
+                    <input
+                      v-model="service.name"
+                      v-focus
+                      class="flex flex-1 bg-transparent px-4 py-2 text-secondaryDark"
+                      :placeholder="`${t('environment.service_name')}`"
+                      :name="'service_name_' + index"
+                    />
+                    <SmartEnvInput
+                      v-model="service.url"
+                      class="flex flex-1"
+                      :placeholder="`${t('environment.service_url')}`"
+                      :envs="liveEnvs"
+                      :name="'service_url_' + index"
+                      :auto-complete-env="true"
+                    />
+                    <div class="flex">
+                      <HoppButtonSecondary
+                        v-tippy="{ theme: 'tooltip' }"
+                        :title="t('action.remove')"
+                        :icon="IconTrash"
+                        color="red"
+                        @click="removeService(service.id)"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </HoppSmartTab>
           </HoppSmartTabs>
         </div>
       </div>
@@ -231,6 +297,7 @@ import { useColorMode } from "@composables/theming"
 import { useToast } from "@composables/toast"
 import {
   Environment,
+  EnvironmentService,
   GlobalEnvironment,
   parseTemplateStringE,
 } from "@hoppscotch/data"
@@ -339,6 +406,10 @@ const vars = ref<EnvironmentVariable[]>([
   },
 ])
 
+const services = ref<EnvironmentService[]>([
+  { id: uniqueID(), name: "", url: "" },
+])
+
 const secretEnvironmentService = useService(SecretEnvironmentService)
 const currentEnvironmentValueService = useService(CurrentValueService)
 
@@ -363,7 +434,7 @@ const clearIcon = refAutoReset<typeof IconTrash2 | typeof IconDone>(
 
 const globalEnv = useReadonlyStream(globalEnv$, {} as GlobalEnvironment)
 
-type SelectedEnv = "variables" | "secret"
+type SelectedEnv = "variables" | "secret" | "services"
 
 const selectedEnvOption = ref<SelectedEnv>("variables")
 
@@ -489,6 +560,16 @@ watch(
           },
         }))
       )
+      // Load services from working environment
+      const loadedServices = (workingEnv.value as any)?.services ?? []
+      services.value =
+        loadedServices.length > 0
+          ? loadedServices.map((s: any) => ({
+              id: s.id || uniqueID(),
+              name: s.name || "",
+              url: s.url || "",
+            }))
+          : [{ id: uniqueID(), name: "", url: "" }]
     }
   }
 )
@@ -518,6 +599,21 @@ const removeEnvironmentVariable = (id: number) => {
   const index = vars.value.findIndex((e) => e.id === id)
   if (index !== -1) {
     vars.value.splice(index, 1)
+  }
+}
+
+const addService = () => {
+  services.value.push({
+    id: uniqueID(),
+    name: "",
+    url: "",
+  })
+}
+
+const removeService = (id: string) => {
+  const index = services.value.findIndex((s) => s.id === id)
+  if (index !== -1) {
+    services.value.splice(index, 1)
   }
 }
 

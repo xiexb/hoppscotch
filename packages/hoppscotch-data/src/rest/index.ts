@@ -32,6 +32,7 @@ import V18_VERSION, { HoppRESTPathParams } from "./v/18"
 import V19_VERSION from "./v/19"
 import V20_VERSION from "./v/20"
 import V21_VERSION from "./v/21"
+import V22_VERSION from "./v/22"
 
 export * from "./content-types"
 
@@ -95,6 +96,9 @@ export type {
   HoppRESTSchemaNode,
 } from "./v/21"
 
+// v22 request-level fields are part of the HoppRESTRequest type (InferredEntity)
+// No additional named exports needed from v22
+
 // Backward-compatible re-exports from v20
 export type { HoppRESTResponseModelV20 } from "./v/20"
 
@@ -109,7 +113,7 @@ const versionedObject = z.object({
 })
 
 export const HoppRESTRequest = createVersionedEntity({
-  latestVersion: 21,
+  latestVersion: 22,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
@@ -133,6 +137,7 @@ export const HoppRESTRequest = createVersionedEntity({
     19: V19_VERSION,
     20: V20_VERSION,
     21: V21_VERSION,
+    22: V22_VERSION,
   },
   getVersion(data) {
     // For V1 onwards we have the v string storing the number
@@ -187,9 +192,12 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
   tags: lodashIsEqualEq,
   responsibility: S.Eq,
   inheritedBaseUrl: S.Eq,
+  // v22 request body schema tree and model ref
+  bodySchemaTree: lodashIsEqualEq,
+  bodyModelRef: S.Eq,
 })
 
-export const RESTReqSchemaVersion = "21"
+export const RESTReqSchemaVersion = "22"
 
 export type HoppRESTParam = HoppRESTRequest["params"][number]
 export type HoppRESTHeader = HoppRESTRequest["headers"][number]
@@ -322,17 +330,31 @@ export function safelyExtractRESTRequest(
     if ("inheritedBaseUrl" in x && typeof x.inheritedBaseUrl === "string") {
       req.inheritedBaseUrl = x.inheritedBaseUrl
     }
+
+    // v22 request body schema tree and model ref
+    if ("bodySchemaTree" in x && Array.isArray(x.bodySchemaTree)) {
+      req.bodySchemaTree = x.bodySchemaTree
+    }
+
+    if ("bodyModelRef" in x && typeof x.bodyModelRef === "string") {
+      req.bodyModelRef = x.bodyModelRef
+    }
   }
 
   return req
 }
 
 export function makeRESTRequest(
-  x: Omit<HoppRESTRequest, "v">
+  x: Omit<HoppRESTRequest, "v" | "bodySchemaTree" | "bodyModelRef"> & {
+    bodySchemaTree?: HoppRESTRequest["bodySchemaTree"]
+    bodyModelRef?: string
+  }
 ): HoppRESTRequest {
   return {
     v: RESTReqSchemaVersion,
     _ref_id: x._ref_id ?? generateUniqueRefId("req"),
+    bodySchemaTree: x.bodySchemaTree ?? null,
+    bodyModelRef: x.bodyModelRef ?? "",
     ...x,
   }
 }
@@ -369,6 +391,9 @@ export function getDefaultRESTRequest(): HoppRESTRequest {
     tags: [],
     responsibility: "",
     inheritedBaseUrl: "",
+    // v22 request body schema tree and model ref
+    bodySchemaTree: null,
+    bodyModelRef: "",
   }
 }
 

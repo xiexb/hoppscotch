@@ -571,7 +571,17 @@ const currentResponse = computed(
 
 // --- Body schema tree ---
 const bodySchemaTreeNodes = computed<HoppRESTSchemaNode[]>(() => {
-  const tree = (props.request as any).bodySchemaTree
+  // If bound to a model, resolve from workspace model service
+  const modelRef = props.request.bodyModelRef ?? ""
+  if (modelRef) {
+    const model = workspaceModelService.getModelById(modelRef)
+    if (model?.schemaTree) {
+      return model.schemaTree as HoppRESTSchemaNode[]
+    }
+    return []
+  }
+  // Otherwise use the inline bodySchemaTree
+  const tree = props.request.bodySchemaTree
   if (Array.isArray(tree) && tree.length > 0) {
     return tree as HoppRESTSchemaNode[]
   }

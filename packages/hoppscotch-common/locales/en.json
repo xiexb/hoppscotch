@@ -673,7 +673,14 @@
     "variables": "Variables",
     "variable_list": "Variable List",
     "properties": "Environment Properties",
-    "details": "Details"
+    "details": "Details",
+    "services": "Services / Base URLs",
+    "service_name": "Name",
+    "service_url": "URL",
+    "add_service": "Add Service",
+    "no_services": "No services",
+    "select_service": "Select Service",
+    "service_url_description": "The base URL for this service. Use <<variable>> for environment variables."
   },
   "error": {
     "network": {
@@ -1275,7 +1282,13 @@
       "expect_header_exists": "Header Exists",
       "add_header_exists": "Add header exists check",
       "expect_json_path": "JSON Path Assertion",
-      "add_json_path": "Add JSON path assertion"
+      "add_json_path": "Add JSON path assertion",
+      "category": "Category",
+      "category_placeholder": "e.g. Positive, Negative, Boundary",
+      "all_categories": "All Categories",
+      "tags": "Tags",
+      "request_overrides": "Request Overrides",
+      "override_body": "Override Request Body"
     }
   },
   "request": {

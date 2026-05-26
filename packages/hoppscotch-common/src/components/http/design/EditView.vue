@@ -6,12 +6,19 @@
       @update:request="emit('update:request', $event)"
     />
 
-    <!-- Area 2: Request Parameters — reuse debug mode's RequestOptions exactly -->
+    <!-- Area 2: Request Parameters — reuse debug mode's RequestOptions (no body tab) -->
     <HttpRequestOptions
       v-model="localRequest"
       v-model:option-tab="optionTab"
       :properties="designProperties"
       :inherited-properties="inheritedProperties"
+    />
+
+    <!-- Area 2.5: Request Body Schema (document mode: model binding + SchemaTreeEditor) -->
+    <RequestBodySection
+      :request="request"
+      :collection-id="collectionId"
+      @update:request="emit('update:request', $event)"
     />
 
     <!-- Area 3: Response Section -->
@@ -31,6 +38,7 @@ import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedPropert
 import type { RESTOptionTabs } from "../RequestOptions.vue"
 import MetaInfoSection from "./MetaInfoSection.vue"
 import ResponseSection from "./ResponseSection.vue"
+import RequestBodySection from "./RequestBodySection.vue"
 import HttpRequestOptions from "../RequestOptions.vue"
 
 const props = withDefaults(
@@ -50,8 +58,8 @@ const emit = defineEmits<{
   (e: "save"): void
 }>()
 
-// Only show auth/params/body/headers in design mode (no scripts, no variables)
-const designProperties = ["authorization", "params", "bodyParams", "headers"]
+// Only show auth/params/headers in design mode (body is handled by RequestBodySection)
+const designProperties = ["authorization", "params", "headers"]
 
 const optionTab = ref<RESTOptionTabs>("params")
 
