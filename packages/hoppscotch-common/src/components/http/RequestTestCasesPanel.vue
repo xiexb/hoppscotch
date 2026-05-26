@@ -216,7 +216,7 @@
               v-if="testCase.requestOverrides.body !== null"
               v-model="testCase.requestOverrides.body"
               class="text-xs flex-1 bg-transparent border border-dividerLight rounded px-2 py-1 text-secondaryDark outline-none focus:border-accent"
-              :placeholder='{\"test\": true}'
+              placeholder='{"test": true}'
             />
           </div>
         </div>
