@@ -2429,5 +2429,27 @@
       "delete_success": "Mock 服务删除成功",
       "delete_error": "删除 Mock 服务失败"
     }
+  },
+  "models_panel": {
+    "new": "新建",
+    "no_models": "暂无数据模型",
+    "no_models_desc": "模型是可复用的数据结构，可以在 Schema 中引用。",
+    "create_first": "创建第一个模型",
+    "public_models": "公共模型",
+    "collection_models": "集合模型",
+    "fields": "字段",
+    "edit": "编辑",
+    "delete": "删除",
+    "schema_preview": "Schema 预览",
+    "updated_at": "更新于",
+    "no_fields": "暂无字段定义",
+    "confirm_delete": "确认删除",
+    "confirm_delete_text": "确定删除模型 \"{name}\" 吗？此操作不可撤销。",
+    "delete_ref_warning": "⚠ 此模型当前被 {count} 个 Schema 节点引用。删除后这些引用将失效。",
+    "cancel": "取消",
+    "time_just_now": "刚刚",
+    "time_minutes_ago": "{n} 分钟前",
+    "time_hours_ago": "{n} 小时前",
+    "time_days_ago": "{n} 天前"
   }
 }

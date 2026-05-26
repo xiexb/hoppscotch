@@ -2464,5 +2464,27 @@
       "delete_success": "Mock server deleted successfully",
       "delete_error": "Failed to delete mock server"
     }
+  },
+  "models_panel": {
+    "new": "New",
+    "no_models": "No data models yet",
+    "no_models_desc": "Models are reusable data structures that can be referenced in schemas.",
+    "create_first": "Create your first model",
+    "public_models": "Public Models",
+    "collection_models": "Collection Models",
+    "fields": "fields",
+    "edit": "Edit",
+    "delete": "Delete",
+    "schema_preview": "Schema Preview",
+    "updated_at": "Updated",
+    "no_fields": "No fields defined",
+    "confirm_delete": "Confirm Delete",
+    "confirm_delete_text": "Are you sure you want to delete model \"{name}\"? This action cannot be undone.",
+    "delete_ref_warning": "⚠ This model is currently referenced by {count} schema nodes. Deleting it will break those references.",
+    "cancel": "Cancel",
+    "time_just_now": "just now",
+    "time_minutes_ago": "{n} min ago",
+    "time_hours_ago": "{n} hr ago",
+    "time_days_ago": "{n} day(s) ago"
   }
 }

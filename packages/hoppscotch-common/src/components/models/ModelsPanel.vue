@@ -9,7 +9,7 @@
       </h3>
       <HoppButtonSecondary
         :icon="IconPlus"
-        label="新建"
+        :label="t('models_panel.new')"
         class="!py-1 !px-2"
         @click="openCreateModal"
       />
@@ -21,234 +21,140 @@
       class="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center"
     >
       <IconDatabase class="w-10 h-10 text-secondaryLight mb-3 opacity-50" />
-      <p class="text-sm text-secondaryLight mb-1">暂无数据模型</p>
+      <p class="text-sm text-secondaryLight mb-1">
+        {{ t("models_panel.no_models") }}
+      </p>
       <p class="text-xs text-secondaryLight mb-4">
-        模型是可复用的数据结构，可以在 Schema 中引用。
+        {{ t("models_panel.no_models_desc") }}
       </p>
       <HoppButtonSecondary
         :icon="IconPlus"
-        label="创建第一个模型"
+        :label="t('models_panel.create_first')"
         @click="openCreateModal"
       />
     </div>
 
     <!-- Model list with grouping -->
     <div v-else class="flex-1 overflow-y-auto">
-      <!-- Public models -->
-      <div v-if="publicModels.length > 0" class="mb-2">
-        <div
-          class="sticky top-0 z-[1] flex items-center gap-2 px-4 py-2 bg-primary border-b border-dividerLight"
-        >
-          <IconGlobe class="w-3.5 h-3.5 text-secondaryLight" />
-          <span
-            class="text-xs font-semibold text-secondary uppercase tracking-wider"
-          >
-            公共模型
-          </span>
-          <span class="text-xs text-secondaryLight"
-            >({{ publicModels.length }})</span
-          >
-        </div>
-        <div class="divide-y divide-dividerLight">
+      <template v-for="group in modelGroups" :key="group.key">
+        <div v-if="group.models.length > 0" class="mb-2">
           <div
-            v-for="model in publicModels"
-            :key="model.id"
-            class="group"
+            class="sticky top-0 z-[1] flex items-center gap-2 px-4 py-2 bg-primary border-b border-dividerLight"
           >
-            <!-- Model row -->
-            <div
-              class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-primaryLight/50 transition-colors"
-              @click="toggleExpand(model.id)"
+            <component
+              :is="group.icon"
+              class="w-3.5 h-3.5 text-secondaryLight"
+            />
+            <span
+              class="text-xs font-semibold text-secondary uppercase tracking-wider"
             >
-              <!-- Expand icon -->
-              <IconChevronRight
-                class="w-3.5 h-3.5 text-secondaryLight shrink-0 transition-transform"
-                :class="{ 'rotate-90': expandedId === model.id }"
-              />
-              <!-- Model info -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="text-xs font-semibold text-secondaryDark truncate"
+              {{ group.title }}
+            </span>
+            <span class="text-xs text-secondaryLight"
+              >({{ group.models.length }})</span
+            >
+          </div>
+          <div class="divide-y divide-dividerLight">
+            <div
+              v-for="model in group.models"
+              :key="model.id"
+              class="group"
+            >
+              <!-- Model row -->
+              <div
+                class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-primaryLight/50 transition-colors"
+                @click="toggleExpand(model.id)"
+              >
+                <!-- Expand icon -->
+                <IconChevronRight
+                  class="w-3.5 h-3.5 text-secondaryLight shrink-0 transition-transform"
+                  :class="{ 'rotate-90': expandedId === model.id }"
+                />
+                <!-- Model info -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="text-xs font-semibold text-secondaryDark truncate"
+                    >
+                      {{ model.name }}
+                    </span>
+                    <span
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium shrink-0"
+                    >
+                      {{ model.schemaTree?.length ?? 0 }}
+                      {{ t("models_panel.fields") }}
+                    </span>
+                  </div>
+                  <div
+                    v-if="model.description"
+                    class="text-[11px] text-secondaryLight truncate mt-0.5"
                   >
-                    {{ model.name }}
+                    {{ model.description }}
+                  </div>
+                </div>
+                <!-- Actions -->
+                <div
+                  class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <button
+                    v-tippy="{
+                      theme: 'tooltip',
+                      content: t('models_panel.edit'),
+                    }"
+                    class="p-1.5 text-secondaryLight hover:text-accent transition-colors rounded"
+                    @click.stop="openEditModal(model)"
+                  >
+                    <IconEdit class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    v-tippy="{
+                      theme: 'tooltip',
+                      content: t('models_panel.delete'),
+                    }"
+                    class="p-1.5 text-secondaryLight hover:text-red-400 transition-colors rounded"
+                    @click.stop="confirmDelete(model)"
+                  >
+                    <IconTrash class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Expanded schema preview -->
+              <div
+                v-if="expandedId === model.id"
+                class="px-4 py-2 bg-primaryLight/30 border-t border-dividerLight"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[11px] font-semibold text-secondary">
+                    {{ t("models_panel.schema_preview") }}
                   </span>
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium shrink-0"
-                  >
-                    {{ model.schemaTree?.length ?? 0 }} 字段
+                  <span class="text-[10px] text-secondaryLight">
+                    {{ t("models_panel.updated_at") }}
+                    {{ formatTime(model.updatedAt) }}
                   </span>
                 </div>
                 <div
-                  v-if="model.description"
-                  class="text-[11px] text-secondaryLight truncate mt-0.5"
+                  v-if="model.schemaTree && model.schemaTree.length > 0"
                 >
-                  {{ model.description }}
+                  <SchemaTreeReadonly
+                    v-for="(node, nIdx) in model.schemaTree"
+                    :key="nIdx"
+                    :node="node"
+                    :depth="0"
+                    :model-resolver="readonlyModelResolver"
+                  />
                 </div>
-              </div>
-              <!-- Actions -->
-              <div
-                class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <button
-                  v-tippy="{ theme: 'tooltip', content: '编辑' }"
-                  class="p-1.5 text-secondaryLight hover:text-accent transition-colors rounded"
-                  @click.stop="openEditModal(model)"
+                <div
+                  v-else
+                  class="text-[11px] text-secondaryLight py-2 text-center"
                 >
-                  <IconEdit class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  v-tippy="{ theme: 'tooltip', content: '删除' }"
-                  class="p-1.5 text-secondaryLight hover:text-red-400 transition-colors rounded"
-                  @click.stop="confirmDelete(model)"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Expanded schema preview -->
-            <div
-              v-if="expandedId === model.id"
-              class="px-4 py-2 bg-primaryLight/30 border-t border-dividerLight"
-            >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-[11px] font-semibold text-secondary">
-                  Schema 预览
-                </span>
-                <span class="text-[10px] text-secondaryLight">
-                  更新于 {{ formatTime(model.updatedAt) }}
-                </span>
-              </div>
-              <div
-                v-if="model.schemaTree && model.schemaTree.length > 0"
-              >
-                <SchemaTreeReadonly
-                  v-for="(node, nIdx) in model.schemaTree"
-                  :key="nIdx"
-                  :node="node"
-                  :depth="0"
-                  :model-resolver="readonlyModelResolver"
-                />
-              </div>
-              <div
-                v-else
-                class="text-[11px] text-secondaryLight py-2 text-center"
-              >
-                暂无字段定义
+                  {{ t("models_panel.no_fields") }}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Collection models -->
-      <div v-if="collectionModels.length > 0">
-        <div
-          class="sticky top-0 z-[1] flex items-center gap-2 px-4 py-2 bg-primary border-b border-dividerLight"
-        >
-          <IconFolders class="w-3.5 h-3.5 text-secondaryLight" />
-          <span
-            class="text-xs font-semibold text-secondary uppercase tracking-wider"
-          >
-            集合模型
-          </span>
-          <span class="text-xs text-secondaryLight"
-            >({{ collectionModels.length }})</span
-          >
-        </div>
-        <div class="divide-y divide-dividerLight">
-          <div
-            v-for="model in collectionModels"
-            :key="model.id"
-            class="group"
-          >
-            <!-- Model row -->
-            <div
-              class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-primaryLight/50 transition-colors"
-              @click="toggleExpand(model.id)"
-            >
-              <!-- Expand icon -->
-              <IconChevronRight
-                class="w-3.5 h-3.5 text-secondaryLight shrink-0 transition-transform"
-                :class="{ 'rotate-90': expandedId === model.id }"
-              />
-              <!-- Model info -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="text-xs font-semibold text-secondaryDark truncate"
-                  >
-                    {{ model.name }}
-                  </span>
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-medium shrink-0"
-                  >
-                    {{ model.schemaTree?.length ?? 0 }} 字段
-                  </span>
-                </div>
-                <div
-                  v-if="model.description"
-                  class="text-[11px] text-secondaryLight truncate mt-0.5"
-                >
-                  {{ model.description }}
-                </div>
-              </div>
-              <!-- Actions -->
-              <div
-                class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <button
-                  v-tippy="{ theme: 'tooltip', content: '编辑' }"
-                  class="p-1.5 text-secondaryLight hover:text-accent transition-colors rounded"
-                  @click.stop="openEditModal(model)"
-                >
-                  <IconEdit class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  v-tippy="{ theme: 'tooltip', content: '删除' }"
-                  class="p-1.5 text-secondaryLight hover:text-red-400 transition-colors rounded"
-                  @click.stop="confirmDelete(model)"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Expanded schema preview -->
-            <div
-              v-if="expandedId === model.id"
-              class="px-4 py-2 bg-primaryLight/30 border-t border-dividerLight"
-            >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-[11px] font-semibold text-secondary">
-                  Schema 预览
-                </span>
-                <span class="text-[10px] text-secondaryLight">
-                  更新于 {{ formatTime(model.updatedAt) }}
-                </span>
-              </div>
-              <div
-                v-if="model.schemaTree && model.schemaTree.length > 0"
-              >
-                <SchemaTreeReadonly
-                  v-for="(node, nIdx) in model.schemaTree"
-                  :key="nIdx"
-                  :node="node"
-                  :depth="0"
-                  :model-resolver="readonlyModelResolver"
-                />
-              </div>
-              <div
-                v-else
-                class="text-[11px] text-secondaryLight py-2 text-center"
-              >
-                暂无字段定义
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      </template>
     </div>
 
     <!-- Edit/Create Modal -->
@@ -262,30 +168,36 @@
     <!-- Delete confirm modal -->
     <HoppSmartModal
       v-if="showDeleteConfirm"
-      title="确认删除"
+      :title="t('models_panel.confirm_delete')"
       @close="showDeleteConfirm = false"
     >
       <template #body>
         <div class="text-sm text-secondary p-2">
-          确定删除模型
-          <span class="font-semibold text-secondaryDark"
-            >"{{ deletingModel?.name }}"</span
-          >
-          吗？此操作不可撤销。
+          {{
+            t("models_panel.confirm_delete_text", {
+              name: deletingModel?.name ?? "",
+            })
+          }}
         </div>
         <div
           v-if="deletingModel && getRefcount(deletingModel.id) > 0"
           class="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600"
         >
-          ⚠ 此模型当前被 {{ getRefcount(deletingModel.id) }} 个 Schema
-          节点引用。删除后这些引用将失效。
+          {{
+            t("models_panel.delete_ref_warning", {
+              count: getRefcount(deletingModel.id),
+            })
+          }}
         </div>
       </template>
       <template #footer>
         <span class="flex gap-2">
-          <HoppButtonPrimary label="删除" @click="onDeleteConfirm" />
+          <HoppButtonPrimary
+            :label="t('models_panel.delete')"
+            @click="onDeleteConfirm"
+          />
           <HoppButtonSecondary
-            label="取消"
+            :label="t('models_panel.cancel')"
             outline
             filled
             @click="showDeleteConfirm = false"
@@ -297,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, type Component } from "vue"
 import { useService } from "dioc/vue"
 import { useI18n } from "@composables/i18n"
 import type { HoppRESTSchemaNode, HoppWorkspaceModel } from "@hoppscotch/data"
@@ -340,6 +252,22 @@ const publicModels = computed(() =>
 const collectionModels = computed(() =>
   models.value.filter((m) => m.visibility === "collection")
 )
+
+// Grouped model sections for template dedup
+const modelGroups = computed(() => [
+  {
+    key: "public",
+    title: t("models_panel.public_models"),
+    icon: IconGlobe as Component,
+    models: publicModels.value,
+  },
+  {
+    key: "collection",
+    title: t("models_panel.collection_models"),
+    icon: IconFolders as Component,
+    models: collectionModels.value,
+  },
+])
 
 // Expand state
 const expandedId = ref<string | null>(null)
@@ -440,13 +368,14 @@ function formatTime(iso: string): string {
     const now = new Date()
     const diffMs = now.getTime() - d.getTime()
     const diffMin = Math.floor(diffMs / 60000)
-    if (diffMin < 1) return "刚刚"
-    if (diffMin < 60) return `${diffMin} 分钟前`
+    if (diffMin < 1) return t("models_panel.time_just_now")
+    if (diffMin < 60)
+      return t("models_panel.time_minutes_ago", { n: diffMin })
     const diffHr = Math.floor(diffMin / 60)
-    if (diffHr < 24) return `${diffHr} 小时前`
+    if (diffHr < 24) return t("models_panel.time_hours_ago", { n: diffHr })
     const diffDay = Math.floor(diffHr / 24)
-    if (diffDay < 7) return `${diffDay} 天前`
-    return d.toLocaleDateString("zh-CN")
+    if (diffDay < 7) return t("models_panel.time_days_ago", { n: diffDay })
+    return d.toLocaleDateString()
   } catch {
     return "—"
   }
