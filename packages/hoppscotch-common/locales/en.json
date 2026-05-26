@@ -2485,6 +2485,10 @@
     "time_just_now": "just now",
     "time_minutes_ago": "{n} min ago",
     "time_hours_ago": "{n} hr ago",
-    "time_days_ago": "{n} day(s) ago"
+    "time_days_ago": "{n} day(s) ago",
+    "search_placeholder": "Search models...",
+    "no_results": "No models match your search",
+    "no_results_desc": "Try a different search term",
+    "uncategorized": "Uncategorized"
   }
 }

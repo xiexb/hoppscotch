@@ -2450,6 +2450,10 @@
     "time_just_now": "刚刚",
     "time_minutes_ago": "{n} 分钟前",
     "time_hours_ago": "{n} 小时前",
-    "time_days_ago": "{n} 天前"
+    "time_days_ago": "{n} 天前",
+    "search_placeholder": "搜索模型...",
+    "no_results": "没有匹配的模型",
+    "no_results_desc": "试试其他关键词",
+    "uncategorized": "未分类"
   }
 }
