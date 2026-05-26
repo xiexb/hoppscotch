@@ -1933,7 +1933,8 @@
     "websocket": "WebSocket",
     "all_tests": "All Tests",
     "passed": "Passed",
-    "failed": "Failed"
+    "failed": "Failed",
+    "models": "Models"
   },
   "team": {
     "activity_logs": "Activity Logs",

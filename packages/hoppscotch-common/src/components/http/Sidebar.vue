@@ -13,6 +13,13 @@
       <Collections />
     </HoppSmartTab>
     <HoppSmartTab
+      :id="'models'"
+      :icon="IconDatabase"
+      :label="`${t('tab.models')}`"
+    >
+      <ModelsPanel />
+    </HoppSmartTab>
+    <HoppSmartTab
       :id="'env'"
       :icon="IconLayers"
       :label="`${t('tab.environments')}`"
@@ -74,9 +81,11 @@ import IconFolder from "~icons/lucide/folder"
 import IconShare2 from "~icons/lucide/share-2"
 import IconCode from "~icons/lucide/code"
 import IconServer from "~icons/lucide/server"
+import IconDatabase from "~icons/lucide/database"
 import { ref } from "vue"
 import { useI18n } from "@composables/i18n"
 import MockServerDashboard from "~/components/mockServer/MockServerDashboard.vue"
+import ModelsPanel from "~/components/models/ModelsPanel.vue"
 import { useMockServerWorkspaceSync } from "~/composables/mockServerWorkspace"
 import { useMockServerVisibility } from "~/composables/mockServerVisibility"
 
@@ -87,6 +96,7 @@ const { isMockServerVisible } = useMockServerVisibility()
 type RequestOptionTabs =
   | "history"
   | "collections"
+  | "models"
   | "env"
   | "share-request"
   | "codegen"

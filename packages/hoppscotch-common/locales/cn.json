@@ -1898,7 +1898,8 @@
     "all_tests": "所有",
     "passed": "通过",
     "failed": "失败",
-    "path_params": "路径参数"
+    "path_params": "路径参数",
+    "models": "数据模型"
   },
   "team": {
     "activity_logs": "活动日志",
