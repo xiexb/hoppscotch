@@ -999,7 +999,7 @@ async function startImport() {
           testScript: "",
         })
 
-        // Track old refId; poll for new one after backend sync reload
+        // Track old refId; subscribe to store changes after backend sync reload
         const oldRefId = parentCollection._ref_id
         const parentName = parentCollection.name
         const modelIdsToUpdate = [...importedModelIds]
@@ -1007,27 +1007,33 @@ async function startImport() {
         emit("import-complete", [parentCollection])
 
         if (modelIdsToUpdate.length > 0 && oldRefId) {
-          const maxAttempts = 20 // 20 * 500ms = 10s
-          let attempts = 0
-          const timer = setInterval(() => {
-            attempts++
-            const currentCols = restCollectionStore.value.state ?? []
-            const found = currentCols.find(
+          // Subscribe to restCollections$ to detect reload completion
+          const reloadSub = restCollections$.subscribe((cols) => {
+            const found = cols.find(
               (c: HoppCollection) => c.name === parentName
             )
             const currentRefId = found?._ref_id
             if (currentRefId && currentRefId !== oldRefId) {
-              // Backend reload completed - _ref_id changed
+              // Backend reload completed - _ref_id changed, update models
               for (const mid of modelIdsToUpdate) {
                 workspaceModelService.updateModel(mid, {
                   visibility: "collection",
                   collectionIds: [currentRefId],
                 })
               }
-              clearInterval(timer)
-            } else if (attempts >= maxAttempts) {
-              // Timeout fallback: use whatever refId we have
-              const fallbackId = currentRefId || oldRefId
+              reloadSub.unsubscribe()
+            }
+          })
+
+          // Timeout fallback: if reload doesn't happen within 30s, use whatever we have
+          setTimeout(() => {
+            if (!reloadSub.closed) {
+              reloadSub.unsubscribe()
+              const currentCols = restCollectionStore.value.state ?? []
+              const found = currentCols.find(
+                (c: HoppCollection) => c.name === parentName
+              )
+              const fallbackId = found?._ref_id || oldRefId
               if (fallbackId) {
                 for (const mid of modelIdsToUpdate) {
                   workspaceModelService.updateModel(mid, {
@@ -1036,9 +1042,8 @@ async function startImport() {
                   })
                 }
               }
-              clearInterval(timer)
             }
-          }, 500)
+          }, 30000)
         }
       }
     } else {
