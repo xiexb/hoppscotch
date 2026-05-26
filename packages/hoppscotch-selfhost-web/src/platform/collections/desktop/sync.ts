@@ -36,6 +36,18 @@ import {
 import * as E from "fp-ts/Either"
 import { ReqType, SortOptions } from "@app/api/generated/graphql"
 
+// Helper function to reload collections from backend
+const reloadCollectionsFromBackend = async () => {
+  try {
+    const { loadUserCollections: loadCollections } = await import("./index")
+    if (loadCollections) {
+      await loadCollections("REST")
+    }
+  } catch (e) {
+    console.error("[sync] Failed to reload collections from backend:", e)
+  }
+}
+
 // restCollectionsMapper uses the collectionPath as the local identifier
 // Helper function to transform HoppCollection to backend format
 const transformCollectionForBackend = (collection: HoppCollection): any => {
@@ -246,10 +258,10 @@ export const storeSyncDefinition: StoreSyncDefinitionOf<
       undefined // undefined for root collections
     )
 
-    // The backend handles creating all collections and requests in a single transaction
-    // The frontend collections will be updated through subscriptions
-
-    if (E.isLeft(result)) {
+    if (E.isRight(result)) {
+      // Success: reload collections from backend to get assigned IDs
+      await reloadCollectionsFromBackend()
+    } else {
       // Fallback to individual calls if bulk import fails
       let indexStart = restCollectionStore.value.state.length - entries.length
 

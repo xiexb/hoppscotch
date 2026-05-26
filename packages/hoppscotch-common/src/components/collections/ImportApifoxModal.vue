@@ -117,14 +117,30 @@
               {{ t("import.apifox.target_new") }}
             </span>
           </label>
-          <input
-            v-if="importTarget === 'new'"
-            v-model="newCollectionName"
-            type="text"
-            :placeholder="t('import.apifox.collection_name_placeholder')"
-            class="w-full px-3 py-2 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent ml-6"
-          />
-          <label class="flex items-center gap-2 cursor-pointer">
+
+          <!-- Individual collection naming when "new" mode is selected -->
+          <div
+            v-if="importTarget === 'new' && collectionNames.length > 0"
+            class="space-y-2 ml-6 mt-2"
+          >
+            <p class="text-xs text-secondaryLight mb-2">
+              {{ t("import.apifox.edit_collection_names") }}
+            </p>
+            <div
+              v-for="(name, idx) in collectionNames"
+              :key="idx"
+              class="flex items-center gap-2"
+            >
+              <input
+                v-model="collectionNames[idx]"
+                type="text"
+                :placeholder="t('import.apifox.collection_name_placeholder')"
+                class="flex-1 px-3 py-1.5 text-sm rounded border border-dividerLight bg-primaryLight text-secondary focus:outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+
+          <label class="flex items-center gap-2 cursor-pointer mt-2">
             <input
               type="radio"
               name="importTarget"
@@ -174,7 +190,7 @@
           :label="t('import.apifox.check_conflicts')"
           :disabled="
             (importTarget === 'existing' && (selectedTargetIndex === -1 || existingCollections.length === 0)) ||
-            (importTarget === 'new' && !newCollectionName.trim())
+            (importTarget === 'new' && collectionNames.some(n => !n.trim()))
           "
           class="flex-1"
           @click="checkConflicts"
@@ -463,6 +479,7 @@ const projectName = ref("")
 const importTarget = ref<"new" | "existing">("new")
 const selectedTargetIndex = ref<number>(-1)
 const newCollectionName = ref("")
+const collectionNames = ref<string[]>([])
 
 const previewCounts = reactive({
   collections: 0,
@@ -646,6 +663,20 @@ async function parseAndPreview() {
     parsedData.value = data
     projectName.value = data.info?.name ?? ""
     newCollectionName.value = data.info?.name ?? ""
+
+    // Extract collection names for individual naming UI
+    const names: string[] = []
+    if (data.apiCollection) {
+      for (const coll of data.apiCollection) {
+        if (coll.name) names.push(coll.name)
+      }
+    }
+    if (data.requestCollection) {
+      for (const coll of data.requestCollection) {
+        if (coll.name) names.push(coll.name)
+      }
+    }
+    collectionNames.value = names.length > 0 ? names : [projectName.value || "Imported Collection"]
 
     // Count items
     let apiCount = 0
@@ -928,8 +959,17 @@ async function startImport() {
       } else {
         // Import as new: emit raw collections directly (no wrapper).
         // Each Apifox apiCollection becomes its own root collection.
+        // Apply user-edited names from collectionNames
+        const namedCollections = importedCollections.map((coll, idx) => {
+          const editedName = collectionNames.value[idx]
+          if (editedName && editedName.trim()) {
+            return { ...coll, name: editedName.trim() }
+          }
+          return coll
+        })
+
         // Scope imported models to all imported collection IDs.
-        const importedRefIds = importedCollections
+        const importedRefIds = namedCollections
           .map((c) => c._ref_id)
           .filter((id): id is string => !!id)
         if (importedRefIds.length > 0 && importedModelIds.length > 0) {
@@ -941,7 +981,7 @@ async function startImport() {
           }
         }
 
-        emit("import-complete", importedCollections)
+        emit("import-complete", namedCollections)
       }
     } else {
       setStage(2, "error", "Import failed")

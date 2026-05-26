@@ -260,7 +260,7 @@ export function exportedCollectionToHoppCollection(
   }
 }
 
-async function loadUserCollections(collectionType: "REST" | "GQL") {
+export async function loadUserCollections(collectionType: "REST" | "GQL") {
   const res = await exportUserCollectionsToJSON(
     undefined,
     collectionType == "REST" ? ReqType.Rest : ReqType.Gql
