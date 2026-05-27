@@ -33,6 +33,7 @@ import V19_VERSION from "./v/19"
 import V20_VERSION from "./v/20"
 import V21_VERSION from "./v/21"
 import V22_VERSION from "./v/22"
+import V23_VERSION from "./v/23"
 
 export * from "./content-types"
 
@@ -106,6 +107,14 @@ export type {
 
 // v22 request-level fields are part of the HoppRESTRequest type (InferredEntity)
 
+// v23 body examples and response model examples
+export {
+  HoppRESTBodyExample,
+  HoppRESTResponseExample,
+  HoppRESTResponseModelV23,
+} from "./v/23"
+
+
 // Backward-compatible re-exports from v20
 export type { HoppRESTResponseModelV20 } from "./v/20"
 
@@ -120,7 +129,7 @@ const versionedObject = z.object({
 })
 
 export const HoppRESTRequest = createVersionedEntity({
-  latestVersion: 22,
+  latestVersion: 23,
   versionMap: {
     0: V0_VERSION,
     1: V1_VERSION,
@@ -145,6 +154,7 @@ export const HoppRESTRequest = createVersionedEntity({
     20: V20_VERSION,
     21: V21_VERSION,
     22: V22_VERSION,
+    23: V23_VERSION,
   },
   getVersion(data) {
     // For V1 onwards we have the v string storing the number
@@ -202,9 +212,11 @@ const HoppRESTRequestEq = Eq.struct<HoppRESTRequest>({
   // v22 request body schema tree and model ref
   bodySchemaTree: lodashIsEqualEq,
   bodyModelRef: S.Eq,
+  // v23 body examples
+  bodyExamples: lodashIsEqualEq,
 })
 
-export const RESTReqSchemaVersion = "22"
+export const RESTReqSchemaVersion = "23"
 
 export type HoppRESTParam = HoppRESTRequest["params"][number]
 export type HoppRESTHeader = HoppRESTRequest["headers"][number]
@@ -346,15 +358,21 @@ export function safelyExtractRESTRequest(
     if ("bodyModelRef" in x && typeof x.bodyModelRef === "string") {
       req.bodyModelRef = x.bodyModelRef
     }
+
+    // v23 body examples
+    if ("bodyExamples" in x && Array.isArray(x.bodyExamples)) {
+      req.bodyExamples = x.bodyExamples
+    }
   }
 
   return req
 }
 
 export function makeRESTRequest(
-  x: Omit<HoppRESTRequest, "v" | "bodySchemaTree" | "bodyModelRef"> & {
+  x: Omit<HoppRESTRequest, "v" | "bodySchemaTree" | "bodyModelRef" | "bodyExamples"> & {
     bodySchemaTree?: HoppRESTRequest["bodySchemaTree"]
     bodyModelRef?: string
+    bodyExamples?: HoppRESTRequest["bodyExamples"]
   }
 ): HoppRESTRequest {
   return {
@@ -362,6 +380,7 @@ export function makeRESTRequest(
     _ref_id: x._ref_id ?? generateUniqueRefId("req"),
     bodySchemaTree: x.bodySchemaTree ?? null,
     bodyModelRef: x.bodyModelRef ?? "",
+    bodyExamples: x.bodyExamples ?? [],
     ...x,
   }
 }
@@ -401,6 +420,8 @@ export function getDefaultRESTRequest(): HoppRESTRequest {
     // v22 request body schema tree and model ref
     bodySchemaTree: null,
     bodyModelRef: "",
+    // v23 body examples
+    bodyExamples: [],
   }
 }
 
