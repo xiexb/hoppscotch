@@ -547,6 +547,18 @@ function confirmAddExample() {
   const name = newExampleName.value.trim()
   if (!name) return
 
+  const tab = tabs.currentActiveTab.value
+  if (!tab) return
+
+  const request = tab.document.request
+  const existing = (request.bodyExamples ?? []) as HoppRESTBodyExample[]
+
+  // Check for duplicate name
+  if (existing.some((ex) => ex.name === name)) {
+    toast.error(t("body_examples.duplicate_name"))
+    return
+  }
+
   const currentContent =
     typeof rawParamsBody.value === "string" ? rawParamsBody.value : ""
 
@@ -556,11 +568,6 @@ function confirmAddExample() {
     contentType: body.value.contentType || "application/json",
   }
 
-  const tab = tabs.currentActiveTab.value
-  if (!tab) return
-
-  const request = tab.document.request
-  const existing = (request.bodyExamples ?? []) as HoppRESTBodyExample[]
   const updated = [...existing, newExample]
 
   tab.document.request = {
@@ -593,6 +600,13 @@ function confirmRename(index: number) {
 
   const request = tab.document.request
   const existing = [...((request.bodyExamples ?? []) as HoppRESTBodyExample[])]
+
+  // Check for duplicate name (excluding the item being renamed)
+  if (existing.some((ex, i) => i !== index && ex.name === name)) {
+    toast.error(t("body_examples.duplicate_name"))
+    return
+  }
+
   if (index >= 0 && index < existing.length) {
     existing[index] = { ...existing[index], name }
     tab.document.request = {
@@ -624,6 +638,7 @@ function deleteExample(index: number) {
       rawParamsBody.value = existing[0].body
     } else {
       selectedExampleIndex.value = -1
+      rawParamsBody.value = defaultExampleContent.value
     }
   } else if (selectedExampleIndex.value > index) {
     selectedExampleIndex.value--
