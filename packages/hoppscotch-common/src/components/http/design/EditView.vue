@@ -3,6 +3,7 @@
     <!-- Area 1: Meta Info (description, tags, responsibility, base URL) -->
     <MetaInfoSection
       :request="request"
+      :inherited-properties="inheritedProperties"
       @update:request="emit('update:request', $event)"
     />
 

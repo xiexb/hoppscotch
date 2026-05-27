@@ -55,6 +55,15 @@
       <div
         class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
       >
+        <!-- Prefix URL indicator (🔗 icon when prefix URL is active) -->
+        <span
+          v-if="resolvedPrefixUrl && !isEndpointFullUrl"
+          v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
+          class="flex items-center px-2 text-accent shrink-0"
+          title="前置URL已生效"
+        >
+          <icon-lucide-link class="w-4 h-4" />
+        </span>
         <SmartEnvInput
           ref="urlInput"
           v-model="tab.document.request.endpoint"
@@ -276,6 +285,11 @@ import { getMethodLabelColor } from "~/helpers/rest/labelColoring"
 import { WorkspaceService } from "~/services/workspace.service"
 import { KernelInterceptorService } from "~/services/kernel-interceptor.service"
 import { handleTokenValidation } from "~/helpers/handleTokenValidation"
+import type { EnvironmentService } from "@hoppscotch/data"
+import {
+  currentEnvironment$,
+  globalEnv$,
+} from "~/newstore/environments"
 
 const t = useI18n()
 const interceptorService = useService(KernelInterceptorService)
@@ -346,6 +360,49 @@ const history = useReadonlyStream<RESTHistoryEntry[]>(restHistory$, [])
 
 const userHistories = computed(() => {
   return history.value.map((history) => history.request.endpoint).slice(0, 10)
+})
+
+// --- Prefix URL resolution (environment services + inheritance) ---
+const currentEnv = useReadonlyStream(currentEnvironment$, undefined)
+const globalEnvStore = useReadonlyStream(globalEnv$, { variables: [], services: [] })
+
+const environmentServices = computed<EnvironmentService[]>(() => {
+  const envServices = (currentEnv.value as any)?.services ?? []
+  const globalServices = (globalEnvStore.value as any)?.services ?? []
+  const ids = new Set(envServices.map((s: EnvironmentService) => s.id))
+  return [
+    ...envServices,
+    ...globalServices.filter((s: EnvironmentService) => !ids.has(s.id)),
+  ]
+})
+
+/** Resolved prefix URL: request override > inherited service > none */
+const resolvedPrefixUrl = computed(() => {
+  const inheritedBaseUrl = tab.value.document.request.inheritedBaseUrl || ""
+  const inheritedProps = tab.value.document.inheritedProperties
+
+  if (!inheritedBaseUrl) {
+    // No request-level override, check inherited service
+    const svcId = inheritedProps?.selectedServiceId
+    if (svcId) {
+      const svc = environmentServices.value.find((s) => s.id === svcId)
+      return svc?.url ?? ""
+    }
+    return ""
+  }
+
+  // Check if it's a service ID
+  const svc = environmentServices.value.find((s) => s.id === inheritedBaseUrl)
+  if (svc) return svc.url
+
+  // It's a raw URL
+  return inheritedBaseUrl
+})
+
+/** Whether the endpoint is already a full URL (prefix URL won't apply) */
+const isEndpointFullUrl = computed(() => {
+  const endpoint = tab.value.document.request.endpoint || ""
+  return /^https?:\/\//i.test(endpoint)
 })
 
 const inspectionService = useService(InspectionService)

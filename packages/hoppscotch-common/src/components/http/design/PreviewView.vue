@@ -9,8 +9,35 @@
         >
           {{ request.method }}
         </span>
-        <span class="text-sm text-secondary font-mono break-all flex-1">
-          {{ fullEndpoint }}
+        <!-- URL with prefix highlight -->
+        <span class="text-sm font-mono break-all flex-1 flex items-center gap-1 flex-wrap">
+          <!-- Prefix URL link icon (shown when prefix URL is active and endpoint is not a full URL) -->
+          <span
+            v-if="resolvedPrefixUrl && !(request.endpoint && request.endpoint.startsWith('http'))"
+            v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
+            class="flex items-center text-accent shrink-0"
+          >
+            <icon-lucide-link class="w-3.5 h-3.5" />
+          </span>
+          <!-- Service badge -->
+          <span
+            v-if="resolvedServiceName"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-accentLight/20 text-accent shrink-0"
+          >
+            <icon-lucide-link class="w-2.5 h-2.5" />
+            {{ resolvedServiceName }}
+          </span>
+          <!-- Full URL (when endpoint is already a complete URL or has prefix) -->
+          <template v-if="request.endpoint && request.endpoint.startsWith('http')">
+            <span class="text-secondary">{{ fullEndpoint }}</span>
+          </template>
+          <template v-else-if="resolvedPrefixUrl">
+            <span class="text-accent">{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span>
+            <span class="text-secondary">{{ request.endpoint || '/' }}</span>
+          </template>
+          <template v-else>
+            <span class="text-secondary">{{ fullEndpoint || '/' }}</span>
+          </template>
         </span>
         <HoppButtonPrimary
           :label="t('preview_view.manual_debug')"
@@ -549,7 +576,14 @@ import type {
   HoppRESTResponseModelV23,
   HoppRESTSchemaNode,
   HoppRESTBodyExample,
+  EnvironmentService,
 } from "@hoppscotch/data"
+import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
+import { useReadonlyStream } from "@composables/stream"
+import {
+  currentEnvironment$,
+  globalEnv$,
+} from "~/newstore/environments"
 import { useService } from "dioc/vue"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
@@ -598,9 +632,15 @@ const readonlyModelResolver: ReadonlyModelResolver = (modelRefId: string) => {
   }
 }
 
-const props = defineProps<{
-  request: HoppRESTRequest
-}>()
+const props = withDefaults(
+  defineProps<{
+    request: HoppRESTRequest
+    inheritedProperties?: HoppInheritedProperty
+  }>(),
+  {
+    inheritedProperties: undefined,
+  }
+)
 
 const emit = defineEmits<{
   (e: "switchToDebug"): void
@@ -761,11 +801,68 @@ const boundModelName = computed(() => {
   return model?.name ?? t("preview_view.unknown_model")
 })
 
+// --- Environment services for prefix URL resolution ---
+const currentEnv = useReadonlyStream(currentEnvironment$, undefined)
+const globalEnv = useReadonlyStream(globalEnv$, { variables: [], services: [] })
+
+const environmentServices = computed<EnvironmentService[]>(() => {
+  const envServices = (currentEnv.value as any)?.services ?? []
+  const globalServices = (globalEnv.value as any)?.services ?? []
+  const ids = new Set(envServices.map((s: EnvironmentService) => s.id))
+  return [
+    ...envServices,
+    ...globalServices.filter((s: EnvironmentService) => !ids.has(s.id)),
+  ]
+})
+
+const inheritedServiceId = computed(
+  () => props.inheritedProperties?.selectedServiceId ?? null
+)
+
+/** Resolve the prefix URL: request override > inherited service > none */
+const resolvedPrefixUrl = computed(() => {
+  const val = props.request.inheritedBaseUrl || ""
+  if (!val) {
+    // No request-level override, use inherited service
+    if (inheritedServiceId.value) {
+      const svc = environmentServices.value.find(
+        (s) => s.id === inheritedServiceId.value
+      )
+      return svc?.url ?? ""
+    }
+    return ""
+  }
+  // Check if it's a service ID
+  const svc = environmentServices.value.find((s) => s.id === val)
+  if (svc) return svc.url
+  // It's a raw URL
+  return val
+})
+
+/** Name of the resolved service (for badge display) */
+const resolvedServiceName = computed(() => {
+  const val = props.request.inheritedBaseUrl || ""
+  if (!val) {
+    if (inheritedServiceId.value) {
+      const svc = environmentServices.value.find(
+        (s) => s.id === inheritedServiceId.value
+      )
+      return svc?.name ?? ""
+    }
+    return ""
+  }
+  const svc = environmentServices.value.find((s) => s.id === val)
+  return svc?.name ?? ""
+})
+
 const fullEndpoint = computed(() => {
-  const base = props.request.inheritedBaseUrl || ""
+  const base = resolvedPrefixUrl.value
   const endpoint = props.request.endpoint || ""
   if (endpoint.startsWith("http")) return endpoint
-  return base + endpoint
+  if (!base) return endpoint
+  // Strip trailing slash from base, join with endpoint
+  const cleanBase = base.replace(/\/+$/, "")
+  return cleanBase + (endpoint.startsWith("/") ? "" : "/") + endpoint
 })
 
 const methodClass = computed(() => {

@@ -82,6 +82,7 @@
     <DesignPreviewView
       v-if="subMode === 'preview'"
       :request="request"
+      :inherited-properties="inheritedProperties"
       @switch-to-debug="emit('switchToDebug')"
     />
   </div>
