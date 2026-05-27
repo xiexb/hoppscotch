@@ -807,6 +807,7 @@ export class InfraConfigService implements OnModuleInit, OnModuleDestroy {
 
         case InfraConfigEnum.TOKEN_SALT_COMPLEXITY:
         case InfraConfigEnum.MAGIC_LINK_TOKEN_VALIDITY:
+        case InfraConfigEnum.PASSWORD_RESET_TOKEN_VALIDITY:
         case InfraConfigEnum.ACCESS_TOKEN_VALIDITY:
         case InfraConfigEnum.REFRESH_TOKEN_VALIDITY:
         case InfraConfigEnum.RATE_LIMIT_TTL:

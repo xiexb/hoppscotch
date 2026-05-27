@@ -30,7 +30,7 @@ import { GoogleSSOGuard } from './guards/google-sso.guard';
 import { GithubSSOGuard } from './guards/github-sso.guard';
 import { MicrosoftSSOGuard } from './guards/microsoft-sso.guard';
 import { ThrottlerBehindProxyGuard } from 'src/guards/throttler-behind-proxy.guard';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { AUTH_PROVIDER_NOT_SPECIFIED } from 'src/errors';
 import { ConfigService } from '@nestjs/config';
 import { throwHTTPErr } from 'src/utils';
@@ -237,6 +237,7 @@ export class AuthController {
    ** Route to sign in with email and password
    */
   @Post('password/signin')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async signInWithPassword(
     @Body() data: SignInPasswordDto,
     @Res() res: Response,
@@ -293,6 +294,7 @@ export class AuthController {
    ** Route to request password reset via email
    */
   @Post('password/reset-request')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async requestPasswordReset(@Body() data: RequestPasswordResetDto) {
     const result = await this.authService.requestPasswordReset(data.email);
     if (E.isLeft(result)) throwHTTPErr(result.left);

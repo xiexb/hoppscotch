@@ -188,6 +188,11 @@ export async function getDefaultInfraConfigs(): Promise<DefaultInfraConfig[]> {
       isEncrypted: false,
     },
     {
+      name: InfraConfigEnum.PASSWORD_RESET_TOKEN_VALIDITY,
+      value: '1', // 1 hour
+      isEncrypted: false,
+    },
+    {
       name: InfraConfigEnum.ALLOW_SECURE_COOKIES,
       value: isSecureCookies.toString(),
       isEncrypted: false,

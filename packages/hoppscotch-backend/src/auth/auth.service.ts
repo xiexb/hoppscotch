@@ -36,7 +36,7 @@ import { VerificationToken } from 'src/generated/prisma/client';
 import { Origin } from './helper';
 import { ConfigService } from '@nestjs/config';
 import { InfraConfigService } from 'src/infra-config/infra-config.service';
-import { randomUUID } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -542,27 +542,40 @@ export class AuthService {
       });
 
     const user = queriedUser.value;
-    const token = randomUUID();
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    let validityInHours = parseInt(
+      this.configService.get('INFRA.PASSWORD_RESET_TOKEN_VALIDITY'),
+    );
+    if (isNaN(validityInHours) || validityInHours < 1) validityInHours = 1;
+
     const expiresOn = new Date();
-    expiresOn.setHours(expiresOn.getHours() + 1); // 1 hour validity
+    expiresOn.setHours(expiresOn.getHours() + validityInHours);
 
     await this.prisma.passwordResetToken.create({
       data: {
         userUid: user.uid,
-        token,
+        token: tokenHash,
         expiresOn,
       },
     });
 
     const baseUrl = this.configService.get('VITE_BASE_URL');
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-    await this.mailerService.sendEmail(email, {
-      template: 'password-reset',
-      variables: {
-        resetLink: resetUrl,
-        userEmail: email,
-      },
-    });
+
+    try {
+      await this.mailerService.sendEmail(email, {
+        template: 'password-reset',
+        variables: {
+          resetLink: resetUrl,
+          userEmail: email,
+        },
+      });
+    } catch (error) {
+      // Log error but don't propagate — always return success to prevent email enumeration
+      console.error('Failed to send password reset email:', error);
+    }
 
     return E.right({
       message: 'If the email exists, a reset link has been sent',
@@ -580,9 +593,12 @@ export class AuthService {
       });
 
     try {
+      const tokenHash = createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
       const resetRecord =
         await this.prisma.passwordResetToken.findUniqueOrThrow({
-          where: { token: resetToken },
+          where: { token: tokenHash },
         });
 
       if (resetRecord.usedAt)
@@ -606,7 +622,7 @@ export class AuthService {
           data: { passwordHash },
         }),
         this.prisma.passwordResetToken.update({
-          where: { token: resetToken },
+          where: { token: tokenHash },
           data: { usedAt: new Date() },
         }),
       ]);
