@@ -2511,6 +2511,7 @@
     "delete_confirm": "确定要删除此示例吗？",
     "no_examples": "暂无示例",
     "load_example": "加载示例到编辑器",
-    "examples_tab": "示例"
+    "examples_tab": "示例",
+    "duplicate_name": "该名称的示例已存在"
   }
 }

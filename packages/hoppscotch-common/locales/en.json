@@ -2546,6 +2546,7 @@
     "delete_confirm": "Are you sure you want to delete this example?",
     "no_examples": "No examples yet",
     "load_example": "Load example into editor",
-    "examples_tab": "Examples"
+    "examples_tab": "Examples",
+    "duplicate_name": "An example with this name already exists"
   }
 }
