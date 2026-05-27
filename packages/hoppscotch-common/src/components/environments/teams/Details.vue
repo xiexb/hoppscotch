@@ -34,74 +34,85 @@
                   :title="t('app.wiki')"
                   :icon="IconHelpCircle"
                 />
-                <HoppButtonSecondary
-                  v-if="!isViewer"
-                  v-tippy="{ theme: 'tooltip' }"
-                  :title="t('action.clear_all')"
-                  :icon="clearIcon"
-                  @click="clearContent()"
-                />
-                <HoppButtonSecondary
-                  v-if="!isViewer"
-                  v-tippy="{ theme: 'tooltip' }"
-                  :icon="IconPlus"
-                  :title="t('add.new')"
-                  @click="addEnvironmentVariable"
-                />
-                <tippy
-                  ref="options"
-                  interactive
-                  trigger="click"
-                  theme="popover"
-                  :on-shown="() => tippyActions!.focus()"
-                >
+                <template v-if="selectedEnvOption !== 'services'">
                   <HoppButtonSecondary
+                    v-if="!isViewer"
                     v-tippy="{ theme: 'tooltip' }"
-                    :title="t('action.more')"
-                    :icon="IconMoreVertical"
+                    :title="t('action.clear_all')"
+                    :icon="clearIcon"
+                    @click="clearContent()"
                   />
-                  <template #content="{ hide }">
-                    <div
-                      ref="tippyActions"
-                      class="flex flex-col focus:outline-none"
-                      tabindex="0"
-                      role="menu"
-                      @keyup.escape="hide()"
-                    >
-                      <HoppSmartItem
-                        v-tippy="{ theme: 'tooltip' }"
-                        :icon="IconCopyLeft"
-                        :label="
-                          t('environment.replace_all_initial_with_current')
-                        "
-                        :disabled="isViewer"
-                        @click="
-                          () => {
-                            vars.forEach((v) => {
-                              v.env.initialValue = v.env.currentValue
-                            })
-                            hide()
-                          }
-                        "
-                      />
-                      <HoppSmartItem
-                        v-tippy="{ theme: 'tooltip' }"
-                        :icon="IconCopyRight"
-                        :label="
-                          t('environment.replace_all_current_with_initial')
-                        "
-                        @click="
-                          () => {
-                            vars.forEach((v) => {
-                              v.env.currentValue = v.env.initialValue
-                            })
-                            hide()
-                          }
-                        "
-                      />
-                    </div>
-                  </template>
-                </tippy>
+                  <HoppButtonSecondary
+                    v-if="!isViewer"
+                    v-tippy="{ theme: 'tooltip' }"
+                    :icon="IconPlus"
+                    :title="t('add.new')"
+                    @click="addEnvironmentVariable"
+                  />
+                  <tippy
+                    ref="options"
+                    interactive
+                    trigger="click"
+                    theme="popover"
+                    :on-shown="() => tippyActions!.focus()"
+                  >
+                    <HoppButtonSecondary
+                      v-tippy="{ theme: 'tooltip' }"
+                      :title="t('action.more')"
+                      :icon="IconMoreVertical"
+                    />
+                    <template #content="{ hide }">
+                      <div
+                        ref="tippyActions"
+                        class="flex flex-col focus:outline-none"
+                        tabindex="0"
+                        role="menu"
+                        @keyup.escape="hide()"
+                      >
+                        <HoppSmartItem
+                          v-tippy="{ theme: 'tooltip' }"
+                          :icon="IconCopyLeft"
+                          :label="
+                            t('environment.replace_all_initial_with_current')
+                          "
+                          :disabled="isViewer"
+                          @click="
+                            () => {
+                              vars.forEach((v) => {
+                                v.env.initialValue = v.env.currentValue
+                              })
+                              hide()
+                            }
+                          "
+                        />
+                        <HoppSmartItem
+                          v-tippy="{ theme: 'tooltip' }"
+                          :icon="IconCopyRight"
+                          :label="
+                            t('environment.replace_all_current_with_initial')
+                          "
+                          @click="
+                            () => {
+                              vars.forEach((v) => {
+                                v.env.currentValue = v.env.initialValue
+                              })
+                              hide()
+                            }
+                          "
+                        />
+                      </div>
+                    </template>
+                  </tippy>
+                </template>
+                <template v-else>
+                  <HoppButtonSecondary
+                    v-if="!isViewer"
+                    v-tippy="{ theme: 'tooltip' }"
+                    :icon="IconPlus"
+                    :title="t('environment.add_service')"
+                    @click="addService"
+                  />
+                </template>
               </div>
             </template>
 
@@ -210,6 +221,62 @@
                 </template>
               </div>
             </HoppSmartTab>
+
+            <HoppSmartTab id="services" :label="t('environment.services')">
+              <div class="divide-y divide-dividerLight">
+                <HoppSmartPlaceholder
+                  v-if="services.length === 0"
+                  :src="`/images/states/${colorMode.value}/blockchain.svg`"
+                  :alt="t('environment.no_services')"
+                  :text="t('environment.no_services')"
+                >
+                  <template #body>
+                    <HoppButtonSecondary
+                      v-if="!isViewer"
+                      :label="`${t('environment.add_service')}`"
+                      filled
+                      :icon="IconPlus"
+                      @click="addService"
+                    />
+                  </template>
+                </HoppSmartPlaceholder>
+
+                <template v-else>
+                  <div
+                    v-for="(service, index) in services"
+                    :key="service.id"
+                    class="flex divide-x divide-dividerLight"
+                  >
+                    <input
+                      v-model="service.name"
+                      v-focus
+                      class="flex flex-1 bg-transparent px-4 py-2 text-secondaryDark"
+                      :placeholder="`${t('environment.service_name')}`"
+                      :name="'service_name_' + index"
+                      :disabled="isViewer"
+                    />
+                    <SmartEnvInput
+                      v-model="service.url"
+                      class="flex flex-1"
+                      :placeholder="`${t('environment.service_url')}`"
+                      :envs="liveEnvs"
+                      :name="'service_url_' + index"
+                      :auto-complete-env="true"
+                      :readonly="isViewer"
+                    />
+                    <div v-if="!isViewer" class="flex">
+                      <HoppButtonSecondary
+                        v-tippy="{ theme: 'tooltip' }"
+                        :title="t('action.remove')"
+                        :icon="IconTrash"
+                        color="red"
+                        @click="removeService(service.id)"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </HoppSmartTab>
           </HoppSmartTabs>
         </div>
       </div>
@@ -242,6 +309,7 @@ import * as TE from "fp-ts/TaskEither"
 import { flow, pipe } from "fp-ts/function"
 import {
   Environment,
+  EnvironmentService,
   GlobalEnvironment,
   parseTemplateStringE,
 } from "@hoppscotch/data"
@@ -263,6 +331,7 @@ import { getEnvActionErrorMessage } from "~/helpers/error-messages"
 import { CurrentValueService } from "~/services/current-environment-value.service"
 import { useReadonlyStream } from "~/composables/stream"
 import { globalEnv$ } from "~/newstore/environments"
+import { uniqueID } from "~/helpers/utils/uniqueID"
 import IconTrash from "~icons/lucide/trash"
 import IconTrash2 from "~icons/lucide/trash-2"
 import IconDone from "~icons/lucide/check"
@@ -350,6 +419,8 @@ const vars = ref<EnvironmentVariable[]>([
   },
 ])
 
+const services = ref<EnvironmentService[]>([])
+
 const secretEnvironmentService = useService(SecretEnvironmentService)
 const currentEnvironmentValueService = useService(CurrentValueService)
 
@@ -369,7 +440,7 @@ const nonSecretVars = computed(() =>
   )
 )
 
-type SelectedEnv = "variables" | "secret"
+type SelectedEnv = "variables" | "secret" | "services"
 
 const selectedEnvOption = ref<SelectedEnv>("variables")
 
@@ -434,6 +505,15 @@ watch(
       selectedEnvOption.value = props.isSecretOptionSelected
         ? "secret"
         : "variables"
+
+      // Load services from existing environment
+      const env = props.editingEnvironment?.environment
+      if (env && "services" in env) {
+        services.value = (env.services ?? []).map((s) => ({ ...s }))
+      } else {
+        services.value = []
+      }
+
       if (props.action === "new") {
         vars.value = pipe(
           props.envVars() ?? [],
@@ -442,6 +522,7 @@ watch(
             env: clone(e),
           }))
         )
+        services.value = []
       } else if (props.editingEnvironment !== null) {
         editingID.value = props.editingEnvironment.id
         vars.value = pipe(
@@ -492,6 +573,21 @@ const removeEnvironmentVariable = (id: number) => {
   const index = vars.value.findIndex((e) => e.id === id)
   if (index !== -1) {
     vars.value.splice(index, 1)
+  }
+}
+
+const addService = () => {
+  services.value.push({
+    id: uniqueID(),
+    name: "",
+    url: "",
+  })
+}
+
+const removeService = (id: string) => {
+  const index = services.value.findIndex((s) => s.id === id)
+  if (index !== -1) {
+    services.value.splice(index, 1)
   }
 }
 
@@ -561,11 +657,13 @@ const saveEnvironment = async () => {
     }))
   )
 
+  // Include services in the environment data (v3 format)
   const environmentUpdated: Environment = {
-    v: 2,
+    v: 3,
     id: editingID.value ?? "",
     name: editingName.value,
     variables,
+    services: services.value,
   }
 
   if (props.action === "new") {
@@ -577,7 +675,10 @@ const saveEnvironment = async () => {
     if (!props.isViewer) {
       await pipe(
         createTeamEnvironment(
-          JSON.stringify(environmentUpdated.variables),
+          JSON.stringify({
+            variables: environmentUpdated.variables,
+            services: environmentUpdated.services,
+          }),
           props.editingTeamId,
           environmentUpdated.name
         ),
@@ -634,7 +735,10 @@ const saveEnvironment = async () => {
     if (!props.isViewer) {
       await pipe(
         updateTeamEnvironment(
-          JSON.stringify(environmentUpdated.variables),
+          JSON.stringify({
+            variables: environmentUpdated.variables,
+            services: environmentUpdated.services,
+          }),
           props.editingEnvironment.id,
           environmentUpdated.name
         ),

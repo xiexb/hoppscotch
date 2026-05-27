@@ -1,7 +1,6 @@
 import * as E from "fp-ts/Either"
 import { BehaviorSubject, Subscription } from "rxjs"
 import { Subscription as WSubscription } from "wonka"
-import { pipe } from "fp-ts/function"
 import { GQLError, runGQLQuery, runGQLSubscription } from "../backend/GQLClient"
 import {
   GetTeamEnvironmentsDocument,
@@ -15,6 +14,37 @@ import {
   EnvironmentSchemaVersion,
   translateToNewEnvironmentVariables,
 } from "@hoppscotch/data"
+
+/**
+ * Parse the `variables` JSON string from team environment GraphQL.
+ * Supports both old format (plain array) and new v3 format ({variables, services}).
+ */
+function parseTeamEnvJson(raw: string): {
+  variables: Environment["variables"]
+  services: Environment["services"]
+} {
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      // Old format: plain array of variables
+      return {
+        variables: parsed.map((v: any) =>
+          translateToNewEnvironmentVariables(v)
+        ),
+        services: [],
+      }
+    }
+    // New v3 format: { variables, services }
+    return {
+      variables: (parsed.variables ?? []).map((v: any) =>
+        translateToNewEnvironmentVariables(v)
+      ),
+      services: parsed.services ?? [],
+    }
+  } catch {
+    return { variables: [], services: [] }
+  }
+}
 
 type EntityType = "environment"
 type EntityID = `${EntityType}-${string}`
@@ -118,15 +148,15 @@ export default class TeamEnvironmentAdapter {
     if (result.right.team) {
       results.push(
         ...result.right.team.teamEnvironments.map((x) => {
+          const { variables: parsedVars, services: parsedServices } =
+            parseTeamEnvJson(x.variables)
           // Keep the environment structure consistent with the new schema
           const environment = <Environment>{
             v: EnvironmentSchemaVersion,
             id: x.id,
             name: x.name,
-            variables: JSON.parse(x.variables).map(
-              (variable: Environment["variables"][number]) =>
-                translateToNewEnvironmentVariables(variable)
-            ),
+            variables: parsedVars,
+            services: parsedServices,
           }
 
           const parsedEnvironment = Environment.safeParse(environment)
@@ -205,22 +235,19 @@ export default class TeamEnvironmentAdapter {
           console.error(result.left)
           throw new Error(`Team Environment Create Error ${result.left}`)
         }
-        this.createNewTeamEnvironment(
-          pipe(
-            result.right.teamEnvironmentCreated,
-            (x) =>
-              <TeamEnvironment>{
-                id: x.id,
-                teamID: x.teamID,
-                environment: {
-                  v: 2,
-                  id: x.id,
-                  name: x.name,
-                  variables: JSON.parse(x.variables),
-                },
-              }
-          )
-        )
+        const { variables: parsedVars, services: parsedServices } =
+          parseTeamEnvJson(result.right.teamEnvironmentCreated.variables)
+        this.createNewTeamEnvironment(<TeamEnvironment>{
+          id: result.right.teamEnvironmentCreated.id,
+          teamID: result.right.teamEnvironmentCreated.teamID,
+          environment: {
+            v: EnvironmentSchemaVersion,
+            id: result.right.teamEnvironmentCreated.id,
+            name: result.right.teamEnvironmentCreated.name,
+            variables: parsedVars,
+            services: parsedServices,
+          },
+        })
       }
     )
 
@@ -260,22 +287,19 @@ export default class TeamEnvironmentAdapter {
           console.error(result.left)
           throw new Error(`Team Environment Update Error ${result.left}`)
         }
-        this.updateTeamEnvironment(
-          pipe(
-            result.right.teamEnvironmentUpdated,
-            (x) =>
-              <TeamEnvironment>{
-                id: x.id,
-                teamID: x.teamID,
-                environment: {
-                  v: 2,
-                  id: x.id,
-                  name: x.name,
-                  variables: JSON.parse(x.variables),
-                },
-              }
-          )
-        )
+        const { variables: parsedVars, services: parsedServices } =
+          parseTeamEnvJson(result.right.teamEnvironmentUpdated.variables)
+        this.updateTeamEnvironment(<TeamEnvironment>{
+          id: result.right.teamEnvironmentUpdated.id,
+          teamID: result.right.teamEnvironmentUpdated.teamID,
+          environment: {
+            v: EnvironmentSchemaVersion,
+            id: result.right.teamEnvironmentUpdated.id,
+            name: result.right.teamEnvironmentUpdated.name,
+            variables: parsedVars,
+            services: parsedServices,
+          },
+        })
       }
     )
   }
