@@ -179,16 +179,16 @@
         />
       </div>
 
-      <!-- Response Example -->
+      <!-- Response Examples (multi-example management) -->
       <div>
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-secondary">示例</span>
             <span
-              v-if="manualExampleModels[activeModel]"
-              class="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded"
+              v-if="effectiveExamples.length > 0 && !hasStoredExamples"
+              class="text-[10px] text-secondaryLight bg-secondaryLight/10 px-1.5 py-0.5 rounded"
             >
-              手动编辑
+              自动生成
             </span>
           </div>
           <div class="flex items-center gap-2">
@@ -202,27 +202,67 @@
               从 JSON 导入
             </button>
             <button
-              v-if="manualExampleModels[activeModel]"
               class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
-              title="重置为自动生成的示例"
-              @click="generateExample"
+              title="添加示例"
+              @click="addExample"
             >
-              <IconSparkles class="w-3 h-3" />
-              重置为自动
+              <IconPlus class="w-3 h-3" />
+              添加示例
             </button>
           </div>
         </div>
+
+        <!-- Example name tabs -->
+        <div
+          v-if="effectiveExamples.length > 1 || hasStoredExamples"
+          class="flex items-center gap-1 overflow-x-auto mb-2 border-b border-dividerLight pb-1"
+        >
+          <button
+            v-for="(ex, exIdx) in effectiveExamples"
+            :key="exIdx"
+            class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-t transition-colors shrink-0"
+            :class="
+              activeExampleIdx === exIdx
+                ? 'border-b-2 border-accentLight font-bold text-primary'
+                : 'text-secondary hover:text-secondaryDark'
+            "
+            @click="activeExampleIdx = exIdx"
+            @dblclick="startRenameExample(exIdx)"
+          >
+            <!-- Rename mode -->
+            <template v-if="editingExampleIdx === exIdx">
+              <input
+                ref="renameInputRef"
+                :value="ex.name"
+                class="w-20 bg-transparent border border-accent rounded px-1 py-0 text-xs outline-none"
+                @input="onRenameInput($event, exIdx)"
+                @keydown.enter="confirmRenameExample"
+                @keydown.escape="cancelRenameExample"
+                @blur="confirmRenameExample"
+                @click.stop
+              />
+            </template>
+            <!-- Normal display mode -->
+            <template v-else>
+              <span class="max-w-[100px] truncate">{{ ex.name }}</span>
+              <button
+                v-if="effectiveExamples.length > 1"
+                class="text-secondaryLight hover:text-red-400 transition-colors ml-0.5"
+                title="删除示例"
+                @click.stop="removeExample(exIdx)"
+              >
+                <IconX class="w-3 h-3" />
+              </button>
+            </template>
+          </button>
+        </div>
+
+        <!-- Active example content -->
         <JsonExampleBlock
-          :content="
-            currentModel.bodyExample ||
-            generateExampleFromSchema(
-              isBoundToModel ? resolvedModelTree : currentModel.bodySchemaTree,
-              modelResolver
-            )
-          "
+          :content="activeExampleBody"
           :content-type="currentModel.contentType"
           :editable="!isBoundToModel"
-          @update:content="onExampleUpdate"
+          @update:content="onExampleContentUpdate"
         />
       </div>
 
@@ -362,10 +402,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV21,
+  HoppRESTResponseExample,
   HoppRESTSchemaNode,
 } from "@hoppscotch/data"
 import { useService } from "dioc/vue"
@@ -438,6 +479,51 @@ const emit = defineEmits<{
 
 const activeModel = ref(0)
 
+// --- Multi-example management ---
+// activeExampleIdx tracks which example tab is selected per response model
+const activeExampleIdx = ref(0)
+// editingExampleIdx tracks which example is being renamed (-1 = none)
+const editingExampleIdx = ref(-1)
+const renameInputRef = ref<HTMLInputElement[] | null>(null)
+const renameBuffer = ref("")
+
+// Whether the current response model has stored examples (not virtual)
+const hasStoredExamples = computed(() => {
+  const model = currentModel.value as any
+  return (model?.examples?.length ?? 0) > 0
+})
+
+// Effective examples: if stored examples exist, use them; otherwise show virtual default
+const effectiveExamples = computed((): HoppRESTResponseExample[] => {
+  const model = currentModel.value as any
+  const stored = (model?.examples ?? []) as HoppRESTResponseExample[]
+  if (stored.length > 0) return stored
+  // Virtual default example
+  const tree = isBoundToModel.value
+    ? resolvedModelTree.value
+    : currentModel.value?.bodySchemaTree
+  const body =
+    currentModel.value?.bodyExample ||
+    generateExampleFromSchema(tree, modelResolver)
+  return [{ name: "默认示例", body }]
+})
+
+// Active example body content
+const activeExampleBody = computed(() => {
+  const examples = effectiveExamples.value
+  const idx = activeExampleIdx.value
+  if (idx >= 0 && idx < examples.length) {
+    return examples[idx].body
+  }
+  return ""
+})
+
+// Reset activeExampleIdx when switching response models
+watch(activeModel, () => {
+  activeExampleIdx.value = 0
+  editingExampleIdx.value = -1
+})
+
 // --- JSON reverse-parse dialog ---
 const showJsonParseDialog = ref(false)
 const jsonParseInput = ref("")
@@ -487,6 +573,7 @@ watch(
   (newTree) => {
     const idx = activeModel.value
     if (manualExampleModels.value[idx]) return // user manually edited, skip
+    if (hasStoredExamples.value) return // user has named examples, skip
     if (isBoundToModel.value) return // bound mode uses resolved tree, handled below
     if (!newTree || newTree.length === 0) return
     const example = generateExampleFromSchema(newTree, modelResolver)
@@ -505,6 +592,7 @@ watch(
   (newTree) => {
     const idx = activeModel.value
     if (manualExampleModels.value[idx]) return
+    if (hasStoredExamples.value) return // user has named examples, skip
     if (!isBoundToModel.value) return
     if (!newTree || newTree.length === 0) return
     const example = generateExampleFromSchema(newTree, modelResolver)
@@ -559,9 +647,11 @@ function addResponseModel() {
     bodySchemaTree: [],
     contentType: "application/json",
     rootModelRef: "",
-  })
+    examples: [],
+  } as any)
   emit("update:request", { ...props.request, responseModels: models })
   activeModel.value = models.length - 1
+  activeExampleIdx.value = 0
 }
 
 function confirmRemoveResponseModel(index: number) {
@@ -607,13 +697,144 @@ function onSchemaTreeUpdate(tree: HoppRESTSchemaNode[]) {
   updateModel(activeModel.value, { bodySchemaTree: tree })
 }
 
-function onExampleUpdate(val: string) {
-  // Mark this model as having a manually edited example
-  manualExampleModels.value = {
-    ...manualExampleModels.value,
-    [activeModel.value]: true,
+function onExampleContentUpdate(val: string) {
+  const idx = activeModel.value
+  const exIdx = activeExampleIdx.value
+  const model = ensureModels()[idx] as any
+
+  if (!hasStoredExamples.value) {
+    // Virtual default: materialize examples array with the current default + update
+    const tree = isBoundToModel.value
+      ? resolvedModelTree.value
+      : currentModel.value?.bodySchemaTree
+    const defaultBody =
+      currentModel.value?.bodyExample ||
+      generateExampleFromSchema(tree, modelResolver)
+    const examples: HoppRESTResponseExample[] = [
+      { name: "默认示例", body: val },
+    ]
+    // Keep bodyExample in sync for backward compatibility
+    updateModel(idx, { examples, bodyExample: val })
+    return
   }
-  updateModel(activeModel.value, { bodyExample: val })
+
+  // Update specific example in the array
+  const examples = [...(model?.examples ?? [])] as HoppRESTResponseExample[]
+  if (exIdx >= 0 && exIdx < examples.length) {
+    examples[exIdx] = { ...examples[exIdx], body: val }
+    // Keep bodyExample in sync with first example
+    const bodyExample =
+      examples.length > 0 ? examples[0].body : model?.bodyExample ?? ""
+    updateModel(idx, { examples, bodyExample })
+  }
+}
+
+// --- Multi-example management methods ---
+
+function addExample() {
+  const idx = activeModel.value
+  const model = ensureModels()[idx] as any
+  const existingExamples = (model?.examples ?? []) as HoppRESTResponseExample[]
+
+  if (existingExamples.length === 0) {
+    // Materialize virtual default + add new empty example
+    const tree = isBoundToModel.value
+      ? resolvedModelTree.value
+      : currentModel.value?.bodySchemaTree
+    const defaultBody =
+      currentModel.value?.bodyExample ||
+      generateExampleFromSchema(tree, modelResolver)
+    const examples: HoppRESTResponseExample[] = [
+      { name: "默认示例", body: defaultBody },
+      { name: "示例 2", body: "" },
+    ]
+    updateModel(idx, { examples, bodyExample: defaultBody })
+    activeExampleIdx.value = 1
+  } else {
+    // Add new example
+    const newIdx = existingExamples.length + 1
+    const examples: HoppRESTResponseExample[] = [
+      ...existingExamples,
+      { name: `示例 ${newIdx}`, body: "" },
+    ]
+    updateModel(idx, { examples })
+    activeExampleIdx.value = examples.length - 1
+  }
+}
+
+function removeExample(exIdx: number) {
+  const idx = activeModel.value
+  const model = ensureModels()[idx] as any
+  const examples = [...(model?.examples ?? [])] as HoppRESTResponseExample[]
+
+  if (examples.length <= 1) return // keep at least one
+
+  examples.splice(exIdx, 1)
+  const bodyExample =
+    examples.length > 0 ? examples[0].body : model?.bodyExample ?? ""
+  updateModel(idx, { examples, bodyExample })
+
+  // Adjust active tab
+  if (activeExampleIdx.value >= examples.length) {
+    activeExampleIdx.value = Math.max(0, examples.length - 1)
+  }
+}
+
+function startRenameExample(exIdx: number) {
+  editingExampleIdx.value = exIdx
+  renameBuffer.value = effectiveExamples.value[exIdx]?.name ?? ""
+  nextTick(() => {
+    const inputs = renameInputRef.value
+    if (inputs && inputs.length > 0) {
+      inputs[0]?.focus()
+      inputs[0]?.select()
+    }
+  })
+}
+
+function onRenameInput(event: Event, _exIdx: number) {
+  const target = event.target as HTMLInputElement
+  renameBuffer.value = target.value
+}
+
+function confirmRenameExample() {
+  if (editingExampleIdx.value < 0) return
+  const exIdx = editingExampleIdx.value
+  const newName = renameBuffer.value.trim()
+  if (!newName) {
+    cancelRenameExample()
+    return
+  }
+
+  const idx = activeModel.value
+  const model = ensureModels()[idx] as any
+  const existingExamples = (model?.examples ?? []) as HoppRESTResponseExample[]
+
+  if (existingExamples.length === 0) {
+    // Materialize virtual default with new name
+    const tree = isBoundToModel.value
+      ? resolvedModelTree.value
+      : currentModel.value?.bodySchemaTree
+    const defaultBody =
+      currentModel.value?.bodyExample ||
+      generateExampleFromSchema(tree, modelResolver)
+    const examples: HoppRESTResponseExample[] = [
+      { name: newName, body: defaultBody },
+    ]
+    updateModel(idx, { examples, bodyExample: defaultBody })
+  } else {
+    const examples = [...existingExamples]
+    if (exIdx < examples.length) {
+      examples[exIdx] = { ...examples[exIdx], name: newName }
+      updateModel(idx, { examples })
+    }
+  }
+
+  editingExampleIdx.value = -1
+}
+
+function cancelRenameExample() {
+  editingExampleIdx.value = -1
 }
 
 function generateExample() {

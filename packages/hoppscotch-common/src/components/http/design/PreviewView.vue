@@ -393,21 +393,34 @@
               </div>
             </div>
           </div>
-          <!-- Right: example JSON -->
+          <!-- Right: example JSON with example selector -->
           <div class="lg:col-span-2">
             <div class="relative">
+              <!-- Example selector tabs -->
+              <div
+                v-if="previewExamples.length > 1"
+                class="flex items-center gap-1 overflow-x-auto mb-2 pb-1 border-b border-dividerLight"
+              >
+                <button
+                  v-for="(ex, exIdx) in previewExamples"
+                  :key="exIdx"
+                  class="px-2 py-0.5 text-xs rounded transition-colors shrink-0"
+                  :class="
+                    activeExamplePreviewTab === exIdx
+                      ? 'bg-accentLight/15 text-accent font-semibold'
+                      : 'text-secondary hover:text-secondaryDark hover:bg-primaryLight/40'
+                  "
+                  @click="activeExamplePreviewTab = exIdx"
+                >
+                  {{ ex.name }}
+                </button>
+              </div>
               <JsonExampleBlock
-                :content="
-                  currentResponse.bodyExample ||
-                  generateExampleFromSchema(
-                    resolvedResponseTree,
-                    modelResolver
-                  )
-                "
+                :content="activePreviewExampleBody"
                 :content-type="currentResponse.contentType"
               />
               <span
-                v-if="!currentResponse.bodyExample"
+                v-if="!hasPreviewStoredExamples && !activePreviewExampleBody"
                 class="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] rounded bg-secondaryLight/20 text-secondaryLight"
               >
                 自动生成
@@ -488,7 +501,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, watch } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV21,
@@ -557,6 +570,39 @@ function onSaveAs() {
 const showAuth = ref(false)
 const showResponseHeaders = ref(true)
 const activeResponseTab = ref(0)
+const activeExamplePreviewTab = ref(0)
+
+// --- Preview multi-example support ---
+const hasPreviewStoredExamples = computed(() => {
+  const model = currentResponse.value as any
+  return (model?.examples?.length ?? 0) > 0
+})
+
+const previewExamples = computed(() => {
+  const model = currentResponse.value as any
+  const stored = (model?.examples ?? []) as Array<{ name: string; body: string }>
+  if (stored.length > 0) return stored
+  // Virtual default
+  const tree = resolvedResponseTree.value
+  const body =
+    currentResponse.value?.bodyExample ||
+    generateExampleFromSchema(tree, modelResolver)
+  return [{ name: "默认示例", body }]
+})
+
+const activePreviewExampleBody = computed(() => {
+  const examples = previewExamples.value
+  const idx = activeExamplePreviewTab.value
+  if (idx >= 0 && idx < examples.length) {
+    return examples[idx].body
+  }
+  return ""
+})
+
+// Reset preview example tab when switching response tabs
+watch(activeResponseTab, () => {
+  activeExamplePreviewTab.value = 0
+})
 
 const tags = computed(() => props.request.tags ?? [])
 const responsibility = computed(() => props.request.responsibility ?? "")

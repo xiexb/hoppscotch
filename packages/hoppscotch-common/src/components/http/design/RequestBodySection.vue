@@ -102,20 +102,139 @@
         @update:model-value="onSchemaTreeUpdate"
       />
     </div>
+
+    <!-- ─── Examples Section ──────────────────────────────────── -->
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-secondary">
+          {{ t("body_examples.title") }}
+        </span>
+        <div class="flex items-center gap-2">
+          <button
+            class="text-xs text-secondaryLight hover:text-accent transition-colors flex items-center gap-1"
+            @click="addNewExample"
+          >
+            <IconPlus class="w-3 h-3" />
+            {{ t("body_examples.add_example") }}
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Default example (read-only, auto-generated) -->
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs text-secondaryLight font-medium">
+              {{ t("body_examples.default_example") }}
+            </span>
+            <span
+              class="px-1 py-0.5 text-[10px] rounded bg-secondaryLight/15 text-secondaryLight"
+            >
+              auto
+            </span>
+          </div>
+          <JsonExampleBlock
+            :content="defaultExampleContent"
+            :content-type="request.body.contentType || 'application/json'"
+            :editable="false"
+          />
+        </div>
+
+        <!-- User-created examples -->
+        <div
+          v-for="(example, index) in bodyExamples"
+          :key="index"
+        >
+          <div class="flex items-center gap-2 mb-1">
+            <!-- Rename mode -->
+            <template v-if="renamingIndex === index">
+              <input
+                v-model="renamingName"
+                class="bg-transparent border border-dividerLight rounded text-xs text-secondaryDark px-2 py-0.5 outline-none focus:border-accent flex-1"
+                @keyup.enter="confirmRenameExample(index)"
+                @keyup.escape="renamingIndex = -1"
+              />
+              <button
+                class="text-xs text-accent hover:text-accentDark transition-colors"
+                @click="confirmRenameExample(index)"
+              >
+                <IconCheck class="w-3.5 h-3.5" />
+              </button>
+              <button
+                class="text-xs text-secondaryLight hover:text-secondary transition-colors"
+                @click="renamingIndex = -1"
+              >
+                <IconX class="w-3.5 h-3.5" />
+              </button>
+            </template>
+            <!-- Display mode -->
+            <template v-else>
+              <span class="text-xs text-secondaryDark font-medium flex-1 truncate">
+                {{ example.name || `Example ${index + 1}` }}
+              </span>
+              <button
+                v-tippy="{ theme: 'tooltip' }"
+                :title="t('body_examples.rename')"
+                class="text-secondaryLight hover:text-secondary transition-colors p-0.5 rounded"
+                @click="startRenameExample(index)"
+              >
+                <IconEdit class="w-3 h-3" />
+              </button>
+              <button
+                v-tippy="{ theme: 'tooltip' }"
+                :title="t('body_examples.delete')"
+                class="text-secondaryLight hover:text-red-400 transition-colors p-0.5 rounded"
+                @click="deleteExample(index)"
+              >
+                <IconTrash class="w-3 h-3" />
+              </button>
+            </template>
+          </div>
+          <JsonExampleBlock
+            :content="example.body"
+            :content-type="example.contentType || request.body.contentType || 'application/json'"
+            :editable="true"
+            @update:content="(val) => updateExampleBody(index, val)"
+          />
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-if="bodyExamples.length === 0"
+          class="text-xs text-secondaryLight py-2 text-center border border-dashed border-dividerLight rounded"
+        >
+          {{ t("body_examples.no_examples") }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue"
-import type { HoppRESTRequest, HoppRESTSchemaNode } from "@hoppscotch/data"
+import type {
+  HoppRESTRequest,
+  HoppRESTSchemaNode,
+  HoppRESTBodyExample,
+} from "@hoppscotch/data"
 import { useService } from "dioc/vue"
 import { useI18n } from "@composables/i18n"
 import IconLink from "~icons/lucide/link"
 import IconUnlink from "~icons/lucide/unlink"
+import IconPlus from "~icons/lucide/plus"
+import IconCheck from "~icons/lucide/check"
+import IconX from "~icons/lucide/x"
+import IconEdit from "~icons/lucide/edit-3"
+import IconTrash from "~icons/lucide/trash-2"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
+import JsonExampleBlock from "./JsonExampleBlock.vue"
 import { WorkspaceModelService } from "~/services/workspace-model.service"
+import {
+  generateJsonFromSchemaTree,
+  generateXmlFromSchemaTree,
+} from "~/helpers/generateBodyExample"
 
 const t = useI18n()
 
@@ -235,5 +354,94 @@ function detachModel() {
     bodyModelRef: "",
     bodySchemaTree: snapshot,
   } as Partial<HoppRESTRequest>)
+}
+
+// ─── Examples ──────────────────────────────────────────────────
+
+const bodyExamples = computed<HoppRESTBodyExample[]>(
+  () => (props.request.bodyExamples ?? []) as HoppRESTBodyExample[]
+)
+
+// Model resolver for default example generation
+const modelResolver = (modelRefId: string) => {
+  const model = workspaceModelService.getModelById(modelRefId)
+  return model?.schemaTree as any
+}
+
+// Generate default example from bodySchemaTree
+const defaultExampleContent = computed(() => {
+  const tree = isBoundToModel.value
+    ? resolvedModelTree.value
+    : ((props.request.bodySchemaTree ?? []) as HoppRESTSchemaNode[])
+  const ct = props.request.body?.contentType
+
+  if (ct === "application/xml" || ct === "text/xml") {
+    return generateXmlFromSchemaTree(
+      (tree || []) as HoppRESTSchemaNode[],
+      modelResolver
+    )
+  }
+  return generateJsonFromSchemaTree(
+    (tree || []) as HoppRESTSchemaNode[],
+    modelResolver
+  )
+})
+
+// Add new example with current default content
+function addNewExample() {
+  const existing = bodyExamples.value
+  const newExample: HoppRESTBodyExample = {
+    name: `Example ${existing.length + 1}`,
+    body: defaultExampleContent.value,
+    contentType: props.request.body?.contentType || "application/json",
+  }
+  updateRequest({
+    bodyExamples: [...existing, newExample],
+  } as Partial<HoppRESTRequest>)
+}
+
+// Update example body content
+function updateExampleBody(index: number, content: string) {
+  const existing = [...bodyExamples.value]
+  if (index >= 0 && index < existing.length) {
+    existing[index] = { ...existing[index], body: content }
+    updateRequest({
+      bodyExamples: existing,
+    } as Partial<HoppRESTRequest>)
+  }
+}
+
+// Delete example
+function deleteExample(index: number) {
+  const existing = [...bodyExamples.value]
+  existing.splice(index, 1)
+  updateRequest({
+    bodyExamples: existing,
+  } as Partial<HoppRESTRequest>)
+}
+
+// Rename example
+const renamingIndex = ref(-1)
+const renamingName = ref("")
+
+function startRenameExample(index: number) {
+  renamingIndex.value = index
+  renamingName.value = bodyExamples.value[index]?.name || ""
+}
+
+function confirmRenameExample(index: number) {
+  const name = renamingName.value.trim()
+  if (!name) {
+    renamingIndex.value = -1
+    return
+  }
+  const existing = [...bodyExamples.value]
+  if (index >= 0 && index < existing.length) {
+    existing[index] = { ...existing[index], name }
+    updateRequest({
+      bodyExamples: existing,
+    } as Partial<HoppRESTRequest>)
+  }
+  renamingIndex.value = -1
 }
 </script>

@@ -2490,5 +2490,21 @@
     "no_results": "没有匹配的模型",
     "no_results_desc": "试试其他关键词",
     "uncategorized": "未分类"
+  },
+  "body_examples": {
+    "title": "请求体示例",
+    "default_example": "默认示例",
+    "select_example": "选择示例",
+    "add_example": "添加示例",
+    "manage_examples": "管理示例",
+    "example_name": "示例名称",
+    "example_name_placeholder": "输入示例名称",
+    "save_current_as": "将当前内容保存为示例",
+    "rename": "重命名",
+    "delete": "删除",
+    "delete_confirm": "确定要删除此示例吗？",
+    "no_examples": "暂无示例",
+    "load_example": "加载示例到编辑器",
+    "examples_tab": "示例"
   }
 }

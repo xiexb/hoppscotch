@@ -2525,5 +2525,21 @@
     "no_results": "No models match your search",
     "no_results_desc": "Try a different search term",
     "uncategorized": "Uncategorized"
+  },
+  "body_examples": {
+    "title": "Body Examples",
+    "default_example": "Default Example",
+    "select_example": "Select example",
+    "add_example": "Add Example",
+    "manage_examples": "Manage Examples",
+    "example_name": "Example name",
+    "example_name_placeholder": "Enter example name",
+    "save_current_as": "Save current content as example",
+    "rename": "Rename",
+    "delete": "Delete",
+    "delete_confirm": "Are you sure you want to delete this example?",
+    "no_examples": "No examples yet",
+    "load_example": "Load example into editor",
+    "examples_tab": "Examples"
   }
 }
