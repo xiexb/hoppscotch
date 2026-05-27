@@ -394,11 +394,11 @@ const defaultExampleContent = computed(() => {
 function addNewExample() {
   const existing = bodyExamples.value
   // Generate unique name
-  let baseName = `Example ${existing.length + 1}`
+  let baseName = t("body_examples.example_n", { n: existing.length + 1 })
   let counter = existing.length + 1
   while (existing.some((ex) => ex.name === baseName)) {
     counter++
-    baseName = `Example ${counter}`
+    baseName = t("body_examples.example_n", { n: counter })
   }
   const newExample: HoppRESTBodyExample = {
     name: baseName,

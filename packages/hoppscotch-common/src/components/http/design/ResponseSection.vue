@@ -363,7 +363,7 @@
     <template #body>
       <div class="flex flex-col space-y-3 px-2">
         <p class="text-xs text-secondary">
-          {{ t("response_section.json_import_description") }}
+          {{ t("response_section.import_json_description") }}
         </p>
         <textarea
           v-model="jsonParseInput"

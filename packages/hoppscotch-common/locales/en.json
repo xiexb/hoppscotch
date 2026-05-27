@@ -2547,7 +2547,8 @@
     "no_examples": "No examples yet",
     "load_example": "Load example into editor",
     "examples_tab": "Examples",
-    "duplicate_name": "An example with this name already exists"
+    "duplicate_name": "An example with this name already exists",
+    "example_n": "Example {n}"
   },
   "response_section": {
     "title": "Response",

@@ -61,7 +61,7 @@ import { computed, ref } from "vue"
 import IconEdit from "~icons/lucide/edit-3"
 import IconCopy from "~icons/lucide/copy"
 import { useToast } from "~/composables/toast"
-import { useI18n } from "~/composables/i18n"
+import { useI18n } from "@composables/i18n"
 
 const props = withDefaults(
   defineProps<{
