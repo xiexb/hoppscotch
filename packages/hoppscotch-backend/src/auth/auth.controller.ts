@@ -12,6 +12,11 @@ import {
 import { AuthService } from './auth.service';
 import { SignInMagicDto } from './dto/signin-magic.dto';
 import { VerifyMagicDto } from './dto/verify-magic.dto';
+import { SignInPasswordDto } from './dto/signin-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 import { Response } from 'express';
 import * as E from 'fp-ts/Either';
 import { RTJwtAuthGuard } from './guards/rt-jwt-auth.guard';
@@ -226,5 +231,84 @@ export class AuthController {
       uid: user.uid,
       message: 'Token is valid',
     };
+  }
+
+  /**
+   ** Route to sign in with email and password
+   */
+  @Post('password/signin')
+  async signInWithPassword(
+    @Body() data: SignInPasswordDto,
+    @Res() res: Response,
+  ) {
+    if (
+      !authProviderCheck(
+        AuthProvider.EMAIL_PASSWORD,
+        this.configService.get('INFRA.VITE_ALLOWED_AUTH_PROVIDERS'),
+      )
+    ) {
+      throwHTTPErr({ message: AUTH_PROVIDER_NOT_SPECIFIED, statusCode: 404 });
+    }
+    const authTokens = await this.authService.signInWithPassword(
+      data.email,
+      data.password,
+    );
+    if (E.isLeft(authTokens)) throwHTTPErr(authTokens.left);
+    authCookieHandler(res, authTokens.right, false, null, this.configService);
+  }
+
+  /**
+   ** Route to set password for the first time (authenticated user)
+   */
+  @Post('password/set')
+  @UseGuards(JwtAuthGuard)
+  async setPassword(
+    @GqlUser() user: AuthUser,
+    @Body() data: SetPasswordDto,
+  ) {
+    const result = await this.authService.setPassword(user.uid, data.password);
+    if (E.isLeft(result)) throwHTTPErr(result.left);
+    return result.right;
+  }
+
+  /**
+   ** Route to change password (authenticated user)
+   */
+  @Post('password/change')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @GqlUser() user: AuthUser,
+    @Body() data: ChangePasswordDto,
+  ) {
+    const result = await this.authService.changePassword(
+      user.uid,
+      data.oldPassword,
+      data.newPassword,
+    );
+    if (E.isLeft(result)) throwHTTPErr(result.left);
+    return result.right;
+  }
+
+  /**
+   ** Route to request password reset via email
+   */
+  @Post('password/reset-request')
+  async requestPasswordReset(@Body() data: RequestPasswordResetDto) {
+    const result = await this.authService.requestPasswordReset(data.email);
+    if (E.isLeft(result)) throwHTTPErr(result.left);
+    return result.right;
+  }
+
+  /**
+   ** Route to verify password reset token and set new password
+   */
+  @Post('password/reset-verify')
+  async verifyPasswordReset(@Body() data: VerifyPasswordResetDto) {
+    const result = await this.authService.verifyPasswordReset(
+      data.token,
+      data.newPassword,
+    );
+    if (E.isLeft(result)) throwHTTPErr(result.left);
+    return result.right;
   }
 }

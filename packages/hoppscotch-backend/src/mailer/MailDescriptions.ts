@@ -22,3 +22,11 @@ export type AdminUserInvitationMailDescription = {
     magicLink: string;
   };
 };
+
+export type PasswordResetMailDescription = {
+  template: 'password-reset';
+  variables: {
+    userEmail: string;
+    resetLink: string;
+  };
+};

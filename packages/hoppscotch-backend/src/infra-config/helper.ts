@@ -79,6 +79,19 @@ export function getAuthProviderRequiredKeys(
             InfraConfigEnum.MAILER_SMTP_URL,
             InfraConfigEnum.MAILER_ADDRESS_FROM,
           ],
+    [AuthProvider.EMAIL_PASSWORD]:
+      env['INFRA'].MAILER_USE_CUSTOM_CONFIGS === 'true'
+        ? [
+            InfraConfigEnum.MAILER_SMTP_HOST,
+            InfraConfigEnum.MAILER_SMTP_PORT,
+            InfraConfigEnum.MAILER_SMTP_SECURE,
+            InfraConfigEnum.MAILER_TLS_REJECT_UNAUTHORIZED,
+            InfraConfigEnum.MAILER_ADDRESS_FROM,
+          ]
+        : [
+            InfraConfigEnum.MAILER_SMTP_URL,
+            InfraConfigEnum.MAILER_ADDRESS_FROM,
+          ],
   };
 }
 

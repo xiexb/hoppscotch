@@ -15,6 +15,13 @@ import {
   MAGIC_LINK_EXPIRED,
   USER_NOT_FOUND,
   INVALID_REFRESH_TOKEN,
+  INVALID_CREDENTIALS,
+  PASSWORD_NOT_SET,
+  PASSWORD_TOO_SHORT,
+  INVALID_OLD_PASSWORD,
+  RESET_TOKEN_EXPIRED,
+  RESET_TOKEN_INVALID,
+  PASSWORD_ALREADY_SET,
 } from 'src/errors';
 import { validateEmail } from 'src/utils';
 import {
@@ -29,6 +36,7 @@ import { VerificationToken } from 'src/generated/prisma/client';
 import { Origin } from './helper';
 import { ConfigService } from '@nestjs/config';
 import { InfraConfigService } from 'src/infra-config/infra-config.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -388,5 +396,227 @@ export class AuthService {
 
   getAuthProviders() {
     return this.infraConfigService.getAllowedAuthProviders();
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  async signInWithPassword(email: string, password: string) {
+    if (!validateEmail(email))
+      return E.left(<RESTError>{
+        message: INVALID_EMAIL,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const queriedUser = await this.usersService.findUserByEmail(email);
+    if (O.isNone(queriedUser))
+      return E.left(<RESTError>{
+        message: INVALID_CREDENTIALS,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+
+    const user = queriedUser.value;
+    if (!user.passwordHash)
+      return E.left(<RESTError>{
+        message: PASSWORD_NOT_SET,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+
+    const isPasswordValid = await argon2.verify(user.passwordHash, password);
+    if (!isPasswordValid)
+      return E.left(<RESTError>{
+        message: INVALID_CREDENTIALS,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+
+    const tokens = await this.generateAuthTokens(user.uid);
+    if (E.isLeft(tokens)) return E.left(tokens.left);
+
+    // Create provider account if not exists
+    const profile = { provider: 'email-password', id: user.email };
+    const providerAccountExists = await this.checkIfProviderAccountExists(
+      user,
+      profile,
+    );
+    if (O.isNone(providerAccountExists)) {
+      await this.usersService.createProviderAccount(user, null, null, profile);
+    }
+
+    this.usersService.updateUserLastLoggedOn(user.uid);
+    return E.right(tokens.right);
+  }
+
+  /**
+   * Set password for the first time (user registered via magic link)
+   */
+  async setPassword(userUid: string, password: string) {
+    if (password.length < 8)
+      return E.left(<RESTError>{
+        message: PASSWORD_TOO_SHORT,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const user = await this.usersService.findUserById(userUid);
+    if (O.isNone(user))
+      return E.left(<RESTError>{
+        message: USER_NOT_FOUND,
+        statusCode: HttpStatus.NOT_FOUND,
+      });
+
+    if (user.value.passwordHash)
+      return E.left(<RESTError>{
+        message: PASSWORD_ALREADY_SET,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const passwordHash = await argon2.hash(password);
+    await this.prisma.user.update({
+      where: { uid: userUid },
+      data: { passwordHash },
+    });
+
+    return E.right({ message: 'Password set successfully' });
+  }
+
+  /**
+   * Change password (requires old password verification)
+   */
+  async changePassword(
+    userUid: string,
+    oldPassword: string,
+    newPassword: string,
+  ) {
+    if (newPassword.length < 8)
+      return E.left(<RESTError>{
+        message: PASSWORD_TOO_SHORT,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const user = await this.usersService.findUserById(userUid);
+    if (O.isNone(user))
+      return E.left(<RESTError>{
+        message: USER_NOT_FOUND,
+        statusCode: HttpStatus.NOT_FOUND,
+      });
+
+    if (!user.value.passwordHash)
+      return E.left(<RESTError>{
+        message: PASSWORD_NOT_SET,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const isOldPasswordValid = await argon2.verify(
+      user.value.passwordHash,
+      oldPassword,
+    );
+    if (!isOldPasswordValid)
+      return E.left(<RESTError>{
+        message: INVALID_OLD_PASSWORD,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+
+    const passwordHash = await argon2.hash(newPassword);
+    await this.prisma.user.update({
+      where: { uid: userUid },
+      data: { passwordHash },
+    });
+
+    return E.right({ message: 'Password changed successfully' });
+  }
+
+  /**
+   * Request password reset via email
+   */
+  async requestPasswordReset(email: string) {
+    if (!validateEmail(email))
+      return E.left(<RESTError>{
+        message: INVALID_EMAIL,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    const queriedUser = await this.usersService.findUserByEmail(email);
+    // Always return success to prevent email enumeration
+    if (O.isNone(queriedUser))
+      return E.right({
+        message: 'If the email exists, a reset link has been sent',
+      });
+
+    const user = queriedUser.value;
+    const token = randomUUID();
+    const expiresOn = new Date();
+    expiresOn.setHours(expiresOn.getHours() + 1); // 1 hour validity
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userUid: user.uid,
+        token,
+        expiresOn,
+      },
+    });
+
+    const baseUrl = this.configService.get('VITE_BASE_URL');
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    await this.mailerService.sendEmail(email, {
+      template: 'password-reset',
+      variables: {
+        resetLink: resetUrl,
+        userEmail: email,
+      },
+    });
+
+    return E.right({
+      message: 'If the email exists, a reset link has been sent',
+    });
+  }
+
+  /**
+   * Verify password reset token and set new password
+   */
+  async verifyPasswordReset(resetToken: string, newPassword: string) {
+    if (newPassword.length < 8)
+      return E.left(<RESTError>{
+        message: PASSWORD_TOO_SHORT,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    try {
+      const resetRecord =
+        await this.prisma.passwordResetToken.findUniqueOrThrow({
+          where: { token: resetToken },
+        });
+
+      if (resetRecord.usedAt)
+        return E.left(<RESTError>{
+          message: RESET_TOKEN_INVALID,
+          statusCode: HttpStatus.UNAUTHORIZED,
+        });
+
+      if (new Date() > resetRecord.expiresOn)
+        return E.left(<RESTError>{
+          message: RESET_TOKEN_EXPIRED,
+          statusCode: HttpStatus.UNAUTHORIZED,
+        });
+
+      const passwordHash = await argon2.hash(newPassword);
+
+      // Update password and mark token as used in a transaction
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { uid: resetRecord.userUid },
+          data: { passwordHash },
+        }),
+        this.prisma.passwordResetToken.update({
+          where: { token: resetToken },
+          data: { usedAt: new Date() },
+        }),
+      ]);
+
+      return E.right({ message: 'Password reset successfully' });
+    } catch (error) {
+      return E.left(<RESTError>{
+        message: RESET_TOKEN_INVALID,
+        statusCode: HttpStatus.UNAUTHORIZED,
+      });
+    }
   }
 }

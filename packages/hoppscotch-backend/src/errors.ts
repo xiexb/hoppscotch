@@ -4,6 +4,48 @@ export const EMAIL_FAILED = 'email/failed' as const;
 export const DUPLICATE_EMAIL = 'email/both_emails_cannot_be_same' as const;
 
 /**
+ * Invalid email or password credentials
+ * (AuthService)
+ */
+export const INVALID_CREDENTIALS = 'auth/invalid_credentials' as const;
+
+/**
+ * User has not set a password yet (e.g. magic link only user)
+ * (AuthService)
+ */
+export const PASSWORD_NOT_SET = 'auth/password_not_set' as const;
+
+/**
+ * Password is too short (minimum 8 characters)
+ * (AuthService)
+ */
+export const PASSWORD_TOO_SHORT = 'auth/password_too_short' as const;
+
+/**
+ * Old password is incorrect when changing password
+ * (AuthService)
+ */
+export const INVALID_OLD_PASSWORD = 'auth/invalid_old_password' as const;
+
+/**
+ * Password reset token has expired
+ * (AuthService)
+ */
+export const RESET_TOKEN_EXPIRED = 'auth/reset_token_expired' as const;
+
+/**
+ * Password reset token is invalid or already used
+ * (AuthService)
+ */
+export const RESET_TOKEN_INVALID = 'auth/reset_token_invalid' as const;
+
+/**
+ * User already has a password set
+ * (AuthService)
+ */
+export const PASSWORD_ALREADY_SET = 'auth/password_already_set' as const;
+
+/**
  * Only one admin account found in infra
  * (AdminService)
  */
