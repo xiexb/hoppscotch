@@ -895,6 +895,7 @@ async function startImport() {
     }
 
     // Import environments (between models and APIs)
+    let serverToServiceMap = new Map<string, string>()
     if (data.environments && data.environments.length > 0) {
       try {
         const servers = (
@@ -930,6 +931,15 @@ async function startImport() {
         if (importedEnvs.length > 0) {
           appendEnvironments(importedEnvs)
           importResult.environments = importedEnvs.length
+
+          // Build serverId → serviceId mapping for collection service binding
+          serverToServiceMap = buildServerToServiceMap(
+            data.environments as Array<{
+              name: string
+              baseUrls?: Record<string, string>
+            }>,
+            importedEnvs
+          )
         }
       } catch (e) {
         console.error("[Apifox Import] Failed to import environments:", e)
@@ -1003,6 +1013,30 @@ async function startImport() {
     if (importRes._tag === "Right") {
       const importedCollections = importRes.right
       importResult.collections = importedCollections.length
+
+      // Set selectedServiceId on each collection based on its dominant serverId
+      if (serverToServiceMap.size > 0 && filteredData.apiCollection) {
+        const apiColls = filteredData.apiCollection as Array<{
+          name: string
+          items?: Array<{
+            api?: { serverId?: string }
+            items?: unknown[]
+          }>
+        }>
+        for (
+          let i = 0;
+          i < apiColls.length && i < importedCollections.length;
+          i++
+        ) {
+          const dominantServerId = findDominantServerId(apiColls[i])
+          if (dominantServerId) {
+            const serviceId = serverToServiceMap.get(dominantServerId)
+            if (serviceId) {
+              importedCollections[i].selectedServiceId = serviceId
+            }
+          }
+        }
+      }
 
       // Count APIs in imported collections
       let importedApis = 0
@@ -1141,6 +1175,51 @@ function countRequestsInHoppCollection(coll: HoppCollection): number {
     count += countRequestsInHoppCollection(folder)
   }
   return count
+}
+
+/**
+ * Recursively walk an Apifox apiCollection tree and find the most common serverId.
+ * Returns the dominant serverId, or null if none found.
+ */
+function findDominantServerId(collection: {
+  items?: Array<{ api?: { serverId?: string }; items?: unknown[] }>
+}): string | null {
+  const serverIdCounts = new Map<string, number>()
+
+  function walk(
+    items: Array<{ api?: { serverId?: string }; items?: unknown[] }>
+  ) {
+    for (const item of items) {
+      if (item.api?.serverId) {
+        const count = serverIdCounts.get(item.api.serverId) || 0
+        serverIdCounts.set(item.api.serverId, count + 1)
+      }
+      if (item.items && Array.isArray(item.items)) {
+        walk(
+          item.items as Array<{
+            api?: { serverId?: string }
+            items?: unknown[]
+          }>
+        )
+      }
+    }
+  }
+
+  if (collection.items) {
+    walk(collection.items)
+  }
+
+  if (serverIdCounts.size === 0) return null
+
+  let maxCount = 0
+  let dominant: string | null = null
+  for (const [serverId, count] of serverIdCounts) {
+    if (count > maxCount) {
+      maxCount = count
+      dominant = serverId
+    }
+  }
+  return dominant
 }
 
 function nextTick(): Promise<void> {
