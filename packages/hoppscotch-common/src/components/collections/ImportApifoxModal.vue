@@ -465,6 +465,7 @@ import {
   importModels,
   collectApiRefs,
   importEnvironments,
+  buildServerToServiceMap,
 } from "~/helpers/import-export/import/apifox"
 import type { ApifoxProject } from "~/helpers/import-export/import/apifox"
 import { appendEnvironments } from "~/newstore/environments"
@@ -913,7 +914,18 @@ async function startImport() {
               description?: string
             }>
           }>,
-          servers
+          servers,
+          data.globalVariables as
+            | Array<{
+                id?: string
+                variables?: Array<{
+                  name: string
+                  value?: string
+                  initialValue?: string
+                  description?: string
+                }>
+              }>
+            | undefined
         )
         if (importedEnvs.length > 0) {
           appendEnvironments(importedEnvs)

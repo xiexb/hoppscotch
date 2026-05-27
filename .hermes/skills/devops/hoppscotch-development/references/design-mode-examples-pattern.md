@@ -52,6 +52,17 @@ effectiveExamples computed:
 />
 ```
 
+## Beautify/Format Button
+
+`JsonExampleBlock.vue` has a ✨ sparkles icon button in the preview toolbar (next to the copy button):
+- **JSON**: `JSON.parse()` then `JSON.stringify(parsed, null, 2)` — validates and reformats with 2-space indent
+- **XML**: Custom `beautifyXml()` function — normalizes whitespace between tags, adds proper indentation
+- Emits `update:content` with the formatted result (persists the change to the data model)
+- Shows toast: success ("已美化" / "Formatted!") or error ("JSON格式无效" / "Invalid JSON")
+- Works for both editable and read-only blocks — beautify always modifies content
+
+**i18n keys** (in `json_example_block` namespace): `beautify`, `beautified`, `invalid_json`, `unsupported_format`
+
 ## Preview Mode Sync
 
 PreviewView reads from the same data arrays:
@@ -112,6 +123,9 @@ For request body examples, the content type is `request.body.contentType` (JSON/
 
 ### XML example generation uses different function
 JSON examples use `generateJsonFromSchemaTree()` → `generateExampleFromSchema()`. XML uses `generateXmlFromSchemaTree()` which has its own tree walker with `escapeXml()` and `sanitizeXmlTag()`. Both support `modelResolver` for expanding `modelRef` nodes.
+
+### Tab selected-state uses text-accent, not text-primary
+The active example tab MUST use `border-b-2 border-accent font-semibold text-accent` — NOT `text-primary` (which renders white/invisible on light backgrounds). This is a user-corrected pattern that applies to ALL tab-style UIs in the design mode (request body examples, response examples, response model tabs).
 
 ### Reset activeExampleTab when switching contexts
 - ResponseSection: reset `activeExampleIdx` when switching response model tabs (via `watch(activeModel, () => { activeExampleIdx.value = 0 })`)

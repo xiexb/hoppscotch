@@ -86,6 +86,7 @@ export type ApifoxProject = {
   apiCollection?: unknown[]
   schemaCollection?: ApifoxSchemaFolder[]
   environments?: unknown[]
+  globalVariables?: unknown[]
   responseCollection?: unknown[]
   requestCollection?: unknown[]
   securitySchemeCollection?: unknown[]

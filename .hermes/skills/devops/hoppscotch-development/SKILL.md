@@ -280,20 +280,42 @@ Exception: `:icon="'icon-lucide-plus'"` as a **string prop** passed to `HoppButt
 
 **Fallback (if hide-secondary alone has issues):** Component-level `v-if` on `AppPaneLayout` itself with two separate layout trees (one with secondary, one without). This forces full destroy/recreate on mode switch but is heavier and duplicates the primary template.
 
-### Tab selected-state text color — avoid text-accentContrast
-When styling custom tab buttons with a selected (active) state, do NOT use `text-accentContrast` or `text-accent` for the selected text color:
-- `text-accentContrast` is typically white — invisible on light backgrounds (the tab has no background fill, only a bottom border indicator).
-- `text-accent` can also be too light depending on the theme.
+### Tab selected-state text color — use text-accent, not text-primary
+When styling custom tab buttons with a selected (active) state, do NOT use `text-primary` for the selected text color:
+- `text-primary` resolves to white in most themes — invisible on white/light backgrounds (the tab has no background fill, only a bottom border indicator).
+- `text-accentContrast` is also typically white — same problem.
 
-**Safe pattern:** Use `text-primary` for selected tab text (matches normal body text, always visible), with `font-bold` for emphasis and `border-b-2 border-accentLight` for the bottom indicator line:
+**Correct pattern (user-corrected):** Use `text-accent font-semibold` for selected tab text with `border-b-2 border-accent` for the bottom indicator line:
 ```vue
 :class="[
-  active ? 'border-b-2 border-accentLight font-bold text-primary' : 'text-secondary hover:text-secondaryDark'
+  active ? 'border-b-2 border-accent font-semibold text-accent' : 'text-secondary hover:text-secondaryDark'
 ]"
 ```
 
 ### HoppSmartTabs causes onMounted Vue warnings
 `HoppSmartTabs`/`HoppSmartTab` trigger `onMounted is called when there is no active component instance` warnings in certain rendering contexts. If this happens, replace with simple custom button tabs — see `RequestModeTabs.vue` in the mode tabs reference.
+
+### Cookie-based auth login MUST use page reload (CRITICAL)
+When implementing any cookie-based login flow (password, SSO callback, etc.), the post-login state sync **must** use `window.location.reload()` — NOT `hideModal()` + `setInitialUser()`.
+
+**Why:** `setInitialUser()` calls the GraphQL `me` query and updates `currentUser$` BehaviorSubject, but the app's reactive watchers (Login button visibility, user avatar, etc.) don't reliably re-evaluate from the in-place update. The login modal closes, but the app still shows the "Login" button and behaves as if the user is not authenticated.
+
+**Why reload works:** Page reload triggers `performAuthInit()` → `setInitialUser()` in the normal app bootstrap sequence, which properly initializes all auth state before any components render.
+
+**Correct pattern in Login.vue:**
+```typescript
+// CORRECT — matches SSO login behavior (redirect away + back)
+await platform.auth.signInWithPassword(email, password)
+showLoginSuccess()
+window.location.reload()
+
+// WRONG — setInitialUser() doesn't propagate to all watchers
+await platform.auth.signInWithPassword(email, password)
+await setInitialUser()
+hideModal()
+```
+
+**In platform auth implementation:** Do NOT call `setInitialUser()` inside `signInWithPassword()` — let the page reload handle it via `performAuthInit()`.
 
 ### HoppRESTReqBody is a zod union type
 `body.body` shape varies by `contentType`: null, `Array<{key,value}>` (multipart), `File|null` (binary), or `string`. Always use type guards (`typeof`, `Array.isArray`, `instanceof File`) when displaying body previews.
@@ -563,9 +585,6 @@ When a feature has a "first-time setup" mode and a "modification" mode (e.g., se
 
 **Anti-pattern (user-corrected):** Showing the same "change password" form (with old password field) when the user hasn't set a password yet. The user will say "首次设置密码的时候，不应该有新密码的输入框，应该直接设置."
 
-### PlatformDef optional method pattern
-When adding a new capability to `AuthPlatformDef` (or any `PlatformDef`), make the method optional (`?`) so other platform implementations (desktop, etc.) don't break. Check for method existence before calling: `if (platform.auth.newMethod) { ... }`. Add the interface method to `hoppscotch-common/src/platform/auth.ts`, implement in `selfhost-web/src/platform/auth/web/index.ts`, and optionally in `desktop/index.ts`.
-
 ### Cookie-based auth login MUST use page reload (CRITICAL)
 When implementing any cookie-based login flow (password, SSO callback, etc.), the post-login state sync **must** use `window.location.reload()` — NOT `hideModal()` + `setInitialUser()`.
 
@@ -597,12 +616,30 @@ Without this, the process exits immediately with `bash: node: command not found`
 
 ### Virtual vs stored examples — "auto" badge pattern (USER PREFERENCE)
 Design mode examples (both request body and response) use a virtual-to-stored pattern:
-- **Virtual default**: Auto-generated from schema tree, shown with an "auto" badge, editable
+- **Virtual default**: Auto-generated from schema tree, shown with an "auto" badge, **fully interactive**
 - **Stored examples**: User-created, persisted in `bodyExamples[]` or `responseModels[].examples[]`
 
-**User-corrected behavior:** The default example is NOT read-only. It should be fully editable and renamable like any other example. The "auto" badge only indicates it was auto-generated, not that it can't be modified. When the user edits or renames the virtual default, it materializes into a stored example.
+**User-corrected behavior:** The default example is NOT read-only. It should be **fully editable, renamable, and deletable** like any other example. The "auto" badge only indicates it was auto-generated, not that it can't be modified. When the user edits or renames the virtual default, it materializes into a stored example.
 
 **Tab UI:** All examples (virtual + stored) appear in a unified tab bar. Double-click to rename, × button to delete (when >1), + button to add. See `references/design-mode-examples-pattern.md` for the full implementation.
+
+**Edit-only features:** Certain features (like the beautify/format button) should ONLY appear in edit mode, not preview mode. Use `v-if="editable"` on the button. Preview mode is read-only for content modification.
+
+### Tab selected-state styling — use text-accent, not text-primary (USER PREFERENCE)
+When styling custom tab buttons (example tabs, status tabs, etc.) with a selected/active state:
+- **DO NOT use:** `border-accentLight font-bold text-primary` — `text-primary` resolves to white in most themes, making selected tabs invisible on light backgrounds
+- **DO use:** `border-accent font-semibold text-accent` — accent color is visible and consistent
+
+**Correct pattern:**
+```vue
+:class="[
+  activeIndex === idx
+    ? 'border-b-2 border-accent font-semibold text-accent'
+    : 'text-secondary hover:text-secondaryDark'
+]"
+```
+
+This applies to any custom tab implementation (example selector tabs, response status tabs, etc.).
 
 ## References
 

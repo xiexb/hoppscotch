@@ -47,6 +47,18 @@ type ApifoxEnvironment = {
   }>
 }
 
+type ApifoxGlobalVariable = {
+  id?: string
+  variables?: Array<{
+    name: string
+    value?: string
+    initialValue?: string
+    description?: string
+    isBindInitial?: boolean
+    isSync?: boolean
+  }>
+}
+
 type ApifoxApiCollection = {
   name: string
   id?: number
@@ -693,7 +705,8 @@ const extractBaseUrl = (data: ApifoxProject): string => {
  */
 export function importEnvironments(
   environments: ApifoxEnvironment[] | undefined,
-  servers?: ApifoxServer[]
+  servers?: ApifoxServer[],
+  globalVariables?: ApifoxGlobalVariable[]
 ): Environment[] {
   if (!environments || environments.length === 0) return []
 
@@ -705,15 +718,49 @@ export function importEnvironments(
     }
   }
 
+  // Flatten globalVariables into a single list of key-value pairs
+  const globalVars: Array<{ key: string; initialValue: string; currentValue: string }> = []
+  if (globalVariables && globalVariables.length > 0) {
+    for (const gv of globalVariables) {
+      if (gv.variables) {
+        for (const v of gv.variables) {
+          if (v.name) {
+            const val = v.value || v.initialValue || ""
+            globalVars.push({
+              key: v.name,
+              initialValue: val,
+              currentValue: val,
+            })
+          }
+        }
+      }
+    }
+  }
+
   return environments.map((env) => {
     const id = generateUniqueRefId("env")
-    const variables = (env.variables ?? [])
+
+    // Build env-specific variables
+    const envVars = (env.variables ?? [])
       .filter((v) => v.name)
-      .map((v) => ({
-        key: v.name,
-        value: v.value || v.initialValue || "",
-        secret: false,
-      }))
+      .map((v) => {
+        const val = v.value || v.initialValue || ""
+        return {
+          key: v.name,
+          initialValue: val,
+          currentValue: val,
+          secret: false,
+        }
+      })
+
+    // Merge global variables as prefix, env variables take priority on name conflict
+    const envVarKeys = new Set(envVars.map((v) => v.key))
+    const mergedVars = [
+      ...globalVars
+        .filter((gv) => !envVarKeys.has(gv.key))
+        .map((gv) => ({ key: gv.key, initialValue: gv.initialValue, currentValue: gv.currentValue, secret: false })),
+      ...envVars,
+    ]
 
     // Build services from baseUrls
     const services: EnvironmentService[] = []
@@ -741,7 +788,7 @@ export function importEnvironments(
       id,
       v: 3 as const,
       name: env.name || "Imported",
-      variables,
+      variables: mergedVars,
       services,
     }
   })
