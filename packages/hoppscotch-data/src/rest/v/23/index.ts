@@ -28,7 +28,7 @@ export type HoppRESTResponseExample = z.infer<typeof HoppRESTResponseExample>
 // Extends v21 response model with an examples array.
 
 export const HoppRESTResponseModelV23 = HoppRESTResponseModelV21.extend({
-  examples: z.array(HoppRESTResponseExample).catch([]),
+  examples: z.array(HoppRESTResponseExample).max(20).catch([]),
 })
 
 export type HoppRESTResponseModelV23 = z.infer<typeof HoppRESTResponseModelV23>
@@ -39,9 +39,9 @@ export type HoppRESTResponseModelV23 = z.infer<typeof HoppRESTResponseModelV23>
 export const V23_SCHEMA = V22_SCHEMA.extend({
   v: z.literal("23"),
   /** Named examples for the request body */
-  bodyExamples: z.array(HoppRESTBodyExample).catch([]),
+  bodyExamples: z.array(HoppRESTBodyExample).max(20).catch([]),
   /** Override responseModels with v23 version (adds examples) */
-  responseModels: z.array(HoppRESTResponseModelV23).catch([]),
+  responseModels: z.array(HoppRESTResponseModelV23).max(20).catch([]),
 })
 
 // ─── Version definition ────────────────────────────────────────────

@@ -13,7 +13,7 @@
           {{ fullEndpoint }}
         </span>
         <HoppButtonPrimary
-          :label="'手动调试'"
+          :label="t('preview_view.manual_debug')"
           class="shrink-0"
           @click="emit('switchToDebug')"
         />
@@ -64,15 +64,15 @@
       class="flex items-center gap-4 px-4 py-2 text-xs text-secondaryLight border-y border-dividerLight bg-primaryLight/30 overflow-x-auto"
     >
       <span v-if="responsibility" class="shrink-0">
-        <span class="text-secondaryDark font-medium">负责人:</span>
+        <span class="text-secondaryDark font-medium">{{ t('preview_view.responsibility') }}:</span>
         {{ responsibility }}
       </span>
       <span v-if="tags.length > 0" class="shrink-0">
-        <span class="text-secondaryDark font-medium">标签:</span>
+        <span class="text-secondaryDark font-medium">{{ t('preview_view.tags') }}:</span>
         {{ tags.join(", ") }}
       </span>
       <span v-if="description" class="truncate max-w-xs">
-        <span class="text-secondaryDark font-medium">说明:</span>
+        <span class="text-secondaryDark font-medium">{{ t('preview_view.description') }}:</span>
         {{ description }}
       </span>
     </div>
@@ -83,7 +83,7 @@
       <h3
         class="text-xs font-bold text-secondaryDark uppercase tracking-wider"
       >
-        请求参数
+        {{ t('preview_view.request_parameters') }}
       </h3>
 
       <!-- Authorization -->
@@ -105,14 +105,14 @@
           v-if="showAuth"
           class="mt-2 text-xs text-secondary bg-primaryLight rounded-lg p-3 ml-5 border border-dividerLight"
         >
-          在 Header 添加参数 Authorization，其值为 Bearer 之后拼接 Token
+          {{ t('preview_view.auth_description') }}
         </div>
       </div>
 
       <!-- Path Params -->
       <div v-if="activePathParams.length > 0">
         <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
-          Path 参数
+          {{ t('preview_view.path_parameters') }}
           <span class="text-secondaryLight font-normal">({{ activePathParams.length }})</span>
         </h4>
         <div class="space-y-0.5">
@@ -131,7 +131,7 @@
             >
             <span
               class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium"
-              >必填</span
+              >{{ t('preview_view.required') }}</span
             >
             <span
               v-if="param.description"
@@ -145,7 +145,7 @@
       <!-- Headers -->
       <div v-if="activeHeaders.length > 0">
         <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
-          Header 参数
+          {{ t('preview_view.header_parameters') }}
           <span class="text-secondaryLight font-normal">({{ activeHeaders.length }})</span>
         </h4>
         <div class="space-y-0.5">
@@ -165,14 +165,14 @@
               >
               <span
                 class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium"
-                >必填</span
+                >{{ t('preview_view.required') }}</span
               >
             </div>
             <div
               v-if="header.value"
               class="text-xs text-secondaryLight ml-4 mt-1 font-mono"
             >
-              示例: {{ header.value }}
+              {{ t('preview_view.example') }}: {{ header.value }}
             </div>
           </div>
         </div>
@@ -181,7 +181,7 @@
       <!-- Body (two-column layout) -->
       <div v-if="request.body.contentType">
         <h4 class="text-xs font-semibold text-secondaryDark mb-3 ml-1">
-          Body 参数
+          {{ t('preview_view.body_parameters') }}
           <span class="text-secondaryLight font-normal font-mono ml-1">
             {{ request.body.contentType }}
           </span>
@@ -206,7 +206,7 @@
                 class="flex items-center gap-2 px-3 py-2 bg-primaryLight/40 border-b border-dividerLight"
               >
                 <span class="text-xs font-semibold text-secondary"
-                  >字段结构</span
+                  >{{ t('preview_view.field_structure') }}</span
                 >
               </div>
               <div class="p-1">
@@ -257,7 +257,7 @@
                   <span
                     v-if="param.required"
                     class="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/15 text-orange-500 font-medium shrink-0"
-                    >必填</span
+                    >{{ t('preview_view.required') }}</span
                   >
                   <span
                     v-if="param.description"
@@ -271,7 +271,7 @@
                 class="flex flex-col items-center justify-center py-8 text-secondaryLight"
               >
                 <icon-lucide-inbox class="w-8 h-8 mb-2 opacity-40" />
-                <span class="text-xs">暂无字段定义</span>
+                <span class="text-xs">{{ t('preview_view.no_fields') }}</span>
               </div>
             </div>
           </div>
@@ -291,7 +291,7 @@
         class="flex flex-col items-center justify-center py-10 text-secondaryLight"
       >
         <icon-lucide-file-json class="w-10 h-10 mb-3 opacity-30" />
-        <span class="text-sm">暂无请求参数</span>
+        <span class="text-sm">{{ t('preview_view.no_parameters') }}</span>
       </div>
     </div>
 
@@ -303,7 +303,7 @@
       <h3
         class="text-xs font-bold text-secondaryDark uppercase tracking-wider"
       >
-        返回响应
+        {{ t('preview_view.response') }}
       </h3>
 
       <!-- Response tabs (compact, color-coded by status code) -->
@@ -329,12 +329,12 @@
           />
           <span class="font-mono">{{ model.statusCode }}</span>
           <span class="max-w-[120px] truncate">{{
-            model.description || "响应"
+            model.description || t('preview_view.response')
           }}</span>
           <IconLink
             v-if="model.rootModelRef"
             class="w-3 h-3 text-purple-500 shrink-0"
-            title="已绑定模型"
+            :title="t('preview_view.bound_model')"
           />
         </button>
       </div>
@@ -345,7 +345,7 @@
           class="flex items-center gap-3 text-xs text-secondary bg-primaryLight/30 rounded-lg px-3 py-2"
         >
           <span>
-            HTTP 状态码:
+            {{ t('preview_view.http_status_code') }}
             <span class="font-mono font-semibold">{{
               currentResponse.statusCode
             }}</span>
@@ -365,14 +365,14 @@
                 class="flex items-center gap-2 px-3 py-2 bg-primaryLight/40 border-b border-dividerLight"
               >
                 <span class="text-xs font-semibold text-secondary"
-                  >数据结构</span
+                  >{{ t('preview_view.data_structure') }}</span
                 >
                 <span
                   v-if="isBoundToModel"
                   class="px-1.5 py-0.5 text-[10px] rounded bg-purple-500/15 text-purple-500 flex items-center gap-0.5"
                 >
                   <IconLink class="w-2.5 h-2.5" />
-                  引用: {{ boundModelName }}
+                  {{ t('preview_view.reference') }}: {{ boundModelName }}
                 </span>
               </div>
               <div v-if="resolvedResponseTree.length > 0" class="p-1">
@@ -389,7 +389,7 @@
                 class="flex flex-col items-center justify-center py-8 text-secondaryLight"
               >
                 <icon-lucide-tree-deciduous class="w-8 h-8 mb-2 opacity-40" />
-                <span class="text-xs">暂无数据结构定义</span>
+                <span class="text-xs">{{ t('preview_view.no_schema') }}</span>
               </div>
             </div>
           </div>
@@ -423,7 +423,7 @@
                 v-if="!hasPreviewStoredExamples && !activePreviewExampleBody"
                 class="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] rounded bg-secondaryLight/20 text-secondaryLight"
               >
-                自动生成
+                {{ t('preview_view.auto_generated') }}
               </span>
             </div>
           </div>
@@ -443,7 +443,7 @@
             />
             <span
               class="text-xs font-semibold text-secondaryDark group-hover:text-primary transition-colors"
-              >响应 Headers</span
+              >{{ t('preview_view.response_headers') }}</span
             >
             <span class="text-xs text-secondaryLight"
               >({{ currentResponse.headers.length }})</span
@@ -464,7 +464,7 @@
                     <th
                       class="text-left py-2 px-3 font-semibold text-secondaryDark border-b border-dividerLight"
                     >
-                      说明
+                      {{ t('preview_view.description_column') }}
                     </th>
                   </tr>
                 </thead>
@@ -494,7 +494,7 @@
         class="flex flex-col items-center justify-center py-10 text-secondaryLight"
       >
         <icon-lucide-inbox class="w-10 h-10 mb-3 opacity-30" />
-        <span class="text-sm">暂无响应定义</span>
+        <span class="text-sm">{{ t('preview_view.no_responses') }}</span>
       </div>
     </div>
   </div>
@@ -504,7 +504,7 @@
 import { ref, computed, watch } from "vue"
 import type {
   HoppRESTRequest,
-  HoppRESTResponseModelV21,
+  HoppRESTResponseModelV23,
   HoppRESTSchemaNode,
 } from "@hoppscotch/data"
 import { useService } from "dioc/vue"
@@ -574,12 +574,12 @@ const activeExamplePreviewTab = ref(0)
 
 // --- Preview multi-example support ---
 const hasPreviewStoredExamples = computed(() => {
-  const model = currentResponse.value as any
+  const model = currentResponse.value
   return (model?.examples?.length ?? 0) > 0
 })
 
 const previewExamples = computed(() => {
-  const model = currentResponse.value as any
+  const model = currentResponse.value
   const stored = (model?.examples ?? []) as Array<{ name: string; body: string }>
   if (stored.length > 0) return stored
   // Virtual default
@@ -587,7 +587,7 @@ const previewExamples = computed(() => {
   const body =
     currentResponse.value?.bodyExample ||
     generateExampleFromSchema(tree, modelResolver)
-  return [{ name: "默认示例", body }]
+  return [{ name: t("preview_view.default_example"), body }]
 })
 
 const activePreviewExampleBody = computed(() => {
@@ -617,7 +617,7 @@ const activeHeaders = computed(() =>
 )
 
 const responseModels = computed(
-  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV21[]
+  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV23[]
 )
 const currentResponse = computed(
   () => responseModels.value[activeResponseTab.value] ?? null
@@ -648,7 +648,7 @@ const bodyBoundModelName = computed(() => {
   const refId = props.request.bodyModelRef ?? ""
   if (!refId) return ""
   const model = workspaceModelService.getModelById(refId)
-  return model?.name ?? "未知模型"
+  return model?.name ?? t("preview_view.unknown_model")
 })
 
 // --- Model binding computeds ---
@@ -671,7 +671,7 @@ const boundModelName = computed(() => {
   const refId = currentResponse.value?.rootModelRef
   if (!refId) return ""
   const model = workspaceModelService.getModelById(refId)
-  return model?.name ?? "未知模型"
+  return model?.name ?? t("preview_view.unknown_model")
 })
 
 const fullEndpoint = computed(() => {

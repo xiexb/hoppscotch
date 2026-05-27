@@ -2,7 +2,7 @@
   <div class="p-4 space-y-4">
     <!-- Section header -->
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-secondaryDark">返回响应</h3>
+      <h3 class="text-sm font-semibold text-secondaryDark">{{ t("response_section.title") }}</h3>
     </div>
 
     <!-- Status code tabs -->
@@ -24,11 +24,11 @@
           class="w-1.5 h-1.5 rounded-full"
           :class="statusDotClass(model.statusCode)"
         />
-        {{ model.statusCode }} {{ model.description || "响应" }}
+        {{ model.statusCode }} {{ model.description || t("response_section.response") }}
         <IconLink
           v-if="model.rootModelRef"
           class="w-3 h-3 text-purple-500"
-          title="已绑定模型"
+          :title="t('response_section.bound_model')"
         />
       </button>
       <button
@@ -44,7 +44,7 @@
       <!-- Meta info row -->
       <div class="flex items-center gap-4 text-xs flex-wrap">
         <div class="flex items-center gap-1.5">
-          <span class="text-secondary">HTTP 状态码:</span>
+          <span class="text-secondary">{{ t("response_section.http_status_code") }}</span>
           <input
             :value="currentModel.statusCode"
             type="number"
@@ -56,16 +56,16 @@
           />
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="text-secondary">名称:</span>
+          <span class="text-secondary">{{ t("response_section.name") }}</span>
           <input
             :value="currentModel.description"
             class="w-32 bg-transparent border border-dividerLight rounded px-2 py-1 text-secondaryDark outline-none focus:border-accent"
-            placeholder="成功"
+            :placeholder="t('response_section.name_placeholder')"
             @input="onMetaInput('description', $event)"
           />
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="text-secondary">内容格式:</span>
+          <span class="text-secondary">{{ t("response_section.content_format") }}</span>
           <select
             :value="currentModel.contentType"
             class="bg-transparent border border-dividerLight rounded px-2 py-1 text-secondaryDark outline-none focus:border-accent"
@@ -82,7 +82,7 @@
         }}</span>
         <button
           class="ml-auto text-secondaryLight hover:text-red-400 transition-colors"
-          title="删除此响应"
+          :title="t('response_section.delete_response')"
           @click="confirmRemoveResponseModel(activeModel)"
         >
           <IconTrash class="w-3.5 h-3.5" />
@@ -93,7 +93,7 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-secondary">数据结构</span>
+            <span class="text-xs font-semibold text-secondary">{{ t("response_section.data_structure") }}</span>
             <!-- Bound state: show badge + detach button -->
             <template v-if="isBoundToModel">
               <span
@@ -107,7 +107,7 @@
                 @click="detachModel"
               >
                 <IconUnlink class="w-2.5 h-2.5" />
-                解除绑定
+                {{ t("response_section.unbind") }}
               </button>
             </template>
           </div>
@@ -120,7 +120,7 @@
                 @click="showModelPicker = !showModelPicker"
               >
                 <IconLink class="w-3 h-3" />
-                引用模型
+                {{ t("response_section.bind_model") }}
               </button>
               <!-- Model picker dropdown -->
               <div
@@ -166,7 +166,7 @@
             v-else
             class="text-xs text-secondaryLight py-4 text-center border border-dashed border-dividerLight rounded"
           >
-            绑定的模型暂无字段定义
+            {{ t("response_section.no_fields_bound") }}
           </div>
         </template>
 
@@ -183,31 +183,31 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-secondary">示例</span>
+            <span class="text-xs font-semibold text-secondary">{{ t("response_section.examples") }}</span>
             <span
               v-if="effectiveExamples.length > 0 && !hasStoredExamples"
               class="text-[10px] text-secondaryLight bg-secondaryLight/10 px-1.5 py-0.5 rounded"
             >
-              自动生成
+              {{ t("response_section.auto_generated") }}
             </span>
           </div>
           <div class="flex items-center gap-2">
             <button
               v-if="!isBoundToModel"
               class="text-xs text-secondaryLight hover:text-accent flex items-center gap-1"
-              title="从 JSON 反向解析 Schema"
+              :title="t('response_section.import_from_json_title')"
               @click="openJsonParseDialog"
             >
               <IconFileJson class="w-3 h-3" />
-              从 JSON 导入
+              {{ t("response_section.import_from_json") }}
             </button>
             <button
               class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
-              title="添加示例"
+              :title="t('response_section.add_example')"
               @click="addExample"
             >
               <IconPlus class="w-3 h-3" />
-              添加示例
+              {{ t("response_section.add_example") }}
             </button>
           </div>
         </div>
@@ -248,7 +248,7 @@
               <button
                 v-if="effectiveExamples.length > 1"
                 class="text-secondaryLight hover:text-red-400 transition-colors ml-0.5"
-                title="删除示例"
+                :title="t('response_section.delete_example')"
                 @click.stop="removeExample(exIdx)"
               >
                 <IconX class="w-3 h-3" />
@@ -269,13 +269,13 @@
       <!-- Response Headers (editable) -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-secondary">响应 Headers</span>
+          <span class="text-xs font-semibold text-secondary">{{ t("response_section.response_headers") }}</span>
           <button
             class="text-xs text-accent hover:text-accentDark flex items-center gap-1"
             @click="addHeader"
           >
             <IconPlus class="w-3 h-3" />
-            添加
+            {{ t("response_section.add") }}
           </button>
         </div>
         <div
@@ -293,7 +293,7 @@
                 <th
                   class="text-left py-1.5 px-2 font-semibold text-secondaryDark"
                 >
-                  说明
+                  {{ t("response_section.description") }}
                 </th>
                 <th class="w-8 py-1.5 px-1"></th>
               </tr>
@@ -316,7 +316,7 @@
                   <input
                     :value="header.description"
                     class="w-full bg-transparent outline-none text-secondaryDark"
-                    placeholder="响应头说明"
+                    :placeholder="t('response_section.header_description_placeholder')"
                     @input="onHeaderInput(hIdx, 'description', $event)"
                   />
                 </td>
@@ -336,19 +336,19 @@
           v-else
           class="text-xs text-secondaryLight py-2 text-center border border-dashed border-dividerLight rounded"
         >
-          暂无响应头定义
+          {{ t("response_section.no_headers") }}
         </div>
       </div>
     </div>
 
     <!-- Empty state -->
     <div v-else class="text-xs text-secondaryLight py-8 text-center">
-      暂无响应定义
+      {{ t("response_section.no_responses") }}
       <button
         class="ml-2 text-accent hover:text-accentDark"
         @click="addResponseModel"
       >
-        添加
+        {{ t("response_section.add") }}
       </button>
     </div>
   </div>
@@ -356,15 +356,14 @@
   <!-- JSON Reverse Parse Dialog -->
   <HoppSmartModal
     v-if="showJsonParseDialog"
-    title="从 JSON 导入 Schema"
+    :title="t('response_section.import_from_json_title')"
     :full-width-body="true"
     @close="closeJsonParseDialog"
   >
     <template #body>
       <div class="flex flex-col space-y-3 px-2">
         <p class="text-xs text-secondary">
-          粘贴 JSON 示例数据，系统将自动推断字段类型并生成 Schema 结构。 已有的
-          Schema 将被替换。
+          {{ t("response_section.json_import_description") }}
         </p>
         <textarea
           v-model="jsonParseInput"
@@ -385,12 +384,12 @@
         <span v-else />
         <span class="flex gap-2">
           <HoppButtonPrimary
-            label="导入"
+            :label="t('response_section.import')"
             :disabled="!jsonParseInput.trim()"
             @click="confirmJsonParse"
           />
           <HoppButtonSecondary
-            label="取消"
+            :label="t('response_section.cancel')"
             outline
             filled
             @click="closeJsonParseDialog"
@@ -405,10 +404,12 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue"
 import type {
   HoppRESTRequest,
-  HoppRESTResponseModelV21,
+  HoppRESTResponseModelV23,
   HoppRESTResponseExample,
   HoppRESTSchemaNode,
 } from "@hoppscotch/data"
+import { useI18n } from "@composables/i18n"
+import { useToast } from "@composables/toast"
 import { useService } from "dioc/vue"
 import IconTrash from "~icons/lucide/trash-2"
 import IconPlus from "~icons/lucide/plus"
@@ -429,6 +430,9 @@ import {
 } from "./utils/schemaExample"
 import type { ModelResolver } from "./utils/schemaExample"
 import { WorkspaceModelService } from "~/services/workspace-model.service"
+
+const t = useI18n()
+const toast = useToast()
 
 // Workspace model service for resolving modelRef
 const workspaceModelService = useService(WorkspaceModelService)
@@ -489,13 +493,13 @@ const renameBuffer = ref("")
 
 // Whether the current response model has stored examples (not virtual)
 const hasStoredExamples = computed(() => {
-  const model = currentModel.value as any
+  const model = currentModel.value
   return (model?.examples?.length ?? 0) > 0
 })
 
 // Effective examples: if stored examples exist, use them; otherwise show virtual default
 const effectiveExamples = computed((): HoppRESTResponseExample[] => {
-  const model = currentModel.value as any
+  const model = currentModel.value
   const stored = (model?.examples ?? []) as HoppRESTResponseExample[]
   if (stored.length > 0) return stored
   // Virtual default example
@@ -505,7 +509,7 @@ const effectiveExamples = computed((): HoppRESTResponseExample[] => {
   const body =
     currentModel.value?.bodyExample ||
     generateExampleFromSchema(tree, modelResolver)
-  return [{ name: "默认示例", body }]
+  return [{ name: t("response_section.default_example"), body }]
 })
 
 // Active example body content
@@ -530,7 +534,7 @@ const jsonParseInput = ref("")
 const jsonParseError = ref("")
 
 const responseModels = computed(
-  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV21[]
+  () => (props.request.responseModels ?? []) as HoppRESTResponseModelV23[]
 )
 
 const currentModel = computed(
@@ -558,7 +562,7 @@ const boundModelName = computed(() => {
   const refId = currentModel.value?.rootModelRef
   if (!refId) return ""
   const model = workspaceModelService.getModelById(refId)
-  return model?.name ?? "未知模型"
+  return model?.name ?? t("response_section.unknown_model")
 })
 
 // --- Real-time example linkage ---
@@ -623,13 +627,13 @@ onBeforeUnmount(() => {
   document.removeEventListener("click", handleClickOutside)
 })
 
-function ensureModels(): HoppRESTResponseModelV21[] {
-  return [...(props.request.responseModels ?? [])] as HoppRESTResponseModelV21[]
+function ensureModels(): HoppRESTResponseModelV23[] {
+  return [...(props.request.responseModels ?? [])] as HoppRESTResponseModelV23[]
 }
 
 function updateModel(
   index: number,
-  updated: Partial<HoppRESTResponseModelV21>
+  updated: Partial<HoppRESTResponseModelV23>
 ) {
   const models = ensureModels()
   models[index] = { ...models[index], ...updated }
@@ -648,7 +652,7 @@ function addResponseModel() {
     contentType: "application/json",
     rootModelRef: "",
     examples: [],
-  } as any)
+  })
   emit("update:request", { ...props.request, responseModels: models })
   activeModel.value = models.length - 1
   activeExampleIdx.value = 0
@@ -657,9 +661,9 @@ function addResponseModel() {
 function confirmRemoveResponseModel(index: number) {
   const model = responseModels.value[index]
   const label = model
-    ? `${model.statusCode} ${model.description || "响应"}`
-    : "此响应"
-  if (confirm(`确定删除响应 "${label}" 吗？`)) {
+    ? `${model.statusCode} ${model.description || t("response_section.response")}`
+    : t("response_section.response")
+  if (confirm(t("response_section.confirm_delete", { label }))) {
     removeResponseModel(index)
   }
 }
@@ -700,7 +704,7 @@ function onSchemaTreeUpdate(tree: HoppRESTSchemaNode[]) {
 function onExampleContentUpdate(val: string) {
   const idx = activeModel.value
   const exIdx = activeExampleIdx.value
-  const model = ensureModels()[idx] as any
+  const model = ensureModels()[idx]
 
   if (!hasStoredExamples.value) {
     // Virtual default: materialize examples array with the current default + update
@@ -711,7 +715,7 @@ function onExampleContentUpdate(val: string) {
       currentModel.value?.bodyExample ||
       generateExampleFromSchema(tree, modelResolver)
     const examples: HoppRESTResponseExample[] = [
-      { name: "默认示例", body: val },
+      { name: t("response_section.default_example"), body: val },
     ]
     // Keep bodyExample in sync for backward compatibility
     updateModel(idx, { examples, bodyExample: val })
@@ -733,7 +737,7 @@ function onExampleContentUpdate(val: string) {
 
 function addExample() {
   const idx = activeModel.value
-  const model = ensureModels()[idx] as any
+  const model = ensureModels()[idx]
   const existingExamples = (model?.examples ?? []) as HoppRESTResponseExample[]
 
   if (existingExamples.length === 0) {
@@ -744,18 +748,31 @@ function addExample() {
     const defaultBody =
       currentModel.value?.bodyExample ||
       generateExampleFromSchema(tree, modelResolver)
+    const defaultName = t("response_section.default_example")
+    // Generate a unique name for the second example
+    let newName = t("response_section.example_n", { n: "2" })
+    let counter = 2
+    while (existingExamples.some((ex) => ex.name === newName) || newName === defaultName) {
+      counter++
+      newName = t("response_section.example_n", { n: String(counter) })
+    }
     const examples: HoppRESTResponseExample[] = [
-      { name: "默认示例", body: defaultBody },
-      { name: "示例 2", body: "" },
+      { name: defaultName, body: defaultBody },
+      { name: newName, body: "" },
     ]
     updateModel(idx, { examples, bodyExample: defaultBody })
     activeExampleIdx.value = 1
   } else {
-    // Add new example
-    const newIdx = existingExamples.length + 1
+    // Add new example with unique name
+    let newName = t("response_section.example_n", { n: String(existingExamples.length + 1) })
+    let counter = existingExamples.length + 1
+    while (existingExamples.some((ex) => ex.name === newName)) {
+      counter++
+      newName = t("response_section.example_n", { n: String(counter) })
+    }
     const examples: HoppRESTResponseExample[] = [
       ...existingExamples,
-      { name: `示例 ${newIdx}`, body: "" },
+      { name: newName, body: "" },
     ]
     updateModel(idx, { examples })
     activeExampleIdx.value = examples.length - 1
@@ -764,7 +781,7 @@ function addExample() {
 
 function removeExample(exIdx: number) {
   const idx = activeModel.value
-  const model = ensureModels()[idx] as any
+  const model = ensureModels()[idx]
   const examples = [...(model?.examples ?? [])] as HoppRESTResponseExample[]
 
   if (examples.length <= 1) return // keep at least one
@@ -807,8 +824,14 @@ function confirmRenameExample() {
   }
 
   const idx = activeModel.value
-  const model = ensureModels()[idx] as any
+  const model = ensureModels()[idx]
   const existingExamples = (model?.examples ?? []) as HoppRESTResponseExample[]
+
+  // Check for duplicate names
+  if (existingExamples.some((ex, i) => i !== exIdx && ex.name === newName)) {
+    toast.error(t("response_section.duplicate_name_error"))
+    return
+  }
 
   if (existingExamples.length === 0) {
     // Materialize virtual default with new name
@@ -862,7 +885,7 @@ function confirmJsonParse() {
   if (currentTree && currentTree.length > 0) {
     if (
       !confirm(
-        `当前已有 ${currentTree.length} 个字段，导入将覆盖现有内容。是否继续？`
+        t("response_section.confirm_import_overwrite", { count: currentTree.length })
       )
     ) {
       return
@@ -870,7 +893,7 @@ function confirmJsonParse() {
   }
   const tree = parseJsonToSchemaTree(jsonParseInput.value)
   if (tree === null) {
-    jsonParseError.value = "JSON 解析失败，请检查格式"
+    jsonParseError.value = t("response_section.json_parse_error")
     return
   }
   // Clear manual override since we're replacing the schema

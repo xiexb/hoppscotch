@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { useVModel } from "@vueuse/core"
 import { computed, ref } from "vue"
+import type { HoppRESTResponseModelV23 } from "@hoppscotch/data"
 import { HoppRequestDocument } from "~/helpers/rest/document"
 import { useResponseBody } from "@composables/lens-actions"
 import { getStatusCodeReasonPhrase } from "~/helpers/utils/statusCodes"
@@ -133,9 +134,9 @@ const onSaveAsExample = () => {
 
     // Also save to matching responseModel's examples array (Design mode)
     const statusCodeStr = String(response.statusCode)
-    const responseModels = (doc.value.request.responseModels ?? []) as any[]
+    const responseModels = (doc.value.request.responseModels ?? []) as HoppRESTResponseModelV23[]
     const matchingModelIdx = responseModels.findIndex(
-      (m: any) => m.statusCode === statusCodeStr
+  (m) => m.statusCode === statusCodeStr
     )
     if (matchingModelIdx >= 0) {
       const model = responseModels[matchingModelIdx]

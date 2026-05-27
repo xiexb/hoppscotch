@@ -295,6 +295,7 @@ import { pipe } from "fp-ts/function"
 import {
   HoppRESTReqBody,
   HoppRESTBodyExample,
+  HoppRESTSchemaNode,
   ValidContentTypes,
 } from "@hoppscotch/data"
 import { refAutoReset, useVModel } from "@vueuse/core"
@@ -494,9 +495,9 @@ const selectedExampleIndex = ref(-1)
 
 // Model resolver for generating default examples from modelRef
 const modelResolver = computed(() => {
-  return (modelRefId: string) => {
+  return (modelRefId: string): HoppRESTSchemaNode[] | undefined => {
     const model = workspaceModelService.getModelById(modelRefId)
-    return model?.schemaTree as any
+    return model?.schemaTree as HoppRESTSchemaNode[] | undefined
   }
 })
 
@@ -513,9 +514,9 @@ const defaultExampleContent = computed(() => {
     ct === "application/xml" ||
     ct === "text/xml"
   ) {
-    return generateXmlFromSchemaTree(tree as any, resolver)
+    return generateXmlFromSchemaTree(tree as HoppRESTSchemaNode[] | null, resolver)
   }
-  return generateJsonFromSchemaTree(tree as any, resolver)
+  return generateJsonFromSchemaTree(tree as HoppRESTSchemaNode[] | null, resolver)
 })
 
 // Load the default (auto-generated) example into editor
@@ -573,7 +574,7 @@ function confirmAddExample() {
   tab.document.request = {
     ...request,
     bodyExamples: updated,
-  } as any
+  } as typeof request
 
   showAddModal.value = false
   selectedExampleIndex.value = updated.length - 1
@@ -612,7 +613,7 @@ function confirmRename(index: number) {
     tab.document.request = {
       ...request,
       bodyExamples: existing,
-    } as any
+    } as typeof request
   }
 
   editingExampleIndex.value = -1
@@ -624,12 +625,15 @@ function deleteExample(index: number) {
 
   const request = tab.document.request
   const existing = [...((request.bodyExamples ?? []) as HoppRESTBodyExample[])]
+
+  if (existing.length <= 1) return // keep at least one
+
   existing.splice(index, 1)
 
   tab.document.request = {
     ...request,
     bodyExamples: existing,
-  } as any
+  } as typeof request
 
   // If the deleted example was selected, switch to first or default
   if (selectedExampleIndex.value === index) {

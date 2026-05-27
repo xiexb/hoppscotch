@@ -220,6 +220,7 @@ import type {
 } from "@hoppscotch/data"
 import { useService } from "dioc/vue"
 import { useI18n } from "@composables/i18n"
+import { useToast } from "~/composables/toast"
 import IconLink from "~icons/lucide/link"
 import IconUnlink from "~icons/lucide/unlink"
 import IconPlus from "~icons/lucide/plus"
@@ -238,6 +239,7 @@ import {
 } from "~/helpers/generateBodyExample"
 
 const t = useI18n()
+const toast = useToast()
 
 // Workspace model service for resolving modelRef
 const workspaceModelService = useService(WorkspaceModelService)
@@ -364,9 +366,9 @@ const bodyExamples = computed<HoppRESTBodyExample[]>(
 )
 
 // Model resolver for default example generation
-const modelResolver = (modelRefId: string) => {
+const modelResolver = (modelRefId: string): HoppRESTSchemaNode[] | undefined => {
   const model = workspaceModelService.getModelById(modelRefId)
-  return model?.schemaTree as any
+  return model?.schemaTree as HoppRESTSchemaNode[] | undefined
 }
 
 // Generate default example from bodySchemaTree
@@ -391,8 +393,15 @@ const defaultExampleContent = computed(() => {
 // Add new example with current default content
 function addNewExample() {
   const existing = bodyExamples.value
+  // Generate unique name
+  let baseName = `Example ${existing.length + 1}`
+  let counter = existing.length + 1
+  while (existing.some((ex) => ex.name === baseName)) {
+    counter++
+    baseName = `Example ${counter}`
+  }
   const newExample: HoppRESTBodyExample = {
-    name: `Example ${existing.length + 1}`,
+    name: baseName,
     body: defaultExampleContent.value,
     contentType: props.request.body?.contentType || "application/json",
   }
@@ -440,6 +449,11 @@ function confirmRenameExample(index: number) {
     return
   }
   const existing = [...bodyExamples.value]
+  // Check for duplicate name (excluding self)
+  if (existing.some((ex, i) => i !== index && ex.name === name)) {
+    toast.error(t("body_examples.duplicate_name"))
+    return
+  }
   if (index >= 0 && index < existing.length) {
     existing[index] = { ...existing[index], name }
     updateRequest({

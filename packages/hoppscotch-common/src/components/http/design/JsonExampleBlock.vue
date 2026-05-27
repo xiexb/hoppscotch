@@ -9,7 +9,7 @@
         <button
           v-if="editable && !editing"
           class="text-secondaryLight hover:text-secondary transition-colors p-0.5 rounded"
-          title="编辑"
+          :title="t('json_example_block.edit')"
           @click="startEditing"
         >
           <IconEdit class="w-3.5 h-3.5" />
@@ -19,13 +19,13 @@
             class="text-accent hover:text-accentDark transition-colors text-xs px-1.5 py-0.5 rounded"
             @click="saveEdit"
           >
-            保存
+            {{ t("json_example_block.save") }}
           </button>
           <button
             class="text-secondaryLight hover:text-secondary transition-colors text-xs px-1.5 py-0.5 rounded"
             @click="cancelEdit"
           >
-            取消
+            {{ t("json_example_block.cancel") }}
           </button>
         </template>
       </div>
@@ -43,11 +43,11 @@
     <div v-else class="relative">
       <pre
         class="text-xs font-mono p-3 overflow-x-auto bg-primaryLight text-secondaryDark whitespace-pre leading-relaxed max-h-[400px] overflow-y-auto"
-      ><code v-html="highlightedJson" /></pre>
+      ><!-- v-html is safe here: syntaxHighlight() escapes &, <, > before wrapping tokens in <span> tags --><code v-html="highlightedJson" /></pre>
       <!-- Copy button -->
       <button
         class="absolute top-2 right-2 text-secondaryLight hover:text-secondary transition-colors p-1 rounded"
-        title="复制"
+        :title="t('json_example_block.copy')"
         @click="copyJson"
       >
         <IconCopy class="w-3.5 h-3.5" />
