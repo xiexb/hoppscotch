@@ -44,9 +44,10 @@
       <pre
         class="text-xs font-mono p-3 overflow-x-auto bg-primaryLight text-secondaryDark whitespace-pre leading-relaxed max-h-[400px] overflow-y-auto"
       ><!-- v-html is safe here: syntaxHighlight() escapes &, <, > before wrapping tokens in <span> tags --><code v-html="highlightedJson" /></pre>
-      <!-- Toolbar: copy + beautify -->
+      <!-- Toolbar: copy + beautify (beautify only in edit mode) -->
       <div class="absolute top-2 right-2 flex items-center gap-1">
         <button
+          v-if="editable"
           class="text-secondaryLight hover:text-accent transition-colors p-1 rounded"
           :title="t('json_example_block.beautify')"
           @click="beautifyContent"
