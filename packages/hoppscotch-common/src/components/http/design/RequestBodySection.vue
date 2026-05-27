@@ -181,6 +181,7 @@
                 <IconEdit class="w-3 h-3" />
               </button>
               <button
+                v-if="bodyExamples.length > 1"
                 v-tippy="{ theme: 'tooltip' }"
                 :title="t('body_examples.delete')"
                 class="text-secondaryLight hover:text-red-400 transition-colors p-0.5 rounded"
@@ -414,6 +415,9 @@ function updateExampleBody(index: number, content: string) {
 // Delete example
 function deleteExample(index: number) {
   const existing = [...bodyExamples.value]
+
+  if (existing.length <= 1) return // keep at least one
+
   existing.splice(index, 1)
   updateRequest({
     bodyExamples: existing,
