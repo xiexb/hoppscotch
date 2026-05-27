@@ -19,20 +19,11 @@
           >
             <icon-lucide-link class="w-3.5 h-3.5" />
           </span>
-          <!-- Service badge -->
-          <span
-            v-if="resolvedServiceName"
-            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-accentLight/20 text-accent shrink-0"
-          >
-            <icon-lucide-link class="w-2.5 h-2.5" />
-            {{ resolvedServiceName }}
-          </span>
-          <!-- Full URL (when endpoint is already a complete URL or has prefix) -->
+          <!-- Endpoint display -->
           <template v-if="request.endpoint && request.endpoint.startsWith('http')">
             <span class="text-secondary">{{ fullEndpoint }}</span>
           </template>
           <template v-else-if="resolvedPrefixUrl">
-            <span class="text-accent">{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span>
             <span class="text-secondary">{{ request.endpoint || '/' }}</span>
           </template>
           <template v-else>
@@ -837,22 +828,6 @@ const resolvedPrefixUrl = computed(() => {
   if (svc) return svc.url
   // It's a raw URL
   return val
-})
-
-/** Name of the resolved service (for badge display) */
-const resolvedServiceName = computed(() => {
-  const val = props.request.inheritedBaseUrl || ""
-  if (!val) {
-    if (inheritedServiceId.value) {
-      const svc = environmentServices.value.find(
-        (s) => s.id === inheritedServiceId.value
-      )
-      return svc?.name ?? ""
-    }
-    return ""
-  }
-  const svc = environmentServices.value.find((s) => s.id === val)
-  return svc?.name ?? ""
 })
 
 const fullEndpoint = computed(() => {

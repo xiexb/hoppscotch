@@ -63,6 +63,7 @@ import {
 } from "./runner/temp_envs"
 import { HoppRESTResponse } from "./types/HoppRESTResponse"
 import { HoppTestData, HoppTestResult } from "./types/HoppTestResult"
+import { HoppInheritedProperty } from "./types/HoppInheritedProperties"
 import { getEffectiveRESTRequest } from "./utils/EffectiveURL"
 import { getCombinedEnvVariables } from "./utils/environments"
 import { transformInheritedCollectionVariablesToAggregateEnv } from "./utils/inheritedCollectionVarTransformer"
@@ -104,6 +105,36 @@ function resolveServiceUrlFromEnvironment(
   } catch {
     return null
   }
+}
+
+/**
+ * Resolve the service URL for a request, considering:
+ * 1. request.inheritedBaseUrl (request-level override)
+ *    - If it's a service ID → resolve from environment services
+ *    - If it's a raw URL (starts with http) → use directly
+ * 2. inheritedProperties.selectedServiceId (collection inheritance)
+ *    → resolve from environment services
+ */
+function resolveRequestServiceUrl(
+  request: HoppRESTRequest,
+  inheritedProperties?: HoppInheritedProperty
+): string | null {
+  const inheritedBaseUrl = request.inheritedBaseUrl
+
+  if (inheritedBaseUrl) {
+    // Check if it's already a raw URL
+    if (/^https?:\/\//i.test(inheritedBaseUrl)) {
+      return inheritedBaseUrl
+    }
+    // It's a service ID — resolve from environment
+    const url = resolveServiceUrlFromEnvironment(inheritedBaseUrl)
+    if (url) return url
+  }
+
+  // Fall back to collection-level inheritance
+  return resolveServiceUrlFromEnvironment(
+    inheritedProperties?.selectedServiceId ?? null
+  )
 }
 
 export type InitialEnvironmentState = {
@@ -507,9 +538,10 @@ export function runRESTRequest$(
 
   const { request, inheritedProperties } = tab.value.document
 
-  // Resolve service URL from the collection's selectedServiceId + environment services
-  const resolvedServiceUrl = resolveServiceUrlFromEnvironment(
-    inheritedProperties?.selectedServiceId ?? null
+  // Resolve service URL: request.inheritedBaseUrl > inheritedProperties.selectedServiceId
+  const resolvedServiceUrl = resolveRequestServiceUrl(
+    request,
+    inheritedProperties
   )
 
   const requestAuth =
