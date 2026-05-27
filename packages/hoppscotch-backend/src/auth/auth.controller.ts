@@ -233,6 +233,14 @@ export class AuthController {
     };
   }
 
+  @Get('password/status')
+  @UseGuards(JwtAuthGuard)
+  async getPasswordStatus(@GqlUser() user: AuthUser) {
+    const result = await this.authService.getPasswordStatus(user.uid);
+    if (E.isLeft(result)) throwHTTPErr(result.left);
+    return result.right;
+  }
+
   /**
    ** Route to sign in with email and password
    */

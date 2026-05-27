@@ -406,6 +406,18 @@ export const def: AuthPlatformDef = {
     }
   },
 
+  async getPasswordStatus() {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/status`,
+        { withCredentials: true }
+      )
+      return { hasPassword: !!res.data.hasPassword }
+    } catch {
+      return { hasPassword: false }
+    }
+  },
+
   async processMagicLink() {
     if (this.isSignInWithEmailLink(window.location.href)) {
       const deviceIdentifier =

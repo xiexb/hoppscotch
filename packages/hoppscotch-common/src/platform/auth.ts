@@ -318,6 +318,12 @@ export type AuthPlatformDef = {
   setPassword?: (password: string) => Promise<E.Either<string, void>>
 
   /**
+   * Check if the current user has a password set.
+   * @returns Whether the user has a password
+   */
+  getPasswordStatus?: () => Promise<{ hasPassword: boolean }>
+
+  /**
    * Changes the password for the current user.
    * @param oldPassword The current password
    * @param newPassword The new password

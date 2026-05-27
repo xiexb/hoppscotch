@@ -219,6 +219,7 @@
     "change_password": "Change Password",
     "password_set_success": "Password set successfully",
     "password_change_success": "Password changed successfully",
+    "password_already_set": "Password already set. Please use change password instead.",
     "password_reset_success": "Password Reset Successfully",
     "password_reset_success_description": "Your password has been reset. You can now sign in with your new password.",
     "password_min_length": "Password must be at least 8 characters"

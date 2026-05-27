@@ -327,6 +327,7 @@ declare module 'vue' {
     MonacoScriptEditor: typeof import('./components/MonacoScriptEditor.vue')['default']
     OrganizationSwitcher: typeof import('./components/organization/Switcher.vue')['default']
     Profile: typeof import('./components/profile/index.vue')['default']
+    ProfilePasswordManager: typeof import('./components/profile/PasswordManager.vue')['default']
     ProfileUserDelete: typeof import('./components/profile/UserDelete.vue')['default']
     RealtimeCommunication: typeof import('./components/realtime/Communication.vue')['default']
     RealtimeConnectionConfig: typeof import('./components/realtime/ConnectionConfig.vue')['default']

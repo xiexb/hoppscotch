@@ -447,6 +447,20 @@ export class AuthService {
   }
 
   /**
+   * Check if user has a password set
+   */
+  async getPasswordStatus(userUid: string) {
+    const user = await this.usersService.findUserById(userUid);
+    if (O.isNone(user))
+      return E.left(<RESTError>{
+        message: USER_NOT_FOUND,
+        statusCode: HttpStatus.NOT_FOUND,
+      });
+
+    return E.right({ hasPassword: !!user.value.passwordHash });
+  }
+
+  /**
    * Set password for the first time (user registered via magic link)
    */
   async setPassword(userUid: string, password: string) {
