@@ -1281,7 +1281,13 @@
         "schema_placeholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": { \"type\": \"integer\" },\n    \"name\": { \"type\": \"string\" }\n  }\n}",
         "example": "Response Example",
         "example_placeholder": "{\n  \"id\": 1,\n  \"name\": \"Example\"\n}",
-        "import_from_response": "Import from saved response"
+        "import_from_response": "Import from saved response",
+        "examples": "Examples",
+        "add_example": "Add Example",
+        "default_example": "Default Example",
+        "delete_example": "Delete Example",
+        "rename_example": "Rename Example",
+        "auto_generated": "Auto-generated"
       }
     },
     "testcases": {

@@ -1276,7 +1276,13 @@
         "schema_placeholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": { \"type\": \"integer\" },\n    \"name\": { \"type\": \"string\" }\n  }\n}",
         "example": "返回示例",
         "example_placeholder": "{\n  \"id\": 1,\n  \"name\": \"示例\"\n}",
-        "import_from_response": "从已保存响应导入"
+        "import_from_response": "从已保存响应导入",
+        "examples": "示例",
+        "add_example": "添加示例",
+        "default_example": "默认示例",
+        "delete_example": "删除示例",
+        "rename_example": "重命名示例",
+        "auto_generated": "自动生成"
       }
     },
     "testcases": {

@@ -131,6 +131,28 @@ const onSaveAsExample = () => {
       [resName]: responseObj,
     }
 
+    // Also save to matching responseModel's examples array (Design mode)
+    const statusCodeStr = String(response.statusCode)
+    const responseModels = (doc.value.request.responseModels ?? []) as any[]
+    const matchingModelIdx = responseModels.findIndex(
+      (m: any) => m.statusCode === statusCodeStr
+    )
+    if (matchingModelIdx >= 0) {
+      const model = responseModels[matchingModelIdx]
+      const examples: Array<{ name: string; body: string }> = [
+        ...(model.examples ?? []),
+      ]
+      // Check if example with same name exists → overwrite
+      const existingIdx = examples.findIndex((e) => e.name === resName)
+      if (existingIdx >= 0) {
+        examples[existingIdx] = { name: resName, body: responseBodyText.value }
+      } else {
+        examples.push({ name: resName, body: responseBodyText.value })
+      }
+      responseModels[matchingModelIdx] = { ...model, examples }
+      doc.value.request.responseModels = [...responseModels]
+    }
+
     showSaveResponseName.value = false
 
     const saveCtx = doc.value.saveContext
