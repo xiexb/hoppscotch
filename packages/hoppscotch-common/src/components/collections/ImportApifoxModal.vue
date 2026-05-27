@@ -99,6 +99,17 @@
           </span>
         </div>
 
+        <div
+          v-if="previewCounts.environments > 0"
+          class="flex items-center p-2 rounded border border-dividerLight bg-primaryLight/20"
+        >
+          <icon-lucide-globe class="svg-icons mr-2 text-secondaryLight" />
+          <span class="text-sm text-secondary">
+            {{ previewCounts.environments }}
+            {{ t("import.apifox.environments") }}
+          </span>
+        </div>
+
         <!-- Target collection selector -->
         <div class="space-y-2 pt-2 border-t border-dividerLight">
           <p class="text-sm font-medium text-primary">
@@ -421,6 +432,10 @@
             {{ importResult.models }}
             {{ t("import.apifox.models_imported") }}
           </p>
+          <p v-if="importResult.environments > 0">
+            {{ importResult.environments }}
+            {{ t("import.apifox.environments_imported") }}
+          </p>
           <p v-if="importResult.skipped > 0" class="text-secondaryLight">
             {{ importResult.skipped }}
             {{ t("import.apifox.items_skipped") }}
@@ -449,8 +464,10 @@ import {
   hoppApifoxImporter,
   importModels,
   collectApiRefs,
+  importEnvironments,
 } from "~/helpers/import-export/import/apifox"
 import type { ApifoxProject } from "~/helpers/import-export/import/apifox"
+import { appendEnvironments } from "~/newstore/environments"
 
 
 const t = useI18n()
@@ -502,6 +519,7 @@ const previewCounts = reactive({
   apis: 0,
   models: 0,
   requests: 0,
+  environments: 0,
 })
 
 type ConflictResolution = "skip" | "override" | "rename"
@@ -543,6 +561,7 @@ const importResult = reactive({
   apis: 0,
   models: 0,
   skipped: 0,
+  environments: 0,
 })
 
 const overallProgress = computed(() => {
@@ -715,10 +734,14 @@ async function parseAndPreview() {
       modelCount = countModelsInCollection(data.schemaCollection as any[])
     }
 
+    // Count environments
+    const envCount = data.environments ? data.environments.length : 0
+
     previewCounts.collections = collCount
     previewCounts.apis = apiCount
     previewCounts.models = modelCount
     previewCounts.requests = reqCount
+    previewCounts.environments = envCount
 
     phase.value = "preview"
   } catch (e) {
@@ -775,6 +798,7 @@ async function startImport() {
   importResult.apis = 0
   importResult.models = 0
   importResult.skipped = 0
+  importResult.environments = 0
 
   // Reset stages
   for (const stage of importStages) {
@@ -867,6 +891,37 @@ async function startImport() {
       }
     } else {
       setStage(1, "done", "No models to import")
+    }
+
+    // Import environments (between models and APIs)
+    if (data.environments && data.environments.length > 0) {
+      try {
+        const servers = (
+          data.projectSetting as Record<string, unknown> | undefined
+        )?.servers as
+          | Array<{ name: string; id: string; moduleId?: number }>
+          | undefined
+        const importedEnvs = importEnvironments(
+          data.environments as Array<{
+            name: string
+            baseUrl?: string
+            baseUrls?: Record<string, string>
+            variables?: Array<{
+              name: string
+              value?: string
+              initialValue?: string
+              description?: string
+            }>
+          }>,
+          servers
+        )
+        if (importedEnvs.length > 0) {
+          appendEnvironments(importedEnvs)
+          importResult.environments = importedEnvs.length
+        }
+      } catch (e) {
+        console.error("[Apifox Import] Failed to import environments:", e)
+      }
     }
 
     // Stage 3: Import APIs (collections)

@@ -1,4 +1,7 @@
 import {
+  Environment,
+  EnvironmentService,
+  generateUniqueRefId,
   HoppCollection,
   HoppRESTAuth,
   HoppRESTHeader,
@@ -10,7 +13,10 @@ import {
   makeRESTRequest,
   ValidContentTypes,
 } from "@hoppscotch/data"
-import type { HoppRESTResponseModelV21 } from "@hoppscotch/data"
+import type {
+  HoppRESTResponseModelV21,
+  HoppRESTTestCaseV22,
+} from "@hoppscotch/data"
 import * as A from "fp-ts/Array"
 import * as O from "fp-ts/Option"
 import * as TE from "fp-ts/TaskEither"
@@ -35,7 +41,8 @@ type ApifoxEnvironment = {
   baseUrls?: Record<string, string>
   variables?: Array<{
     name: string
-    value: string
+    value?: string
+    initialValue?: string
     description?: string
   }>
 }
@@ -68,6 +75,37 @@ type ApifoxApi = {
   auth?: ApifoxAuth
   tags?: string[]
   status?: string
+  serverId?: string
+  moduleId?: number
+  cases?: ApifoxCase[]
+}
+
+type ApifoxCase = {
+  id: number | string
+  type?: string
+  name: string
+  responseId?: string
+  parameters?: {
+    query?: Array<{ name: string; value?: string; enable?: boolean }>
+    path?: Array<{ name: string; value?: string; enable?: boolean }>
+    header?: Array<{
+      name?: string
+      relatedName?: string
+      value?: string
+      enable?: boolean
+    }>
+    cookie?: unknown[]
+  }
+  requestBody?: {
+    parameters?: Array<{
+      name: string
+      value?: string
+      enable?: boolean
+      type?: string
+    }>
+    data?: string
+    generateMode?: string
+  }
 }
 
 type ApifoxParameter = {
@@ -359,6 +397,98 @@ const buildResponseModels = (
 }
 
 /**
+ * Convert Apifox cases[] to HoppRESTTestCaseV22[]
+ */
+const convertApifoxCases = (
+  cases: ApifoxCase[] | undefined,
+  responses?: ApifoxResponse[]
+): HoppRESTTestCaseV22[] => {
+  if (!cases || cases.length === 0) return []
+
+  // Build responseId → statusCode map
+  const responseStatusMap = new Map<string, number>()
+  if (responses) {
+    for (const r of responses) {
+      if (r.id && r.code) {
+        responseStatusMap.set(String(r.id), r.code)
+      }
+    }
+  }
+
+  return cases
+    .filter((c) => c.type === "DEBUG_CASE" || c.type === "AUTO_TEST_CASE")
+    .map((c) => {
+      const id = generateUniqueRefId("tc")
+
+      // Build requestOverrides
+      const bodyOverride: string | null =
+        c.requestBody?.data
+          ? c.requestBody.data.replace(/\r\n/g, "\n")
+          : null
+
+      const pathParams =
+        c.parameters?.path
+          ?.filter((p) => p.enable !== false)
+          .map((p) => ({
+            key: p.name,
+            value: p.value || "",
+            active: true,
+          })) ?? []
+
+      const queryParams =
+        c.parameters?.query
+          ?.filter((p) => p.enable !== false)
+          .map((p) => ({
+            key: p.name,
+            value: p.value || "",
+            active: true,
+          })) ?? []
+
+      const headerOverrides =
+        c.parameters?.header
+          ?.filter((h) => h.enable !== false)
+          .map((h) => ({
+            key: h.name || h.relatedName || "",
+            value: h.value || "",
+            active: true,
+          })) ?? []
+
+      // Infer expected status from linked response
+      let expectedStatus: number | null = null
+      if (c.responseId) {
+        const status = responseStatusMap.get(String(c.responseId))
+        if (status) expectedStatus = status
+      }
+
+      return {
+        id,
+        name: c.name || `Case ${c.id}`,
+        description: "",
+        category: "",
+        tags: [] as string[],
+        expectations: {
+          statusCode: expectedStatus,
+          bodyContains: [] as string[],
+          headerExists: [] as string[],
+          jsonPath: [] as Array<{
+            path: string
+            value: string
+            operator: string
+          }>,
+        },
+        requestOverrides: {
+          body: bodyOverride,
+          params: queryParams,
+          headers: headerOverrides,
+          pathParams: pathParams,
+        },
+        responseTime: 0,
+        lastRunAt: "",
+      } as HoppRESTTestCaseV22
+    })
+}
+
+/**
  * Convert Apifox API to HoppRESTRequest
  */
 const getHoppRequest = (
@@ -386,7 +516,7 @@ const getHoppRequest = (
     testScript: "",
     description: api.description ?? null,
     responseModels: buildResponseModels(api.responses, refMap),
-    testCases: [],
+    testCases: convertApifoxCases(api.cases, api.responses),
     apiTitle: item.name,
     apiStatus: mapApifoxStatus(api.status),
     tags: api.tags ?? [],
@@ -553,6 +683,94 @@ const extractBaseUrl = (data: ApifoxProject): string => {
   }
 
   return ""
+}
+
+/**
+ * Convert Apifox environments to Hoppscotch environments (v3 with services).
+ *
+ * Maps baseUrls → services[], variables → variables[].
+ * Uses projectSetting.servers for service name resolution.
+ */
+export function importEnvironments(
+  environments: ApifoxEnvironment[] | undefined,
+  servers?: ApifoxServer[]
+): Environment[] {
+  if (!environments || environments.length === 0) return []
+
+  // Build server ID → name map
+  const serverIdToName = new Map<string, string>()
+  if (servers) {
+    for (const s of servers) {
+      if (s.id) serverIdToName.set(String(s.id), s.name)
+    }
+  }
+
+  return environments.map((env) => {
+    const id = generateUniqueRefId("env")
+    const variables = (env.variables ?? [])
+      .filter((v) => v.name)
+      .map((v) => ({
+        key: v.name,
+        value: v.value || v.initialValue || "",
+        secret: false,
+      }))
+
+    // Build services from baseUrls
+    const services: EnvironmentService[] = []
+    if (env.baseUrls) {
+      for (const [serverId, url] of Object.entries(env.baseUrls)) {
+        if (!url) continue
+        services.push({
+          id: generateUniqueRefId("svc"),
+          name: serverIdToName.get(serverId) || `Service ${serverId}`,
+          url,
+        })
+      }
+    }
+
+    // If no baseUrls but has baseUrl, create a default service
+    if (services.length === 0 && env.baseUrl) {
+      services.push({
+        id: generateUniqueRefId("svc"),
+        name: "Default",
+        url: env.baseUrl,
+      })
+    }
+
+    return {
+      id,
+      v: 3 as const,
+      name: env.name || "Imported",
+      variables,
+      services,
+    }
+  })
+}
+
+/**
+ * Build a mapping from Apifox serverId → Hoppscotch service ID
+ * for setting selectedServiceId on collections.
+ */
+export function buildServerToServiceMap(
+  environments: ApifoxEnvironment[] | undefined,
+  importedEnvs: Environment[]
+): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!environments || environments.length === 0 || importedEnvs.length === 0)
+    return map
+
+  const firstApifoxEnv = environments[0]
+  const firstImportedEnv = importedEnvs[0]
+
+  if (firstApifoxEnv.baseUrls) {
+    for (const [serverId, url] of Object.entries(firstApifoxEnv.baseUrls)) {
+      if (!url) continue
+      const svc = firstImportedEnv.services.find((s) => s.url === url)
+      if (svc) map.set(serverId, svc.id)
+    }
+  }
+
+  return map
 }
 
 /**

@@ -21,7 +21,11 @@ export {
   isSchemaModel,
 } from "./types"
 
-export { hoppApifoxImporter } from "./importer"
+export {
+  hoppApifoxImporter,
+  importEnvironments,
+  buildServerToServiceMap,
+} from "./importer"
 
 export {
   importModels,

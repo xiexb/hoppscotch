@@ -999,6 +999,8 @@
       "apis_imported": "APIs imported",
       "models_imported": "models imported",
       "items_skipped": "items skipped",
+      "environments": "environments",
+      "environments_imported": "environments imported",
       "file_too_large": "File is too large (max 50MB)",
       "invalid_file": "Invalid Apifox export file: no apiCollection or requestCollection found. Please select a .apifox.json file exported from Apifox.",
       "invalid_file_generic": "This file is not a valid Apifox export. Please choose a .apifox.json file.",
