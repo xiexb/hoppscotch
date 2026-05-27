@@ -44,14 +44,23 @@
       <pre
         class="text-xs font-mono p-3 overflow-x-auto bg-primaryLight text-secondaryDark whitespace-pre leading-relaxed max-h-[400px] overflow-y-auto"
       ><!-- v-html is safe here: syntaxHighlight() escapes &, <, > before wrapping tokens in <span> tags --><code v-html="highlightedJson" /></pre>
-      <!-- Copy button -->
-      <button
-        class="absolute top-2 right-2 text-secondaryLight hover:text-secondary transition-colors p-1 rounded"
-        :title="t('json_example_block.copy')"
-        @click="copyJson"
-      >
-        <IconCopy class="w-3.5 h-3.5" />
-      </button>
+      <!-- Toolbar: copy + beautify -->
+      <div class="absolute top-2 right-2 flex items-center gap-1">
+        <button
+          class="text-secondaryLight hover:text-accent transition-colors p-1 rounded"
+          :title="t('json_example_block.beautify')"
+          @click="beautifyContent"
+        >
+          <IconSparkles class="w-3.5 h-3.5" />
+        </button>
+        <button
+          class="text-secondaryLight hover:text-secondary transition-colors p-1 rounded"
+          :title="t('json_example_block.copy')"
+          @click="copyJson"
+        >
+          <IconCopy class="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -60,6 +69,7 @@
 import { computed, ref } from "vue"
 import IconEdit from "~icons/lucide/edit-3"
 import IconCopy from "~icons/lucide/copy"
+import IconSparkles from "~icons/lucide/sparkles"
 import { useToast } from "~/composables/toast"
 import { useI18n } from "@composables/i18n"
 
@@ -148,5 +158,66 @@ async function copyJson() {
   } catch {
     // ignore
   }
+}
+
+function beautifyContent() {
+  if (!props.content) return
+  const ct = props.contentType || "application/json"
+
+  if (ct === "application/json" || ct === "text/json") {
+    try {
+      const parsed = JSON.parse(props.content)
+      const formatted = JSON.stringify(parsed, null, 2)
+      emit("update:content", formatted)
+      toast.success(t("json_example_block.beautified") || "Formatted!")
+    } catch {
+      toast.error(t("json_example_block.invalid_json") || "Invalid JSON, cannot format")
+    }
+  } else if (ct === "application/xml" || ct === "text/xml") {
+    const formatted = beautifyXml(props.content)
+    emit("update:content", formatted)
+    toast.success(t("json_example_block.beautified") || "Formatted!")
+  } else {
+    toast.error(t("json_example_block.unsupported_format") || "Format not supported for beautify")
+  }
+}
+
+/**
+ * Basic XML beautifier: adds newlines and indentation.
+ */
+function beautifyXml(xml: string): string {
+  // Normalize whitespace between tags
+  let formatted = xml
+    .replace(/>\s*</g, ">\n<")
+    .replace(/\n\s*\n/g, "\n")
+    .trim()
+
+  const lines = formatted.split("\n")
+  let indent = 0
+  const result: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    // Decrease indent for closing tags
+    if (trimmed.startsWith("</")) {
+      indent = Math.max(0, indent - 1)
+    }
+
+    result.push("  ".repeat(indent) + trimmed)
+
+    // Increase indent for opening tags (not self-closing, not closing)
+    if (
+      trimmed.startsWith("<") &&
+      !trimmed.startsWith("</") &&
+      !trimmed.endsWith("/>") &&
+      !trimmed.startsWith("<?")
+    ) {
+      indent++
+    }
+  }
+
+  return result.join("\n")
 }
 </script>

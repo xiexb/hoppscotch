@@ -595,9 +595,19 @@ export PATH="/home/jcwl/.hermes/node/bin:$PATH" && cd <package> && pnpm run dev
 ```
 Without this, the process exits immediately with `bash: node: command not found` or `bash: pnpm: command not found`.
 
+### Virtual vs stored examples — "auto" badge pattern (USER PREFERENCE)
+Design mode examples (both request body and response) use a virtual-to-stored pattern:
+- **Virtual default**: Auto-generated from schema tree, shown with an "auto" badge, editable
+- **Stored examples**: User-created, persisted in `bodyExamples[]` or `responseModels[].examples[]`
+
+**User-corrected behavior:** The default example is NOT read-only. It should be fully editable and renamable like any other example. The "auto" badge only indicates it was auto-generated, not that it can't be modified. When the user edits or renames the virtual default, it materializes into a stored example.
+
+**Tab UI:** All examples (virtual + stored) appear in a unified tab bar. Double-click to rename, × button to delete (when >1), + button to add. See `references/design-mode-examples-pattern.md` for the full implementation.
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns
 - See `references/request-mode-tabs.md` for the design/debug/testcases mode tabs feature (data model v19, component structure, known bugs)
 - See `references/design-mode-architecture.md` for the API documentation design mode (v20): component tree, edit/preview sub-modes, data model fields
 - See `references/password-auth-architecture.md` for email+password authentication system: API endpoints, Prisma schema, frontend components, platform auth methods
+- See `references/design-mode-examples-pattern.md` for the unified examples tabs pattern: virtual-to-stored materialization, tab UI, preview sync, XML/JSON generation

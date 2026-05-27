@@ -139,7 +139,7 @@
           class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-t transition-colors shrink-0"
           :class="
             activeBodyExampleTab === exIdx
-              ? 'border-b-2 border-accentLight font-bold text-primary'
+              ? 'border-b-2 border-accent font-semibold text-accent'
               : 'text-secondary hover:text-secondaryDark'
           "
           @click="activeBodyExampleTab = exIdx"

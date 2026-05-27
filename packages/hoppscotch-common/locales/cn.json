@@ -2616,6 +2616,10 @@
     "edit": "编辑",
     "save": "保存",
     "cancel": "取消",
-    "copy": "复制"
+    "copy": "复制",
+    "beautify": "美化格式",
+    "beautified": "已美化",
+    "invalid_json": "JSON 格式无效，无法美化",
+    "unsupported_format": "不支持美化该格式"
   }
 }

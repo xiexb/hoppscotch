@@ -2651,6 +2651,10 @@
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",
-    "copy": "Copy"
+    "copy": "Copy",
+    "beautify": "Beautify",
+    "beautified": "Formatted",
+    "invalid_json": "Invalid JSON, cannot format",
+    "unsupported_format": "Format not supported for beautify"
   }
 }
