@@ -361,7 +361,9 @@ export const def: AuthPlatformDef = {
       { email, password },
       { withCredentials: true }
     )
-    await setInitialUser()
+    // Don't call setInitialUser() here — the Login.vue component
+    // will reload the page after success, which triggers performAuthInit()
+    // → setInitialUser() automatically
   },
 
   async requestPasswordReset(email: string) {

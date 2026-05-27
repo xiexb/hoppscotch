@@ -220,12 +220,33 @@
               </div>
             </div>
           </div>
-          <!-- Right: JSON example -->
+          <!-- Right: body examples with tabs -->
           <div class="lg:col-span-2">
-            <JsonExampleBlock
-              :content="bodyExampleJson"
-              :content-type="request.body.contentType ?? 'application/json'"
-            />
+            <div class="relative">
+              <!-- Example selector tabs -->
+              <div
+                v-if="previewBodyExamples.length > 1"
+                class="flex items-center gap-1 overflow-x-auto mb-2 pb-1 border-b border-dividerLight"
+              >
+                <button
+                  v-for="(ex, exIdx) in previewBodyExamples"
+                  :key="exIdx"
+                  class="px-2 py-0.5 text-xs rounded transition-colors shrink-0"
+                  :class="
+                    activeBodyExamplePreviewTab === exIdx
+                      ? 'bg-accentLight/15 text-accent font-semibold'
+                      : 'text-secondary hover:text-secondaryDark hover:bg-primaryLight/40'
+                  "
+                  @click="activeBodyExamplePreviewTab = exIdx"
+                >
+                  {{ ex.name }}
+                </button>
+              </div>
+              <JsonExampleBlock
+                :content="activePreviewBodyExampleBody"
+                :content-type="request.body.contentType ?? 'application/json'"
+              />
+            </div>
           </div>
         </div>
 
@@ -275,12 +296,33 @@
               </div>
             </div>
           </div>
-          <!-- Right: JSON example -->
+          <!-- Right: body examples with tabs -->
           <div class="lg:col-span-2">
-            <JsonExampleBlock
-              :content="bodyExampleJson"
-              :content-type="request.body.contentType ?? 'application/json'"
-            />
+            <div class="relative">
+              <!-- Example selector tabs -->
+              <div
+                v-if="previewBodyExamples.length > 1"
+                class="flex items-center gap-1 overflow-x-auto mb-2 pb-1 border-b border-dividerLight"
+              >
+                <button
+                  v-for="(ex, exIdx) in previewBodyExamples"
+                  :key="exIdx"
+                  class="px-2 py-0.5 text-xs rounded transition-colors shrink-0"
+                  :class="
+                    activeBodyExamplePreviewTab === exIdx
+                      ? 'bg-accentLight/15 text-accent font-semibold'
+                      : 'text-secondary hover:text-secondaryDark hover:bg-primaryLight/40'
+                  "
+                  @click="activeBodyExamplePreviewTab = exIdx"
+                >
+                  {{ ex.name }}
+                </button>
+              </div>
+              <JsonExampleBlock
+                :content="activePreviewBodyExampleBody"
+                :content-type="request.body.contentType ?? 'application/json'"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -506,6 +548,7 @@ import type {
   HoppRESTRequest,
   HoppRESTResponseModelV23,
   HoppRESTSchemaNode,
+  HoppRESTBodyExample,
 } from "@hoppscotch/data"
 import { useService } from "dioc/vue"
 import IconChevronDown from "~icons/lucide/chevron-down"
@@ -524,6 +567,10 @@ import {
   statusDotClass,
 } from "./utils/schemaExample"
 import type { ModelResolver } from "./utils/schemaExample"
+import {
+  generateJsonFromSchemaTree,
+  generateXmlFromSchemaTree,
+} from "~/helpers/generateBodyExample"
 import { WorkspaceModelService } from "~/services/workspace-model.service"
 
 const t = useI18n()
@@ -571,6 +618,46 @@ const showAuth = ref(false)
 const showResponseHeaders = ref(true)
 const activeResponseTab = ref(0)
 const activeExamplePreviewTab = ref(0)
+const activeBodyExamplePreviewTab = ref(0)
+
+// --- Body examples preview ---
+
+const previewBodyExamples = computed(() => {
+  const stored = (props.request.bodyExamples ?? []) as HoppRESTBodyExample[]
+  if (stored.length > 0) return stored
+  // Virtual default: generate from schema tree
+  const bodyModelRef = props.request.bodyModelRef ?? ""
+  let tree: HoppRESTSchemaNode[] = []
+  if (bodyModelRef) {
+    const model = workspaceModelService.getModelById(bodyModelRef)
+    tree = (model?.schemaTree ?? []) as HoppRESTSchemaNode[]
+  } else {
+    tree = (props.request.bodySchemaTree ?? []) as HoppRESTSchemaNode[]
+  }
+  const ct = props.request.body?.contentType
+  let body = "{}"
+  if (ct === "application/xml" || ct === "text/xml") {
+    body = generateXmlFromSchemaTree(tree, modelResolver)
+  } else if (tree.length > 0) {
+    body = generateJsonFromSchemaTree(tree, modelResolver)
+  }
+  return [
+    {
+      name: t("preview_view.default_example"),
+      body,
+      contentType: ct || "application/json",
+    },
+  ] as HoppRESTBodyExample[]
+})
+
+const activePreviewBodyExampleBody = computed(() => {
+  const examples = previewBodyExamples.value
+  const idx = activeBodyExamplePreviewTab.value
+  if (idx >= 0 && idx < examples.length) {
+    return examples[idx].body
+  }
+  return ""
+})
 
 // --- Preview multi-example support ---
 const hasPreviewStoredExamples = computed(() => {

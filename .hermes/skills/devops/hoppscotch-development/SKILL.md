@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -547,8 +547,57 @@ Raw `<button>` elements have different padding/height than Hoppscotch's button c
 ```
 These are auto-imported from `@hoppscotch/ui` — no manual import needed. They match the sizing of buttons in the URL bar and other standard UI elements.
 
+### Conditional UI based on server state — "set" vs "modify" pattern (USER PREFERENCE)
+When a feature has a "first-time setup" mode and a "modification" mode (e.g., setting a password for the first time vs. changing an existing password), do NOT show the same form for both. The user expects:
+
+- **First-time setup**: Only the fields needed for the action (e.g., new password + confirm). No "old value" field.
+- **Modification**: Includes verification of existing state (e.g., old password + new password + confirm).
+
+**Implementation pattern:**
+1. Add a backend `GET /resource/status` endpoint that returns `{ hasX: boolean }`
+2. Add the method to `AuthPlatformDef` interface as optional: `getStatus?: () => Promise<{ hasX: boolean }>`
+3. Implement in the platform layer (e.g., `selfhost-web/src/platform/auth/web/index.ts`)
+4. In the Vue component, use `onMounted` to fetch the status, store in a `ref<boolean>`
+5. Conditionally render form fields with `v-if="hasExisting"` / `v-else`
+6. Button labels and modal titles also change based on the mode
+
+**Anti-pattern (user-corrected):** Showing the same "change password" form (with old password field) when the user hasn't set a password yet. The user will say "首次设置密码的时候，不应该有新密码的输入框，应该直接设置."
+
+### PlatformDef optional method pattern
+When adding a new capability to `AuthPlatformDef` (or any `PlatformDef`), make the method optional (`?`) so other platform implementations (desktop, etc.) don't break. Check for method existence before calling: `if (platform.auth.newMethod) { ... }`. Add the interface method to `hoppscotch-common/src/platform/auth.ts`, implement in `selfhost-web/src/platform/auth/web/index.ts`, and optionally in `desktop/index.ts`.
+
+### Cookie-based auth login MUST use page reload (CRITICAL)
+When implementing any cookie-based login flow (password, SSO callback, etc.), the post-login state sync **must** use `window.location.reload()` — NOT `hideModal()` + `setInitialUser()`.
+
+**Why:** `setInitialUser()` calls the GraphQL `me` query and updates `currentUser$` BehaviorSubject, but the app's reactive watchers (Login button visibility, user avatar, etc.) don't reliably re-evaluate from the in-place update. The login modal closes, but the app still shows the "Login" button and behaves as if the user is not authenticated.
+
+**Why reload works:** Page reload triggers `performAuthInit()` → `setInitialUser()` in the normal app bootstrap sequence, which properly initializes all auth state before any components render.
+
+**Correct pattern in Login.vue:**
+```typescript
+// CORRECT — matches SSO login behavior (redirect away + back)
+await platform.auth.signInWithPassword(email, password)
+showLoginSuccess()
+window.location.reload()
+
+// WRONG — setInitialUser() doesn't propagate to all watchers
+await platform.auth.signInWithPassword(email, password)
+await setInitialUser()
+hideModal()
+```
+
+**In platform auth implementation:** Do NOT call `setInitialUser()` inside `signInWithPassword()` — let the page reload handle it via `performAuthInit()`.
+
+### Background process PATH (Hoppscotch services)
+When launching Hoppscotch services via `terminal(background=true)`, the shell PATH does NOT include `/home/jcwl/.hermes/node/bin` where `node` and `pnpm` live. Always prepend:
+```bash
+export PATH="/home/jcwl/.hermes/node/bin:$PATH" && cd <package> && pnpm run dev
+```
+Without this, the process exits immediately with `bash: node: command not found` or `bash: pnpm: command not found`.
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns
 - See `references/request-mode-tabs.md` for the design/debug/testcases mode tabs feature (data model v19, component structure, known bugs)
 - See `references/design-mode-architecture.md` for the API documentation design mode (v20): component tree, edit/preview sub-modes, data model fields
+- See `references/password-auth-architecture.md` for email+password authentication system: API endpoints, Prisma schema, frontend components, platform auth methods

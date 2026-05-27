@@ -464,16 +464,19 @@ const signInWithPassword = async () => {
   try {
     await platform.auth.signInWithPassword(form.email, form.password)
     showLoginSuccess()
-    hideModal()
+    // Reload to reinitialize app with authenticated state
+    // (same approach as SSO login which navigates away and back)
+    window.location.reload()
   } catch (e: any) {
-    console.error(e)
+    console.error("Password sign-in error:", e)
     const msg = e.response?.data?.message || e.message || ""
     if (msg === "auth/password_not_set") {
       toast.error(`${t("error.password_not_set")}`)
+    } else if (msg === "auth/invalid_credentials") {
+      toast.error(`${t("error.invalid_credentials")}`)
     } else {
       toast.error(`${t("error.invalid_credentials")}`)
     }
-  } finally {
     signingInWithPassword.value = false
   }
 }

@@ -106,9 +106,17 @@
     <!-- ─── Examples Section ──────────────────────────────────── -->
     <div>
       <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-semibold text-secondary">
-          {{ t("body_examples.title") }}
-        </span>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-secondary">
+            {{ t("body_examples.title") }}
+          </span>
+          <span
+            v-if="effectiveBodyExamples.length > 0 && !hasStoredBodyExamples"
+            class="text-[10px] text-secondaryLight bg-secondaryLight/10 px-1.5 py-0.5 rounded"
+          >
+            {{ t("body_examples.auto_generated") }}
+          </span>
+        </div>
         <div class="flex items-center gap-2">
           <button
             class="text-xs text-secondaryLight hover:text-accent transition-colors flex items-center gap-1"
@@ -120,92 +128,64 @@
         </div>
       </div>
 
-      <div class="space-y-3">
-        <!-- Default example (read-only, auto-generated) -->
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs text-secondaryLight font-medium">
-              {{ t("body_examples.default_example") }}
+      <!-- Example name tabs -->
+      <div
+        v-if="effectiveBodyExamples.length > 1 || hasStoredBodyExamples"
+        class="flex items-center gap-1 overflow-x-auto mb-2 border-b border-dividerLight pb-1"
+      >
+        <button
+          v-for="(ex, exIdx) in effectiveBodyExamples"
+          :key="exIdx"
+          class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-t transition-colors shrink-0"
+          :class="
+            activeBodyExampleTab === exIdx
+              ? 'border-b-2 border-accentLight font-bold text-primary'
+              : 'text-secondary hover:text-secondaryDark'
+          "
+          @click="activeBodyExampleTab = exIdx"
+          @dblclick="startRenameExample(exIdx)"
+        >
+          <!-- Rename mode -->
+          <template v-if="renamingIndex === exIdx">
+            <input
+              v-model="renamingName"
+              class="w-20 bg-transparent border border-accent rounded px-1 py-0 text-xs outline-none"
+              @keyup.enter="confirmRenameExample(exIdx)"
+              @keyup.escape="renamingIndex = -1"
+              @click.stop
+            />
+          </template>
+          <!-- Display mode -->
+          <template v-else>
+            <span class="max-w-[100px] truncate">
+              {{ ex.name || `Example ${exIdx + 1}` }}
             </span>
-            <span
-              class="px-1 py-0.5 text-[10px] rounded bg-secondaryLight/15 text-secondaryLight"
+            <button
+              v-if="effectiveBodyExamples.length > 1"
+              class="text-secondaryLight hover:text-red-400 transition-colors ml-0.5"
+              :title="t('body_examples.delete')"
+              @click.stop="deleteExample(exIdx)"
             >
-              auto
-            </span>
-          </div>
-          <JsonExampleBlock
-            :content="defaultExampleContent"
-            :content-type="request.body.contentType || 'application/json'"
-            :editable="false"
-          />
-        </div>
+              <IconX class="w-3 h-3" />
+            </button>
+          </template>
+        </button>
+      </div>
 
-        <!-- User-created examples -->
-        <div
-          v-for="(example, index) in bodyExamples"
-          :key="index"
-        >
-          <div class="flex items-center gap-2 mb-1">
-            <!-- Rename mode -->
-            <template v-if="renamingIndex === index">
-              <input
-                v-model="renamingName"
-                class="bg-transparent border border-dividerLight rounded text-xs text-secondaryDark px-2 py-0.5 outline-none focus:border-accent flex-1"
-                @keyup.enter="confirmRenameExample(index)"
-                @keyup.escape="renamingIndex = -1"
-              />
-              <button
-                class="text-xs text-accent hover:text-accentDark transition-colors"
-                @click="confirmRenameExample(index)"
-              >
-                <IconCheck class="w-3.5 h-3.5" />
-              </button>
-              <button
-                class="text-xs text-secondaryLight hover:text-secondary transition-colors"
-                @click="renamingIndex = -1"
-              >
-                <IconX class="w-3.5 h-3.5" />
-              </button>
-            </template>
-            <!-- Display mode -->
-            <template v-else>
-              <span class="text-xs text-secondaryDark font-medium flex-1 truncate">
-                {{ example.name || `Example ${index + 1}` }}
-              </span>
-              <button
-                v-tippy="{ theme: 'tooltip' }"
-                :title="t('body_examples.rename')"
-                class="text-secondaryLight hover:text-secondary transition-colors p-0.5 rounded"
-                @click="startRenameExample(index)"
-              >
-                <IconEdit class="w-3 h-3" />
-              </button>
-              <button
-                v-if="bodyExamples.length > 1"
-                v-tippy="{ theme: 'tooltip' }"
-                :title="t('body_examples.delete')"
-                class="text-secondaryLight hover:text-red-400 transition-colors p-0.5 rounded"
-                @click="deleteExample(index)"
-              >
-                <IconTrash class="w-3 h-3" />
-              </button>
-            </template>
-          </div>
-          <JsonExampleBlock
-            :content="example.body"
-            :content-type="example.contentType || request.body.contentType || 'application/json'"
-            :editable="true"
-            @update:content="(val) => updateExampleBody(index, val)"
-          />
-        </div>
+      <!-- Active example content -->
+      <JsonExampleBlock
+        :content="activeBodyExampleBody"
+        :content-type="activeBodyExampleContentType"
+        :editable="true"
+        @update:content="onBodyExampleContentUpdate"
+      />
 
-        <!-- Empty state -->
-        <div
-          v-if="bodyExamples.length === 0"
-          class="text-xs text-secondaryLight py-2 text-center border border-dashed border-dividerLight rounded"
-        >
-          {{ t("body_examples.no_examples") }}
-        </div>
+      <!-- Empty state -->
+      <div
+        v-if="effectiveBodyExamples.length === 0"
+        class="text-xs text-secondaryLight py-2 text-center border border-dashed border-dividerLight rounded"
+      >
+        {{ t("body_examples.no_examples") }}
       </div>
     </div>
   </div>
@@ -224,10 +204,7 @@ import { useToast } from "~/composables/toast"
 import IconLink from "~icons/lucide/link"
 import IconUnlink from "~icons/lucide/unlink"
 import IconPlus from "~icons/lucide/plus"
-import IconCheck from "~icons/lucide/check"
 import IconX from "~icons/lucide/x"
-import IconEdit from "~icons/lucide/edit-3"
-import IconTrash from "~icons/lucide/trash-2"
 import SchemaTreeEditor from "./SchemaTreeEditor.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
@@ -365,6 +342,12 @@ const bodyExamples = computed<HoppRESTBodyExample[]>(
   () => (props.request.bodyExamples ?? []) as HoppRESTBodyExample[]
 )
 
+const hasStoredBodyExamples = computed(() => {
+  return (props.request.bodyExamples?.length ?? 0) > 0
+})
+
+const activeBodyExampleTab = ref(0)
+
 // Model resolver for default example generation
 const modelResolver = (modelRefId: string): HoppRESTSchemaNode[] | undefined => {
   const model = workspaceModelService.getModelById(modelRefId)
@@ -390,34 +373,110 @@ const defaultExampleContent = computed(() => {
   )
 })
 
+// Effective body examples: if stored examples exist, use them; otherwise show virtual default
+const effectiveBodyExamples = computed((): HoppRESTBodyExample[] => {
+  const stored = bodyExamples.value
+  if (stored.length > 0) return stored
+  // Virtual default example
+  return [
+    {
+      name: t("body_examples.default_example"),
+      body: defaultExampleContent.value,
+      contentType: props.request.body?.contentType || "application/json",
+    },
+  ]
+})
+
+// Active example body content
+const activeBodyExampleBody = computed(() => {
+  const examples = effectiveBodyExamples.value
+  const idx = activeBodyExampleTab.value
+  if (idx >= 0 && idx < examples.length) {
+    return examples[idx].body
+  }
+  return ""
+})
+
+// Active example content type
+const activeBodyExampleContentType = computed(() => {
+  const examples = effectiveBodyExamples.value
+  const idx = activeBodyExampleTab.value
+  if (idx >= 0 && idx < examples.length) {
+    return examples[idx].contentType || props.request.body?.contentType || "application/json"
+  }
+  return props.request.body?.contentType || "application/json"
+})
+
+// When user edits content of active example
+function onBodyExampleContentUpdate(val: string) {
+  const exIdx = activeBodyExampleTab.value
+
+  if (!hasStoredBodyExamples.value) {
+    // Virtual default: materialize examples array with the current default + update
+    const examples: HoppRESTBodyExample[] = [
+      {
+        name: t("body_examples.default_example"),
+        body: val,
+        contentType: props.request.body?.contentType || "application/json",
+      },
+    ]
+    updateRequest({ bodyExamples: examples } as Partial<HoppRESTRequest>)
+    return
+  }
+
+  // Update specific example in the array
+  const existing = [...bodyExamples.value]
+  if (exIdx >= 0 && exIdx < existing.length) {
+    existing[exIdx] = { ...existing[exIdx], body: val }
+    updateRequest({ bodyExamples: existing } as Partial<HoppRESTRequest>)
+  }
+}
+
 // Add new example with current default content
 function addNewExample() {
   const existing = bodyExamples.value
-  // Generate unique name
-  let baseName = t("body_examples.example_n", { n: existing.length + 1 })
-  let counter = existing.length + 1
-  while (existing.some((ex) => ex.name === baseName)) {
-    counter++
-    baseName = t("body_examples.example_n", { n: counter })
-  }
-  const newExample: HoppRESTBodyExample = {
-    name: baseName,
-    body: defaultExampleContent.value,
-    contentType: props.request.body?.contentType || "application/json",
-  }
-  updateRequest({
-    bodyExamples: [...existing, newExample],
-  } as Partial<HoppRESTRequest>)
-}
 
-// Update example body content
-function updateExampleBody(index: number, content: string) {
-  const existing = [...bodyExamples.value]
-  if (index >= 0 && index < existing.length) {
-    existing[index] = { ...existing[index], body: content }
-    updateRequest({
-      bodyExamples: existing,
-    } as Partial<HoppRESTRequest>)
+  if (existing.length === 0) {
+    // Materialize virtual default + add new empty example
+    const defaultName = t("body_examples.default_example")
+    let newName = t("body_examples.example_n", { n: "2" })
+    let counter = 2
+    while (newName === defaultName) {
+      counter++
+      newName = t("body_examples.example_n", { n: String(counter) })
+    }
+    const examples: HoppRESTBodyExample[] = [
+      {
+        name: defaultName,
+        body: defaultExampleContent.value,
+        contentType: props.request.body?.contentType || "application/json",
+      },
+      {
+        name: newName,
+        body: "",
+        contentType: props.request.body?.contentType || "application/json",
+      },
+    ]
+    updateRequest({ bodyExamples: examples } as Partial<HoppRESTRequest>)
+    activeBodyExampleTab.value = 1
+  } else {
+    // Add new example with unique name
+    let newName = t("body_examples.example_n", { n: String(existing.length + 1) })
+    let counter = existing.length + 1
+    while (existing.some((ex) => ex.name === newName)) {
+      counter++
+      newName = t("body_examples.example_n", { n: String(counter) })
+    }
+    const examples: HoppRESTBodyExample[] = [
+      ...existing,
+      {
+        name: newName,
+        body: defaultExampleContent.value,
+        contentType: props.request.body?.contentType || "application/json",
+      },
+    ]
+    updateRequest({ bodyExamples: examples } as Partial<HoppRESTRequest>)
+    activeBodyExampleTab.value = examples.length - 1
   }
 }
 
@@ -428,9 +487,12 @@ function deleteExample(index: number) {
   if (existing.length <= 1) return // keep at least one
 
   existing.splice(index, 1)
-  updateRequest({
-    bodyExamples: existing,
-  } as Partial<HoppRESTRequest>)
+  updateRequest({ bodyExamples: existing } as Partial<HoppRESTRequest>)
+
+  // Adjust active tab
+  if (activeBodyExampleTab.value >= existing.length) {
+    activeBodyExampleTab.value = Math.max(0, existing.length - 1)
+  }
 }
 
 // Rename example
@@ -439,7 +501,7 @@ const renamingName = ref("")
 
 function startRenameExample(index: number) {
   renamingIndex.value = index
-  renamingName.value = bodyExamples.value[index]?.name || ""
+  renamingName.value = effectiveBodyExamples.value[index]?.name || ""
 }
 
 function confirmRenameExample(index: number) {
@@ -448,18 +510,30 @@ function confirmRenameExample(index: number) {
     renamingIndex.value = -1
     return
   }
-  const existing = [...bodyExamples.value]
-  // Check for duplicate name (excluding self)
-  if (existing.some((ex, i) => i !== index && ex.name === name)) {
-    toast.error(t("body_examples.duplicate_name"))
-    return
+
+  if (!hasStoredBodyExamples.value) {
+    // Materialize virtual default with new name
+    const examples: HoppRESTBodyExample[] = [
+      {
+        name,
+        body: defaultExampleContent.value,
+        contentType: props.request.body?.contentType || "application/json",
+      },
+    ]
+    updateRequest({ bodyExamples: examples } as Partial<HoppRESTRequest>)
+  } else {
+    const existing = [...bodyExamples.value]
+    // Check for duplicate name (excluding self)
+    if (existing.some((ex, i) => i !== index && ex.name === name)) {
+      toast.error(t("body_examples.duplicate_name"))
+      return
+    }
+    if (index >= 0 && index < existing.length) {
+      existing[index] = { ...existing[index], name }
+      updateRequest({ bodyExamples: existing } as Partial<HoppRESTRequest>)
+    }
   }
-  if (index >= 0 && index < existing.length) {
-    existing[index] = { ...existing[index], name }
-    updateRequest({
-      bodyExamples: existing,
-    } as Partial<HoppRESTRequest>)
-  }
+
   renamingIndex.value = -1
 }
 </script>
