@@ -100,6 +100,55 @@ HoppRESTRequest → getEffectiveRESTRequest() → EffectiveHoppRESTRequest
 - `request-mode-tabs.md` — 请求模式 Tab 实现
 - `verzod-data-model.md` — verzod 数据模型指南
 
+## 服务启动清单
+
+Reviewer 审核完成后必须检查以下服务是否正常运行。如有服务未启动，按启动命令启动后再验证。
+
+| 服务 | 端口 | 健康检查 URL | 启动命令 |
+|------|------|-------------|----------|
+| 前端 (selfhost-web) | 3003 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3003/` | `cd /home/jcwl/workspace/hoppscotch/packages/hoppscotch-selfhost-web && pnpm run dev` |
+| 管理端 (sh-admin) | 3101 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3101/` | `cd /home/jcwl/workspace/hoppscotch/packages/hoppscotch-sh-admin && pnpm run dev` |
+| 后端 (backend) | 3170 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3170/` | `cd /home/jcwl/workspace/hoppscotch/packages/hoppscotch-backend && export $(grep -v '^#' ../../.env \| xargs) && node dist/src/main.js` |
+
+### 启动前清理
+
+```bash
+# 清理旧进程（必须先执行）
+pkill -f hoppscotch 2>/dev/null; pkill -f vite 2>/dev/null; sleep 2
+
+# 确认端口空闲
+lsof -i :3170 -i :3003 -i :3101 2>/dev/null | grep LISTEN  # 必须为空
+```
+
+### 后端启动前置条件
+
+```bash
+# 需要先构建后端
+cd /home/jcwl/workspace/hoppscotch/packages/hoppscotch-backend && pnpm run build
+
+# 确保 .env 文件存在且配置正确
+cat /home/jcwl/workspace/hoppscotch/.env | head -5
+```
+
+### 健康检查脚本（一次性检查所有服务）
+
+```bash
+for port in 3003 3101 3170; do
+  status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$port/ 2>/dev/null)
+  echo "端口 $port: HTTP $status"
+done
+```
+
+### Nginx 反向代理（公网访问）
+
+| 公网端口 | 内网端口 | 用途 |
+|----------|----------|------|
+| 35051 | 3003 | 前端 |
+| 35050 | 3101 | 管理端 |
+| 35052 | 3170 | 后端 |
+
+公网 IP: `121.41.26.6`，服务自检必须用 `127.0.0.1`（NAT loopback 限制）。
+
 ## Agent 开发指南
 
 ### Builder 须知

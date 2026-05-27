@@ -637,5 +637,6 @@ These files live inside the Hoppscotch repo and are read by Claude Code automati
 - `references/request-pipeline.md` — REST request pipeline details
 - `references/vue-reactivity-pitfalls.md` — v-if slots, computed ?? [] detached array, v-model on computed items
 - `references/schema-versioning.md` — verzod migration steps
+- `references/auth-architecture.md` — full auth system map: magic link + OAuth, backend/frontend key files, Prisma models, AuthPlatformDef interface, Login.vue mode state machine, checklist for adding new auth providers
 - `scripts/restart-all.sh` — full restart script
 - `scripts/encrypt-infraconfig.js` — standalone encrypt/decrypt for InfraConfig

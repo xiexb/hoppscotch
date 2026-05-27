@@ -101,6 +101,7 @@
       </template>
     </template>
 
+    <ProfilePasswordManager />
     <ProfileUserDelete />
   </div>
 </template>

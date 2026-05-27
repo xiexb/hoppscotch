@@ -355,6 +355,57 @@ export const def: AuthPlatformDef = {
     return refreshToken()
   },
 
+  async signInWithPassword(email: string, password: string) {
+    await axios.post(
+      `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/signin`,
+      { email, password },
+      { withCredentials: true }
+    )
+    await setInitialUser()
+  },
+
+  async requestPasswordReset(email: string) {
+    await axios.post(
+      `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/reset-request`,
+      { email },
+      { withCredentials: true }
+    )
+  },
+
+  async verifyPasswordReset(token: string, newPassword: string) {
+    await axios.post(
+      `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/reset-verify`,
+      { token, newPassword },
+      { withCredentials: true }
+    )
+  },
+
+  async setPassword(password: string) {
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/set`,
+        { password },
+        { withCredentials: true }
+      )
+      return E.right(undefined)
+    } catch (e: any) {
+      return E.left(e.response?.data?.message || "SOMETHING_WENT_WRONG")
+    }
+  },
+
+  async changePassword(oldPassword: string, newPassword: string) {
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_API_URL}/auth/password/change`,
+        { oldPassword, newPassword },
+        { withCredentials: true }
+      )
+      return E.right(undefined)
+    } catch (e: any) {
+      return E.left(e.response?.data?.message || "SOMETHING_WENT_WRONG")
+    }
+  },
+
   async processMagicLink() {
     if (this.isSignInWithEmailLink(window.location.href)) {
       const deviceIdentifier =

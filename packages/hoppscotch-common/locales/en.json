@@ -202,7 +202,26 @@
     "send_magic_link": "Send a magic link",
     "sync": "Sync",
     "we_sent_magic_link": "We sent you a magic link!",
-    "we_sent_magic_link_description": "Check your inbox - we sent an email to {email}. It contains a magic link that will log you in."
+    "we_sent_magic_link_description": "Check your inbox - we sent an email to {email}. It contains a magic link that will log you in.",
+    "continue_with_password": "Continue with Password",
+    "password": "Password",
+    "sign_in": "Sign In",
+    "forgot_password": "Forgot Password?",
+    "send_reset_link": "Send Reset Link",
+    "reset_link_sent": "Reset Link Sent",
+    "reset_link_sent_description": "We've sent a password reset link to {email}. Please check your inbox.",
+    "reset_password": "Reset Password",
+    "reset_password_description": "Enter your new password below.",
+    "new_password": "New Password",
+    "confirm_password": "Confirm Password",
+    "old_password": "Current Password",
+    "set_password": "Set Password",
+    "change_password": "Change Password",
+    "password_set_success": "Password set successfully",
+    "password_change_success": "Password changed successfully",
+    "password_reset_success": "Password Reset Successfully",
+    "password_reset_success_description": "Your password has been reset. You can now sign in with your new password.",
+    "password_min_length": "Password must be at least 8 characters"
   },
   "authorization": {
     "generate_token": "Generate Token",
@@ -769,7 +788,15 @@
     "generate_access_token": "Something went wrong while generating the access token",
     "delete_access_token": "Something went wrong while deleting the access token",
     "extension_not_found": "Extension not found",
-    "invalid_request": "Invalid request data"
+    "invalid_request": "Invalid request data",
+    "invalid_credentials": "Invalid email or password",
+    "password_not_set": "Password not set. Please use magic link to sign in first, then set a password in your profile.",
+    "password_too_short": "Password must be at least 8 characters",
+    "invalid_old_password": "Current password is incorrect",
+    "reset_token_expired": "Reset link has expired. Please request a new one.",
+    "reset_token_invalid": "Invalid Reset Link",
+    "reset_token_invalid_description": "This reset link is invalid. Please request a new one.",
+    "password_mismatch": "Passwords do not match"
   },
   "export": {
     "as_json": "Export as JSON",
@@ -1545,7 +1572,8 @@
     "ca_certificates": "CA Certificates",
     "ca_certificates_support": "Hoppscotch supports .crt, .cer or .pem files containing one or more certificates.",
     "proxy_capabilities": "Hoppscotch Agent and Desktop App supports HTTP/HTTPS/SOCKS proxies with NTLM and Basic Auth support.",
-    "proxy_auth": "You can also include username and password in the URL."
+    "proxy_auth": "You can also include username and password in the URL.",
+    "password_description": "Manage your account password."
   },
   "shared_requests": {
     "button": "Button",

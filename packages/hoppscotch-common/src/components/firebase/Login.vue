@@ -94,6 +94,70 @@
             </p>
           </div>
         </div>
+
+        <form
+          v-if="mode === 'password'"
+          class="flex flex-col space-y-2"
+          @submit.prevent="signInWithPassword"
+        >
+          <HoppSmartInput
+            v-model="form.email"
+            type="email"
+            placeholder=" "
+            :label="t('auth.email')"
+            input-styles="floating-input"
+          />
+          <HoppSmartInput
+            v-model="form.password"
+            type="password"
+            placeholder=" "
+            :label="t('auth.password')"
+            input-styles="floating-input"
+          />
+          <HoppButtonPrimary
+            :loading="signingInWithPassword"
+            type="submit"
+            :label="t('auth.sign_in')"
+          />
+          <HoppSmartAnchor
+            class="link"
+            :label="t('auth.forgot_password')"
+            @click="mode = 'forgot-password'"
+          />
+        </form>
+
+        <form
+          v-if="mode === 'forgot-password'"
+          class="flex flex-col space-y-2"
+          @submit.prevent="requestPasswordReset"
+        >
+          <HoppSmartInput
+            v-model="form.email"
+            type="email"
+            placeholder=" "
+            :label="t('auth.email')"
+            input-styles="floating-input"
+          />
+          <HoppButtonPrimary
+            :loading="requestingReset"
+            type="submit"
+            :label="t('auth.send_reset_link')"
+          />
+        </form>
+
+        <div v-if="mode === 'reset-sent'" class="flex flex-col px-4">
+          <div class="flex max-w-md flex-col items-center justify-center">
+            <icon-lucide-inbox class="h-6 w-6 text-accent" />
+            <h3 class="my-2 text-center text-lg">
+              {{ t("auth.reset_link_sent") }}
+            </h3>
+            <p class="text-center">
+              {{
+                t("auth.reset_link_sent_description", { email: form.email })
+              }}
+            </p>
+          </div>
+        </div>
       </template>
     </template>
     <template #footer>
@@ -124,6 +188,22 @@
           @click="mode = 'sign-in'"
         />
       </div>
+      <div v-if="mode === 'password'">
+        <HoppButtonSecondary
+          :label="t('auth.all_sign_in_options')"
+          :icon="IconArrowLeft"
+          class="!p-0"
+          @click="mode = 'sign-in'"
+        />
+      </div>
+      <div v-if="mode === 'forgot-password'">
+        <HoppButtonSecondary
+          :label="t('auth.all_sign_in_options')"
+          :icon="IconArrowLeft"
+          class="!p-0"
+          @click="mode = 'sign-in'"
+        />
+      </div>
       <div
         v-if="mode === 'email-sent'"
         class="flex flex-1 justify-between text-secondaryLight"
@@ -133,6 +213,22 @@
           :label="t('auth.re_enter_email')"
           :icon="IconArrowLeft"
           @click="mode = 'email'"
+        />
+        <HoppSmartAnchor
+          class="link"
+          :label="`${t('action.dismiss')}`"
+          @click="hideModal"
+        />
+      </div>
+      <div
+        v-if="mode === 'reset-sent'"
+        class="flex flex-1 justify-between text-secondaryLight"
+      >
+        <HoppSmartAnchor
+          class="link"
+          :label="t('auth.re_enter_email')"
+          :icon="IconArrowLeft"
+          @click="mode = 'forgot-password'"
         />
         <HoppSmartAnchor
           class="link"
@@ -159,6 +255,7 @@ import IconGoogle from "~icons/auth/google"
 import IconMicrosoft from "~icons/auth/microsoft"
 import IconArrowLeft from "~icons/lucide/arrow-left"
 import IconFileText from "~icons/lucide/file-text"
+import IconLock from "~icons/lucide/lock"
 
 import { useService } from "dioc/vue"
 import { LoginItemDef } from "~/platform/auth"
@@ -178,6 +275,7 @@ const persistenceService = useService(PersistenceService)
 
 const form = {
   email: "",
+  password: "",
 }
 
 const isLoadingAllowedAuthProviders = ref(true)
@@ -186,6 +284,8 @@ const signingInWithGoogle = ref(false)
 const signingInWithGitHub = ref(false)
 const signingInWithMicrosoft = ref(false)
 const signingInWithEmail = ref(false)
+const signingInWithPassword = ref(false)
+const requestingReset = ref(false)
 const mode = ref("sign-in")
 
 const tosLink = import.meta.env.VITE_APP_TOS_LINK
@@ -356,6 +456,44 @@ const signInWithEmail = async () => {
     })
 }
 
+const signInWithPassword = async () => {
+  if (!platform.auth.signInWithPassword) return
+
+  signingInWithPassword.value = true
+
+  try {
+    await platform.auth.signInWithPassword(form.email, form.password)
+    showLoginSuccess()
+    hideModal()
+  } catch (e: any) {
+    console.error(e)
+    const msg = e.response?.data?.message || e.message || ""
+    if (msg === "auth/password_not_set") {
+      toast.error(`${t("error.password_not_set")}`)
+    } else {
+      toast.error(`${t("error.invalid_credentials")}`)
+    }
+  } finally {
+    signingInWithPassword.value = false
+  }
+}
+
+const requestPasswordReset = async () => {
+  if (!platform.auth.requestPasswordReset) return
+
+  requestingReset.value = true
+
+  try {
+    await platform.auth.requestPasswordReset(form.email)
+    mode.value = "reset-sent"
+  } catch (e: any) {
+    console.error(e)
+    toast.error(`${t("error.something_went_wrong")}`)
+  } finally {
+    requestingReset.value = false
+  }
+}
+
 const authProvidersAvailable: AuthProviderItem[] = [
   {
     id: "GITHUB",
@@ -394,6 +532,15 @@ const authProvidersAvailable: AuthProviderItem[] = [
       mode.value = "email"
     },
     isLoading: signingInWithEmail,
+  },
+  {
+    id: "EMAIL_PASSWORD",
+    icon: IconLock,
+    label: t("auth.continue_with_password"),
+    action: () => {
+      mode.value = "password"
+    },
+    isLoading: signingInWithPassword,
   },
 ]
 

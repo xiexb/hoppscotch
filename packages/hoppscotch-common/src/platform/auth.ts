@@ -288,4 +288,43 @@ export type AuthPlatformDef = {
    * @returns True if tokens were refreshed successfully, false otherwise
    */
   refreshAuthToken?: () => Promise<boolean>
+
+  /**
+   * Signs in a user with email and password.
+   * @param email The user's email address
+   * @param password The user's password
+   * @returns A promise that resolves when authentication is complete
+   */
+  signInWithPassword?: (email: string, password: string) => Promise<void>
+
+  /**
+   * Requests a password reset email for the given email address.
+   * @param email The email address to send the reset link to
+   */
+  requestPasswordReset?: (email: string) => Promise<void>
+
+  /**
+   * Verifies a password reset token and sets a new password.
+   * @param token The reset token from the email link
+   * @param newPassword The new password to set
+   */
+  verifyPasswordReset?: (token: string, newPassword: string) => Promise<void>
+
+  /**
+   * Sets a password for the current user (first-time setup).
+   * @param password The password to set
+   * @returns Either an error string or void on success
+   */
+  setPassword?: (password: string) => Promise<E.Either<string, void>>
+
+  /**
+   * Changes the password for the current user.
+   * @param oldPassword The current password
+   * @param newPassword The new password
+   * @returns Either an error string or void on success
+   */
+  changePassword?: (
+    oldPassword: string,
+    newPassword: string
+  ) => Promise<E.Either<string, void>>
 }
