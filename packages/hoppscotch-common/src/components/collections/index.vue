@@ -1190,8 +1190,8 @@ const renameMarkdownDoc = (payload: {
     const coll = myCollections.value[collIdx]
     if (!coll || !coll.markdownDocs) return
     const docs = [...coll.markdownDocs]
-    if (docs[docIdx]) {
-      docs[docIdx] = { ...docs[docIdx], name: newName }
+    if (docs[docIndex]) {
+      docs[docIndex] = { ...docs[docIndex], name: newName }
       editRESTCollection(collIdx, { markdownDocs: docs })
     }
   } else {
@@ -1201,8 +1201,8 @@ const renameMarkdownDoc = (payload: {
     )
     if (!folder || !folder.markdownDocs) return
     const docs = [...folder.markdownDocs]
-    if (docs[docIdx]) {
-      docs[docIdx] = { ...docs[docIdx], name: newName }
+    if (docs[docIndex]) {
+      docs[docIndex] = { ...docs[docIndex], name: newName }
       editRESTFolder(collectionPath, { markdownDocs: docs })
     }
   }
