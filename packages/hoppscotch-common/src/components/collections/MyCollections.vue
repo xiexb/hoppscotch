@@ -395,6 +395,14 @@
               })
             "
           />
+          <CollectionsMarkdownDocNode
+            v-if="node.data.type === 'markdownDocs'"
+            :doc="node.data.data.data"
+            :doc-index="node.data.data.docIndex"
+            :collection-path="node.data.data.parentIndex"
+            @delete-doc="emit('delete-markdown-doc', $event)"
+            @rename-doc="emit('rename-markdown-doc', $event)"
+          />
         </template>
         <template #emptyNode="{ node }">
           <HoppSmartPlaceholder

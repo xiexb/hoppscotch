@@ -740,6 +740,7 @@ const saveCollectionDocumentation = async () => {
       preRequestScript: collection.preRequestScript || "",
       testScript: collection.testScript || "",
       selectedServiceId: collection.selectedServiceId ?? null,
+      markdownDocs: collection.markdownDocs ?? [],
     }
 
     pipe(
@@ -837,6 +838,7 @@ const saveCollectionDocumentationById = async (
         preRequestScript: collectionData.preRequestScript || "",
         testScript: collectionData.testScript || "",
         selectedServiceId: collectionData.selectedServiceId ?? null,
+        markdownDocs: collectionData.markdownDocs ?? [],
       }
 
       const result = await pipe(

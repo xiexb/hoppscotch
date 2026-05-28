@@ -1067,6 +1067,7 @@ async function startImport() {
           description: null,
           preRequestScript: "",
           testScript: "",
+          markdownDocs: [],
         })
         emit(
           "import-complete",
@@ -1098,6 +1099,7 @@ async function startImport() {
           description: null,
           preRequestScript: "",
           testScript: "",
+          markdownDocs: [],
         })
 
         // Track old refId; subscribe to store changes after backend sync reload

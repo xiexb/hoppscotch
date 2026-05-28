@@ -314,6 +314,7 @@ export function transformCollectionForImport(
     preRequestScript: collection.preRequestScript ?? "",
     testScript: collection.testScript ?? "",
     selectedServiceId: collection.selectedServiceId ?? null,
+    markdownDocs: collection.markdownDocs ?? [],
   }
 
   const obj: CollectionFolder = {

@@ -98,6 +98,9 @@
       :request-move-loading="requestMoveLoading"
       @add-request="addRequest"
       @add-folder="addFolder"
+      @add-markdown-doc="addMarkdownDoc"
+      @delete-markdown-doc="deleteMarkdownDoc"
+      @rename-markdown-doc="renameMarkdownDoc"
       @collection-click="handleCollectionClick"
       @duplicate-collection="duplicateCollection"
       @duplicate-request="duplicateRequest"
@@ -362,6 +365,7 @@ import { UpdateRequestDocument } from "~/helpers/backend/graphql"
 import {
   CollectionDataProps,
   getCompleteCollectionTree,
+  parseCollectionData,
   teamCollToHoppRESTColl,
 } from "~/helpers/backend/helpers"
 import { handleTokenValidation } from "~/helpers/handleTokenValidation"
@@ -1096,8 +1100,24 @@ const onAddRequest = async (requestName: string) => {
 }
 
 // Markdown Doc handlers
+// Helper to find a TeamCollection by ID in the tree
+const findTeamCollectionByID = (
+  tree: TeamCollection[],
+  targetID: string
+): TeamCollection | null => {
+  for (const coll of tree) {
+    if (coll.id === targetID) return coll
+    if (coll.children) {
+      const result = findTeamCollectionByID(coll.children, targetID)
+      if (result) return result
+    }
+  }
+  return null
+}
+
 const editingMarkdownDocPath = ref<string | null>(null)
 const editingMarkdownDocFolder = ref<HoppCollection | null>(null)
+const editingTeamCollection = ref<TeamCollection | null>(null)
 const showAddMarkdownDocModal = ref(false)
 const newMarkdownDocName = ref("")
 
@@ -1105,25 +1125,60 @@ const addMarkdownDoc = (payload: {
   path: string
   folder: HoppCollection | TeamCollection
 }) => {
+  const { path, folder } = payload
+
   if (collectionsType.value.type === "team-collections") {
-    toast.error(t("collection.team_markdown_doc_not_supported"))
-    return
+    // Team collection: store the TeamCollection ref, then open modal
+    editingTeamCollection.value = folder as TeamCollection
+    editingMarkdownDocPath.value = null
+    editingMarkdownDocFolder.value = null
+  } else {
+    editingMarkdownDocPath.value = path
+    editingMarkdownDocFolder.value = folder as HoppCollection
+    editingTeamCollection.value = null
   }
 
-  const { path, folder } = payload
-  editingMarkdownDocPath.value = path
-  editingMarkdownDocFolder.value = folder as HoppCollection
   newMarkdownDocName.value = ""
   showAddMarkdownDocModal.value = true
 }
 
 const onAddMarkdownDoc = (docName: string) => {
-  const path = editingMarkdownDocPath.value
-  if (!path || !docName.trim()) return
+  if (!docName.trim()) return
 
   const name = docName.trim()
   const docId = `md_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const newDoc = { id: docId, name, content: "" }
+
+  // Team collection branch
+  const teamColl = editingTeamCollection.value
+  if (teamColl) {
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      markdownDocs: [...(existingData.markdownDocs ?? []), newDoc],
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.markdown_doc_added"))
+        }
+      )
+    )()
+
+    showAddMarkdownDocModal.value = false
+    newMarkdownDocName.value = ""
+    editingTeamCollection.value = null
+    return
+  }
+
+  // My collections branch
+  const path = editingMarkdownDocPath.value
+  if (!path) return
 
   const pathIndices = path.split("/").map((x) => parseInt(x))
 
@@ -1155,6 +1210,37 @@ const deleteMarkdownDoc = (payload: {
   docIndex: number
 }) => {
   const { collectionPath, docIndex } = payload
+
+  if (collectionsType.value.type === "team-collections") {
+    // Team collection: find the collection by ID and update its data field
+    const teamColl = findTeamCollectionByID(
+      teamCollections.value,
+      collectionPath
+    )
+    if (!teamColl) return
+
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const docs = [...(existingData.markdownDocs ?? [])]
+    docs.splice(docIndex, 1)
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      markdownDocs: docs,
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.markdown_doc_deleted"))
+        }
+      )
+    )()
+    return
+  }
+
   const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
 
   if (pathIndices.length === 1) {
@@ -1183,6 +1269,39 @@ const renameMarkdownDoc = (payload: {
   newName: string
 }) => {
   const { collectionPath, docIndex, newName } = payload
+
+  if (collectionsType.value.type === "team-collections") {
+    // Team collection: find the collection by ID and update its data field
+    const teamColl = findTeamCollectionByID(
+      teamCollections.value,
+      collectionPath
+    )
+    if (!teamColl) return
+
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const docs = [...(existingData.markdownDocs ?? [])]
+    if (docs[docIndex]) {
+      docs[docIndex] = { ...docs[docIndex], name: newName }
+    }
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      markdownDocs: docs,
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.markdown_doc_renamed"))
+        }
+      )
+    )()
+    return
+  }
+
   const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
 
   if (pathIndices.length === 1) {
@@ -3579,6 +3698,7 @@ const editProperties = async (payload: {
         preRequestScript: data.preRequestScript ?? "",
         testScript: data.testScript ?? "",
         selectedServiceId: data.selectedServiceId ?? null,
+        markdownDocs: data.markdownDocs ?? [],
       }
 
       coll = {
@@ -3682,6 +3802,15 @@ const setCollectionProperties = (newCollection: {
     })
     toast.success(t("collection.properties_updated"))
   } else if (hasTeamWriteAccess.value && collectionId) {
+    // Preserve existing markdownDocs and selectedServiceId from current team collection data
+    const existingTeamColl = findTeamCollectionByID(
+      teamCollections.value,
+      collectionId
+    )
+    const existingData = existingTeamColl
+      ? parseCollectionData(existingTeamColl.data ?? null)
+      : null
+
     const data = {
       auth: collection.auth ?? {
         authType: "inherit",
@@ -3692,6 +3821,11 @@ const setCollectionProperties = (newCollection: {
       description: collection.description ?? null,
       preRequestScript: collection.preRequestScript ?? "",
       testScript: collection.testScript ?? "",
+      selectedServiceId:
+        collection.selectedServiceId ??
+        existingData?.selectedServiceId ??
+        null,
+      markdownDocs: collection.markdownDocs ?? existingData?.markdownDocs ?? [],
     }
 
     // Mark as loading BEFORE triggering async update to avoid race conditions and push the collectionId to the loading array

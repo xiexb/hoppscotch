@@ -6,6 +6,8 @@ import {
   HoppRESTHeaders,
   HoppRESTRequest,
   makeCollection,
+  MarkdownDoc,
+  MarkdownDocSchema,
   translateToNewRequest,
 } from "@hoppscotch/data"
 import * as A from "fp-ts/Array"
@@ -43,6 +45,7 @@ export type CollectionDataProps = {
   preRequestScript: string
   testScript: string
   selectedServiceId: string | null
+  markdownDocs: MarkdownDoc[]
 }
 
 export const BACKEND_PAGE_SIZE = 10
@@ -116,7 +119,7 @@ const parseWithDefaultValue = <T>(
 ): T => (parseResult.success ? parseResult.data : defaultValue)
 
 // Parse the incoming value for the `data` (authorization/headers) field and obtain the value in the expected format
-const parseCollectionData = (
+export const parseCollectionData = (
   data: string | Record<string, unknown> | null
 ): CollectionDataProps => {
   const defaultDataProps: CollectionDataProps = {
@@ -127,6 +130,7 @@ const parseCollectionData = (
     preRequestScript: "",
     testScript: "",
     selectedServiceId: null,
+    markdownDocs: [],
   }
 
   if (!data) {
@@ -180,6 +184,13 @@ const parseCollectionData = (
       ? parsedData.selectedServiceId
       : defaultDataProps.selectedServiceId
 
+  const markdownDocs = parseWithDefaultValue<
+    CollectionDataProps["markdownDocs"]
+  >(
+    z.array(MarkdownDocSchema).safeParse(parsedData?.markdownDocs),
+    defaultDataProps.markdownDocs
+  )
+
   return {
     auth,
     headers,
@@ -188,6 +199,7 @@ const parseCollectionData = (
     preRequestScript,
     testScript,
     selectedServiceId,
+    markdownDocs,
   }
 }
 
@@ -202,6 +214,7 @@ export const teamCollectionJSONToHoppRESTColl = (
     description,
     preRequestScript,
     testScript,
+    markdownDocs,
   } = parseCollectionData(coll.data)
 
   return makeCollection({
@@ -215,6 +228,7 @@ export const teamCollectionJSONToHoppRESTColl = (
     description,
     preRequestScript,
     testScript,
+    markdownDocs,
   })
 }
 
@@ -285,6 +299,7 @@ export const teamCollToHoppRESTColl = (
     description,
     preRequestScript,
     testScript,
+    markdownDocs,
   } = parseCollectionData(data)
 
   return makeCollection({
@@ -298,6 +313,7 @@ export const teamCollToHoppRESTColl = (
     description: description ?? null,
     preRequestScript: preRequestScript ?? "",
     testScript: testScript ?? "",
+    markdownDocs: markdownDocs ?? [],
   })
 }
 

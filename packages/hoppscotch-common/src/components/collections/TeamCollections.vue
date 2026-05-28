@@ -98,6 +98,13 @@
                 folder: node.data.data.data,
               })
             "
+            @add-markdown-doc="
+              node.data.type === 'collections' &&
+              emit('add-markdown-doc', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
             @edit-collection="
               node.data.type === 'collections' &&
               emit('edit-collection', {
@@ -211,6 +218,13 @@
             @add-folder="
               node.data.type === 'folders' &&
               emit('add-folder', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
+            @add-markdown-doc="
+              node.data.type === 'folders' &&
+              emit('add-markdown-doc', {
                 path: node.id,
                 folder: node.data.data.data,
               })
@@ -424,6 +438,14 @@
                 requestIndex: null,
               })
             "
+          />
+          <CollectionsMarkdownDocNode
+            v-if="node.data.type === 'markdownDocs'"
+            :doc="node.data.data.data"
+            :doc-index="node.data.data.docIndex"
+            :collection-path="node.data.data.parentIndex"
+            @delete-doc="emit('delete-markdown-doc', $event)"
+            @rename-doc="emit('rename-markdown-doc', $event)"
           />
         </template>
         <template #emptyNode="{ node }">
@@ -792,6 +814,18 @@ const emit = defineEmits<{
       collection: TeamCollection
     }
   ): void
+  (
+    event: "add-markdown-doc",
+    payload: { path: string; folder: TeamCollection }
+  ): void
+  (
+    event: "delete-markdown-doc",
+    payload: { collectionPath: string; docIndex: number }
+  ): void
+  (
+    event: "rename-markdown-doc",
+    payload: { collectionPath: string; docIndex: number; newName: string }
+  ): void
 }>()
 
 const currentSortValuesService = useService(CurrentSortValuesService)
@@ -1025,7 +1059,17 @@ type TeamRequests = {
   }
 }
 
-type TeamCollectionNode = TeamCollections | TeamFolder | TeamRequests
+type TeamMarkdownDocs = {
+  isLastItem: boolean
+  type: "markdownDocs"
+  data: {
+    parentIndex: string
+    data: { id: string; name: string; content: string }
+    docIndex: number
+  }
+}
+
+type TeamCollectionNode = TeamCollections | TeamFolder | TeamRequests | TeamMarkdownDocs
 
 class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
   constructor(public data: Ref<TeamCollection[]>) {}
@@ -1132,11 +1176,32 @@ class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
                 },
               }))
             : []),
+          // Parse markdownDocs from collection data
+          ...(() => {
+            try {
+              const parsedData = items.data ? JSON.parse(items.data) : null
+              const mdDocs = parsedData?.markdownDocs ?? []
+              return mdDocs.map((doc: any, index: number) => ({
+                id: `${id}/md-${index}`,
+                data: {
+                  isLastItem: index === mdDocs.length - 1,
+                  type: "markdownDocs" as const,
+                  data: {
+                    parentIndex: parsedID,
+                    data: doc,
+                    docIndex: index,
+                  },
+                },
+              }))
+            } catch {
+              return []
+            }
+          })(),
         ]
         return {
           status: "loaded",
           data: cloneDeep(data),
-        } as ChildrenResult<TeamFolder | TeamRequests>
+        } as ChildrenResult<TeamFolder | TeamRequests | TeamMarkdownDocs>
       }
       return {
         status: "loaded",
