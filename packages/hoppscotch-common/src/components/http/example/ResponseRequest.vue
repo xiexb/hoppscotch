@@ -60,25 +60,14 @@
         />
       </div>
     </div>
-    <div class="mt-2 flex sm:mt-0 items-stretch space-x-2">
+    <div class="mt-2 flex sm:mt-0 items-stretch">
       <HoppButtonPrimary
         id="send"
         v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
         title="Try"
         label="Try"
-        class="min-w-[5rem] flex-1"
+        class="min-w-[5rem]"
         @click="tryExampleResponse"
-      />
-      <HoppButtonSecondary
-        v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
-        :title="`${t(
-          'request.save'
-        )} <kbd>${getSpecialKey()}</kbd><kbd>S</kbd>`"
-        label="Save"
-        filled
-        :icon="IconSave"
-        class="flex-1 rounded"
-        @click="saveExample()"
       />
     </div>
   </div>
@@ -88,7 +77,6 @@
 import { useI18n } from "@composables/i18n"
 import { useVModel } from "@vueuse/core"
 import { computed, ref } from "vue"
-import { getPlatformSpecialKey as getSpecialKey } from "~/helpers/platformutils"
 import { getDefaultRESTRequest } from "~/helpers/rest/default"
 import { useService } from "dioc/vue"
 import { InspectionService } from "~/services/inspection"
@@ -96,7 +84,6 @@ import { HoppTab } from "~/services/tab"
 import { HoppSavedExampleDocument } from "~/helpers/rest/document"
 import { RESTTabService } from "~/services/tab/rest"
 import { getMethodLabelColor } from "~/helpers/rest/labelColoring"
-import IconSave from "~icons/lucide/save"
 import { editRESTRequest, restCollections$ } from "~/newstore/collections"
 import { useReadonlyStream } from "~/composables/stream"
 import { getRequestsByPath } from "~/helpers/collection/request"

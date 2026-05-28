@@ -1,7 +1,7 @@
 <template>
   <HoppSmartTabs
     v-model="selectedOptionTab"
-    styles="sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10"
+    :styles="isDesignMode ? 'overflow-x-auto flex-shrink-0 bg-primary' : 'sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10'"
   >
     <HoppSmartTab
       v-if="properties?.includes('params') ?? true"

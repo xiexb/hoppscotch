@@ -210,6 +210,17 @@
                     }
                   "
                 />
+                <HoppSmartItem
+                  :label="t('action.save_as_example')"
+                  :icon="IconBookmarkPlus"
+                  :disabled="tab.document.response?.type !== 'success'"
+                  @click="
+                    () => {
+                      saveAsExample()
+                      hide()
+                    }
+                  "
+                />
                 <hr />
                 <HoppSmartItem
                   ref="copyRequestAction"
@@ -246,6 +257,13 @@
       :request="request"
       @hide-modal="showSaveRequestModal = false"
     />
+    <HttpSaveResponseName
+      v-model:response-name="responseName"
+      :has-same-name-response="hasSameNameResponse"
+      :show="showSaveResponseName"
+      @submit="onSaveAsExample"
+      @hide-modal="showSaveResponseName = false"
+    />
   </div>
 </template>
 
@@ -271,6 +289,15 @@ import IconFolderPlus from "~icons/lucide/folder-plus"
 import IconRotateCCW from "~icons/lucide/rotate-ccw"
 import IconSave from "~icons/lucide/save"
 import IconShare2 from "~icons/lucide/share-2"
+import IconBookmarkPlus from "~icons/lucide/bookmark-plus"
+import { useResponseBody } from "@composables/lens-actions"
+import { getStatusCodeReasonPhrase } from "~/helpers/utils/statusCodes"
+import type { HoppRESTResponseModelV23 } from "@hoppscotch/data"
+import {
+  HoppRESTRequestResponse,
+  HoppRESTResponseOriginalRequest,
+  makeHoppRESTResponseOriginalRequest,
+} from "@hoppscotch/data"
 import { getDefaultRESTRequest } from "~/helpers/rest/default"
 import { RESTHistoryEntry, restHistory$ } from "~/newstore/history"
 import { platform } from "~/platform"
@@ -615,6 +642,129 @@ const clearContent = () => {
 
 const updateRESTResponse = (response: HoppRESTResponse | null) => {
   tab.value.document.response = response
+}
+
+// Save as Example state
+const responseName = ref("")
+const showSaveResponseName = ref(false)
+
+const hasSameNameResponse = computed(() => {
+  return responseName.value
+    ? responseName.value in tab.value.document.request.responses
+    : false
+})
+
+const saveAsExample = () => {
+  showSaveResponseName.value = true
+  responseName.value = tab.value.document.request.name
+}
+
+const onSaveAsExample = () => {
+  const response = tab.value.document.response
+
+  if (response && response.type === "success") {
+    const { responseBodyText } = useResponseBody(response)
+
+    const statusText = getStatusCodeReasonPhrase(
+      response.statusCode,
+      response.statusText
+    )
+
+    const {
+      method,
+      endpoint,
+      headers,
+      body,
+      auth,
+      params,
+      name,
+      requestVariables,
+    } = response.req
+
+    const originalRequest: HoppRESTResponseOriginalRequest =
+      makeHoppRESTResponseOriginalRequest({
+        method,
+        endpoint,
+        headers,
+        body,
+        auth,
+        params,
+        name,
+        requestVariables,
+      })
+
+    const resName = responseName.value.trim()
+
+    const responseObj: HoppRESTRequestResponse = {
+      status: statusText,
+      code: response.statusCode,
+      headers: response.headers,
+      body: responseBodyText.value,
+      name: resName,
+      originalRequest,
+    }
+
+    tab.value.document.request.responses = {
+      ...tab.value.document.request.responses,
+      [resName]: responseObj,
+    }
+
+    // Also save to matching responseModel's examples array (Design mode)
+    const statusCodeStr = String(response.statusCode)
+    const responseModels = (tab.value.document.request.responseModels ?? []) as HoppRESTResponseModelV23[]
+    const matchingModelIdx = responseModels.findIndex(
+      (m) => m.statusCode === statusCodeStr
+    )
+    if (matchingModelIdx >= 0) {
+      const model = responseModels[matchingModelIdx]
+      const examples: Array<{ name: string; body: string }> = [
+        ...(model.examples ?? []),
+      ]
+      const existingIdx = examples.findIndex((e) => e.name === resName)
+      if (existingIdx >= 0) {
+        examples[existingIdx] = { name: resName, body: responseBodyText.value }
+      } else {
+        examples.push({ name: resName, body: responseBodyText.value })
+      }
+      responseModels[matchingModelIdx] = { ...model, examples }
+      tab.value.document.request.responseModels = [...responseModels]
+    }
+
+    showSaveResponseName.value = false
+
+    const saveCtx = tab.value.document.saveContext
+    if (!saveCtx) return
+
+    const req = tab.value.document.request
+
+    if (saveCtx.originLocation === "user-collection") {
+      try {
+        editRESTRequest(saveCtx.folderPath, saveCtx.requestIndex, req)
+        toast.success(`${t("response.saved")}`)
+        responseName.value = ""
+      } catch (e) {
+        console.error(e)
+        responseName.value = ""
+      }
+    } else {
+      runMutation(UpdateRequestDocument, {
+        requestID: saveCtx.requestID,
+        data: {
+          title: req.name,
+          request: JSON.stringify(req),
+        },
+      })().then((result) => {
+        if (E.isLeft(result)) {
+          toast.error(`${t("profile.no_permission")}`)
+          responseName.value = ""
+        } else {
+          tab.value.document.isDirty = false
+          toast.success(`${t("request.saved")}`)
+          responseName.value = ""
+        }
+      })
+    }
+  }
 }
 
 const currentUser = useReadonlyStream(
