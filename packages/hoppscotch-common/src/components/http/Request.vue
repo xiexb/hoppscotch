@@ -526,6 +526,10 @@ const ensureMethodInEndpoint = () => {
   const endpoint = newEndpoint.value.trim()
   tab.value.document.request.endpoint = endpoint
   if (!/^http[s]?:\/\//.test(endpoint) && !endpoint.startsWith("<<")) {
+    // Skip protocol prefix for relative paths (starting with /)
+    if (endpoint.startsWith("/")) {
+      return // relative path, service URL will be prepended later
+    }
     const domain = endpoint.split(/[/:#?]+/)[0]
     if (domain === "localhost" || /([0-9]+\.)*[0-9]/.test(domain)) {
       tab.value.document.request.endpoint = "http://" + endpoint

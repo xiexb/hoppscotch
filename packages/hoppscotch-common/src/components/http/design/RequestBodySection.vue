@@ -412,15 +412,28 @@ function onBodyExampleContentUpdate(val: string) {
   const exIdx = activeBodyExampleTab.value
 
   if (!hasStoredBodyExamples.value) {
-    // Virtual default: materialize examples array with the current default + update
+    // Virtual default being edited: preserve auto-generated default + add user's edit as new example
+    const defaultName = t("body_examples.default_example")
+    let newName = t("body_examples.example_n", { n: "2" })
+    let counter = 2
+    while (newName === defaultName) {
+      counter++
+      newName = t("body_examples.example_n", { n: String(counter) })
+    }
     const examples: HoppRESTBodyExample[] = [
       {
-        name: t("body_examples.default_example"),
+        name: defaultName,
+        body: defaultExampleContent.value,
+        contentType: props.request.body?.contentType || "application/json",
+      },
+      {
+        name: newName,
         body: val,
         contentType: props.request.body?.contentType || "application/json",
       },
     ]
     updateRequest({ bodyExamples: examples } as Partial<HoppRESTRequest>)
+    activeBodyExampleTab.value = 1
     return
   }
 
