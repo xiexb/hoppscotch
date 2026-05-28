@@ -53,7 +53,7 @@
     "restore": "Restore",
     "retry": "Retry",
     "save": "Save",
-    "save_as_example": "Save as example",
+    "save_as_example": "Save as Example",
     "add_example": "Add example",
     "invalid_request": "Invalid request data",
     "scroll_to_bottom": "Scroll to bottom",
@@ -394,6 +394,7 @@
     "remove_telemetry": "Are you sure you want to opt-out of Telemetry?",
     "request_change": "Are you sure you want to discard current request, unsaved changes will be lost.",
     "save_unsaved_tab": "Do you want to save changes made in this tab?",
+    "save_unsaved_tab_named": "Tab \"{name}\" has unsaved changes. Do you want to save?",
     "sync": "Would you like to restore your workspace from cloud? This will discard your local progress.",
     "delete_access_token": "Are you sure you want to delete the access token {tokenLabel}?",
     "delete_mock_server": "Are you sure you want to delete this mock server?"

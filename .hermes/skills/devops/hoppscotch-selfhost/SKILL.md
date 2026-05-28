@@ -72,8 +72,8 @@ pkill -f 'hoppscotch' 2>/dev/null; pkill -f 'vite' 2>/dev/null
 sleep 2
 lsof -i :3170 -i :3003 -i :3101 2>/dev/null | grep LISTEN  # must be empty!
 
-# 2. Backend (must export env vars)
-export $(grep -v '^#' .env | xargs) && node dist/src/main.js
+# 2. Backend (must export env vars — see P45 for why set -a is safer)
+set -a && source .env && set +a && node dist/src/main.js
 
 # 3. Frontends (dev mode) — in separate terminals
 cd packages/hoppscotch-selfhost-web && pnpm run dev
@@ -483,9 +483,121 @@ SELECT id, title, "collectionID" FROM "TeamRequest" WHERE "teamID" = '<teamID>' 
 -- Personal collections
 SELECT id, title FROM "UserCollection" WHERE "userUid" = '<uid>';
 ```
-Fix: start the backend (`cd packages/hoppscotch-backend && export $(grep -v '^#' ../../.env | xargs) && node dist/src/main.js`).
+Fix: start the backend (`cd packages/hoppscotch-backend && set -a && source ../../.env && set +a && node dist/src/main.js`).
 **Note**: `PORT` env var is optional — backend falls back to 3170 if unset. The log line
 `Port: undefined` is harmless.
+
+### P44: `pnpm run start:dev` in background mode produces ZERO stdout
+When running `pnpm run start:dev` via a background process manager, the pnpm
+wrapper buffers all output — you see 0 lines even when NestJS crashes immediately
+with a clear error. The process appears to be "compiling" indefinitely.
+
+**Fix for diagnostics**: Bypass pnpm and run NestJS directly:
+```bash
+cd packages/hoppscotch-backend
+node node_modules/@nestjs/cli/bin/nest.js start 2>&1
+```
+This produces immediate error output (e.g. "DATABASE_URL environment variable
+is not set"). Use this to verify the backend can start before wrapping in
+background mode.
+
+**For production restart**: Use `node dist/src/main.js` (pre-built, no TS compile).
+
+### P45: `export $(grep ... | xargs)` breaks on quoted .env values with special chars
+The common pattern `export $(grep -v '^#' .env | xargs)` breaks when .env
+contains quoted values with special characters (spaces, `=`, `#` inside quotes).
+Example: `MAILER_SMTP_PASSWORD="my pass"` gets split at the space.
+
+**Safer alternative**:
+```bash
+set -a && source /path/to/.env && set +a
+```
+This uses bash's built-in `source` which handles quoted values correctly.
+`set -a` makes all subsequently defined variables exported automatically.
+
+### P46: Zod persistence schema `.strict()` + `entityReference()` rejects persisted data → "Schema validation failed" toast
+When adding optional fields to `HoppRequestDocument` / `HoppTabDocument` types
+(e.g. `designSubModePreference`), the corresponding Zod schema in
+`hoppscotch-common/src/services/persistence/validation-schemas/index.ts`
+(`REST_TAB_STATE_SCHEMA`, line ~566-628) MUST also be updated. The schema has
+TWO layers of strict validation:
+
+1. `.strict()` on wrapper objects — rejects undeclared fields
+2. `entityReference()` (verzod) — versioned entity checks fail on old data shapes
+
+**Complete fix (2026-05-28):** Replace ALL `entityReference()` calls with `z.any()`
+AND change `.strict()` to `.passthrough()` at ALL levels (wrapper + inner doc types).
+The union discriminator (`type` literal) stays strict; only nested entity references
+become permissive.
+
+User may need to clear IndexedDB `persistence.v1` store afterwards (or the `-backup`
+entry). See `hoppscotch-development` skill `references/persistence-schema-validation.md`
+for the complete fix details.
+
+### P47: Frontend runs as `vite preview` (static build) — code changes need full rebuild
+The selfhost-web frontend may be running as `vite preview` (serving from `dist/`),
+NOT `vite dev` (with HMR). Check which mode is active:
+```bash
+ps aux | grep vite | grep -v grep
+# "vite preview" → static build mode, NO HMR
+# "vite" (without preview) → dev mode, HMR works
+```
+
+**When running `vite preview`:**
+- Code changes do NOT take effect until you rebuild: `pnpm run build` (~2 min)
+- Then kill old process and restart: `pnpm run preview --port 3003 --host 0.0.0.0`
+- Vite HMR, `.vue` file watchers, and TS compilation are all bypassed
+
+**When running `vite dev`:**
+- HMR works, `.vue` changes reload instantly
+- But `.ts` changes in `hoppscotch-common` may need manual restart
+
+**Build + restart workflow:**
+```bash
+# Kill old preview
+kill $(lsof -t -i:3003 2>/dev/null) 2>/dev/null
+
+# Rebuild (must source .env for VITE_* vars)
+cd packages/hoppscotch-selfhost-web
+export PATH="/home/jcwl/.hermes/node/bin:$PATH"
+set -a && source /home/jcwl/workspace/hoppscotch/.env && set +a
+pnpm run build  # ~2 min
+
+# Restart
+pnpm run preview --port 3003 --host 0.0.0.0  # background
+```
+
+**PITFALL:** If you make a code fix but forget to rebuild, users will still see the
+old behavior. Always verify the build output (`dist/`) timestamp after rebuilding.
+
+### P48: Kanban SQLite DB corruption recovery
+The kanban plugin's SQLite DB can get corrupted (page reference errors) during concurrent writes or unclean shutdowns. Symptoms: `kanban list` fails with "Refusing to open corrupt kanban DB" + integrity_check errors about "2nd reference to page N".
+
+**Recovery**:
+```bash
+# 1. Backup the corrupt file
+cp ~/.hermes/kanban/boards/<board>/kanban.db{,.corrupt.bak}
+
+# 2. Try recovery via iterdump (Python)
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('file:kanban.db?mode=ro', uri=True)
+for line in conn.iterdump(): print(line)
+conn.close()
+" > recovery.sql
+
+# 3. If recovery yields partial data, extract task bodies from comments
+#    (task body is stored as orchestrator's first comment)
+
+# 4. Delete corrupt DB — kanban will recreate empty on next command
+rm ~/.hermes/kanban/boards/<board>/kanban.db
+
+# 5. Recreate tasks (task IDs change, parent links must be re-established)
+```
+
+**Prevention**: Avoid running multiple `hermes kanban create` commands in rapid succession without waiting for each to complete. The dispatcher's 30s tick + worker spawns create write contention.
+
+**Impact**: All in-flight tasks (running/todo) are lost. Completed task history is also lost. Parent-child dependencies must be re-created. Running builder/tester/reviewer worker processes may still be alive but orphaned — check with `ps aux | grep -E 'kanban|worker'` and kill them.
 
 ### P43: Design mode layout — flat sections, not tabs
 

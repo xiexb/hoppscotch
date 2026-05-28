@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.1.0
+version: 1.3.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -170,7 +170,24 @@ JSON does not forbid duplicate keys but behavior is undefined. If you have both 
 
 ## Persistence Validation
 
-`services/persistence/validation-schemas/index.ts` defines zod schemas for tab state persisted to localStorage. Any new field on `HoppRequestDocument` must be added here as `z.optional(...)` to avoid breaking existing persisted state.
+`services/persistence/validation-schemas/index.ts` defines zod schemas for tab state persisted to IndexedDB/localStorage. Any new field on `HoppRequestDocument` must be added here as `z.optional(...)` to avoid breaking existing persisted state.
+
+**CRITICAL: `.strict()` vs `.passthrough()` on REST_TAB_STATE_SCHEMA**
+The `REST_TAB_STATE_SCHEMA` uses TWO layers of strict validation that both reject
+unknown/mismatched fields:
+1. Top-level `.strict()` — rejects undeclared fields on the wrapper object
+2. `entityReference()` (verzod) — fails when persisted data has different version than schema
+
+**Fix (2026-05-28):** Changed to `.passthrough()` at ALL levels AND replaced ALL
+`entityReference()` calls with `z.any()` (they were too strict for persistence).
+The union discriminator (`type` literal) and structural fields remain typed; only
+deeply-nested entity references become permissive. See `references/persistence-schema-validation.md`
+for the complete fix details, file locations, and field-addition checklist.
+
+**Debugging tip:** In `services/persistence/index.ts`, the error handler logs
+`JSON.stringify(result.error?.issues?.slice(0, 5))` which shows the first 5 Zod
+validation issues (field path + expected type). This is far more useful than
+logging the raw persisted data.
 
 ## Request Panel Layout
 
@@ -202,12 +219,95 @@ RequestTab.vue
     └── RequestTestCasesPanel.vue
 ```
 
+## HoppSmartWindows Tab Bar
+
+The `HoppSmartWindows` component (from `@hoppscotch/ui`) is the main tab container used in `pages/index.vue`. Key slots:
+
+```vue
+<HoppSmartWindows v-model="currentTabID" @remove-tab="..." @add-tab="..." @sort="...">
+  <HoppSmartWindow v-for="tab in activeTabs" :id="tab.id" ...>
+    <template #tabhead>...</template>
+    <template #suffix>...</template>
+    <!-- tab content -->
+  </HoppSmartWindow>
+  <template #actions>
+    <!-- Buttons rendered BETWEEN the "+" button and environment selector -->
+  </template>
+</HoppSmartWindows>
+```
+
+**`#actions` slot**: Use this to add toolbar buttons (like a "..." menu) between the built-in "+" (add tab) button and the environment selector. This is the correct place for tab-bar-level actions.
+
+### RESTTabService Methods
+
+Key methods on `RESTTabService` (injected via `useService(RESTTabService)`):
+
+| Method | Description |
+|--------|-------------|
+| `createNewTab(document, switchToIt?)` | Create a new tab, optionally switch to it |
+| `closeTab(tabID)` | Close a single tab (won't close if only tab) |
+| `closeOtherTabs(tabID)` | Close all except the specified tab |
+| `getDirtyTabsCount()` | Count of tabs with unsaved changes |
+| `getDirtyTabs()` | Returns array of `HoppTab` objects where `document.isDirty === true` |
+| `getActiveTabs()` | Returns reactive computed array of tabs |
+| `setActiveTab(tabID)` | Switch to a tab |
+
+**PITFALL: No `closeAllTabs()` method exists.** To implement "close all": create a fresh tab first, then `closeOtherTabs(newTab.id)`:
+```typescript
+const closeAllTabs = () => {
+  const newTab = tabs.createNewTab({
+    type: "request",
+    request: getDefaultRESTRequest(),
+    isDirty: false,
+  })
+  scrollService.cleanupAllScroll(newTab.id)
+  tabs.closeOtherTabs(newTab.id)
+}
+```
+
+### Tippy Dropdown Menu Pattern
+
+For dropdown menus (like a "..." options menu) in the tab bar:
+
+```vue
+<tippy trigger="click" interactive theme="popover">
+  <button class="flex h-full items-center justify-center px-2 text-secondary hover:text-secondaryDark">
+    <component :is="IconMoreHorizontal" class="h-4 w-4" />
+  </button>
+  <template #content="{ hide }">
+    <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+      <HoppSmartItem :icon="IconXSquare" :label="t('tab.close_all')" @click="() => { action(); hide() }" />
+      <HoppSmartItem :icon="IconXCircle" :label="t('tab.close_others')" @click="() => { action(); hide() }" />
+    </div>
+  </template>
+</tippy>
+```
+
+Icon imports: `import IconMoreHorizontal from "~icons/lucide/more-horizontal"` etc.
+
+## Production Build & Deploy
+
+### Build
+```bash
+export PATH="/home/jcwl/.hermes/node/bin:$PATH"
+cd /home/jcwl/workspace/hoppscotch
+pnpm run --filter @hoppscotch/selfhost-web build  # ~2 min, outputs to packages/hoppscotch-selfhost-web/dist/
+```
+
+### Serve Production Build
+```bash
+cd packages/hoppscotch-selfhost-web
+pnpm run preview --port 3003 --host 0.0.0.0  # background, serves from dist/
+```
+
+Nginx proxies port 35051 → 3003. After rebuilding, kill the old preview process and restart.
+
 ## Post-Development Verification Workflow
 
 After completing code changes, ALWAYS verify the full stack before considering the task done:
 
 1. **Kill stale processes**: `kill $(lsof -t -i:3170 -i:3003 -i:3101 2>/dev/null) 2>/dev/null`
-2. **Start backend** (background): `cd packages/hoppscotch-backend && export $(grep -v '^#' ../../.env | xargs) && node dist/src/main.js`
+2. **Start backend** (background): `cd packages/hoppscotch-backend && set -a && source ../../.env && set +a && node dist/src/main.js`
 3. **Verify backend health**: `curl -s http://localhost:3170/health` must return `{"status":"ok"}`
 4. **Start frontend** (background): `export PATH="$HOME/.hermes/node/bin:$PATH" && cd packages/hoppscotch-selfhost-web && pnpm run dev`
 5. **Verify frontend ready**: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3003/` must return `200`
@@ -341,6 +441,29 @@ export const TreeNodeSchema = z.object({
 bodySchemaTree: z.array(z.any()).nullable().catch(null),
 ```
 
+### HoppSmartTabs sticky styles break design mode scrolling
+`RequestOptions.vue` (shared between debug and design modes) uses `HoppSmartTabs` with
+`styles="sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10"`.
+This makes the tab bar (Parameters/Body/Headers) float at the top during scrolling —
+correct behavior in debug mode (where the content area is bounded by the split pane),
+but **wrong in design mode's EditView** (where content scrolls freely in a full-height column).
+
+**Fix:** Make the styles conditional on `isDesignMode`:
+```vue
+<HoppSmartTabs
+  v-model="selectedOptionTab"
+  :styles="isDesignMode
+    ? 'overflow-x-auto flex-shrink-0 bg-primary'
+    : 'sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10'"
+>
+```
+
+**General rule:** Any component reused between debug mode (split pane) and design mode
+(full-height scroll) must audit its `sticky`/`position: fixed`/`z-index` styles.
+Sticky positioning only works correctly when there's a bounded scroll container
+(the split pane's primary panel). In unbounded scroll contexts, sticky elements
+float and obscure content below them.
+
 ### Design Mode (Documentation Mode) component architecture
 Design mode has **edit/preview sub-modes** with a visible mode indicator badge. See `references/design-mode-architecture.md` for the full component tree and data flow.
 
@@ -418,9 +541,11 @@ Inside Request.vue, the `onSendClick` handler checks: if `sendLabel` is set, emi
 ### Tab document preference persistence
 To persist a UI preference per-tab (survives tab close/reopen):
 1. Add field to `HoppRequestDocument` in `helpers/rest/document.ts`
-2. Add to persistence validation schema in `services/persistence/validation-schemas/index.ts` as `z.optional(...)`
+2. Add to persistence validation schema in `services/persistence/validation-schemas/index.ts` as `z.optional(...)` — **MUST also add to the inner doc-type schema in the union (not just top-level)**
 3. Read it in RequestTab via `tab.value.document.fieldName ?? defaultValue`
 4. Write it back on change via handler: `tab.value.document.fieldName = newVal`
+
+**PITFALL:** If you forget step 2, the `.strict()` mode on the schema (now changed to `.passthrough()` at top-level but still strict on inner objects) will cause a "Schema validation failed" toast on page load. The error log in the console shows Zod issues — look for the specific field path.
 
 Example: `modePreference?: "debug" | "design" | "testcases"` — persisted so the request opens in the same mode next time.
 
@@ -607,6 +732,35 @@ hideModal()
 
 **In platform auth implementation:** Do NOT call `setInitialUser()` inside `signInWithPassword()` — let the page reload handle it via `performAuthInit()`.
 
+### ensureMethodInEndpoint adds `https://` to relative paths — breaks service URL resolution
+`Request.vue` → `ensureMethodInEndpoint()` (line ~525) auto-adds `https://` to endpoints
+that don't start with `http://` or `https://`. But it does NOT skip relative paths
+(starting with `/`), causing:
+1. `/api/users` → `https:///api/users` (triple slash)
+2. `getEffectiveRESTRequest()` detects `https://` prefix → skips service URL prepend
+3. Result: prefix URL is lost, request goes to invalid URL
+
+**Fix:** Add early return for relative paths:
+```typescript
+const ensureMethodInEndpoint = () => {
+  const endpoint = newEndpoint.value.trim()
+  tab.value.document.request.endpoint = endpoint
+  if (!/^http[s]?:\/\//.test(endpoint) && !endpoint.startsWith("<<")) {
+    // Relative paths (starting with /) should NOT get protocol prefix
+    // — service URL will be prepended by getEffectiveRESTRequest()
+    if (endpoint.startsWith("/")) return
+    const domain = endpoint.split(/[/:#?]+/)[0]
+    // ... rest of existing logic
+  }
+}
+```
+
+**Related:** The same function runs when the user clicks "Send" in debug mode. If design
+mode has `v-show` on the URL bar (which keeps HttpRequest mounted), switching to debug
+mode and clicking Send will corrupt the endpoint. The design mode's prefix URL (set in
+MetaInfoSection via `inheritedBaseUrl`) is preserved on the request object, but the
+endpoint field itself gets polluted.
+
 ### Background process PATH (Hoppscotch services)
 When launching Hoppscotch services via `terminal(background=true)`, the shell PATH does NOT include `/home/jcwl/.hermes/node/bin` where `node` and `pnpm` live. Always prepend:
 ```bash
@@ -620,6 +774,34 @@ Design mode examples (both request body and response) use a virtual-to-stored pa
 - **Stored examples**: User-created, persisted in `bodyExamples[]` or `responseModels[].examples[]`
 
 **User-corrected behavior:** The default example is NOT read-only. It should be **fully editable, renamable, and deletable** like any other example. The "auto" badge only indicates it was auto-generated, not that it can't be modified. When the user edits or renames the virtual default, it materializes into a stored example.
+
+**CRITICAL: Editing the virtual default must PRESERVE it + create a new tab.**
+When the user edits the virtual default example (no stored examples exist yet), the
+`onBodyExampleContentUpdate()` handler must:
+1. Keep the original auto-generated default as the first example (using `defaultExampleContent.value`)
+2. Create a NEW second example with the user's edited content
+3. Switch `activeBodyExampleTab` to index 1 (the new edited tab)
+
+```typescript
+// CORRECT — preserves auto-generated default + creates user's version
+if (!hasStoredBodyExamples.value) {
+  const examples = [
+    { name: t("body_examples.default_example"), body: defaultExampleContent.value, ... },
+    { name: t("body_examples.example_n", { n: "2" }), body: val, ... },
+  ]
+  updateRequest({ bodyExamples: examples })
+  activeBodyExampleTab.value = 1
+}
+
+// WRONG — overwrites the default with user content, auto-generated example lost forever
+if (!hasStoredBodyExamples.value) {
+  const examples = [{ name: "默认示例", body: val, ... }]  // BUG: default gone
+  updateRequest({ bodyExamples: examples })
+}
+```
+
+This ensures the default example always reflects the current schema, while the user's
+edit becomes a separate stored example.
 
 **Tab UI:** All examples (virtual + stored) appear in a unified tab bar. Double-click to rename, × button to delete (when >1), + button to add. See `references/design-mode-examples-pattern.md` for the full implementation.
 
@@ -678,6 +860,52 @@ onBeforeUnmount(() => { reloadSub?.unsubscribe() })
 - ⚠️ **导出函数必须被调用**：当实现跨文件数据流功能时（如 exporter function + consumer component），务必验证每个导出的工具函数确实在集成点被调用了。曾有 `buildServerToServiceMap()` 被导出但从未调用，导致 service binding 功能完全无效。
 - ⚠️ **多环境映射覆盖完整性**：当构建跨实体映射（如 serverId→serviceId）时，验证所有源实体都被覆盖，不仅仅是第一个。曾有 `buildServerToServiceMap()` 只映射第一个环境的 baseUrls，导致其他环境的 collection 无法获取正确的 selectedServiceId。考虑遍历所有环境或使用 per-environment 方案。
 
+### Sequential dirty-tab save prompt pattern
+When implementing "close all" or "close others" with per-tab save prompts (instead of a single bulk confirm dialog), use a queue-based approach:
+
+1. **State**: `dirtyTabsQueue: ref<string[]>`, `currentDirtyTabIndex: ref<number>`, `pendingCloseOperation: ref<CloseOperation | null>`
+2. **Flow**: Collect dirty tab IDs → show modal for tab at current index → user picks Save/Don't Save/Cancel → advance index → when all processed, execute close operation
+3. **Modal**: Show progress (e.g. "2 / 5"), tab name, and 3 buttons (Save / Don't Save / Cancel)
+4. **Save path**: If tab has `saveContext`, call `invokeAction("request-response.save")` directly; if not, open `CollectionsSaveRequest` modal and advance on modal close
+5. **Cancel**: Aborts entire operation (clears queue and pending operation)
+
+**PITFALL**: `onSaveModalClose` must branch — check if batch mode is active (`showDirtyTabPrompt`) before handling single-tab close. Otherwise saving during batch mode will try to close a `confirmingCloseForTabID` that isn't set.
+
+**i18n**: Add `confirm.save_unsaved_tab_named` with `{name}` interpolation for the per-tab prompt.
+
+### Markdown editor: md-editor-v3 (NOT editor.md)
+When adding Markdown editing to Hoppscotch, use **md-editor-v3** — NOT editor.md.
+
+**Why not editor.md**: jQuery dependency (~87KB), last updated 2019, no TypeScript types, incompatible with Vue 3 reactivity. Integration cost is prohibitive.
+
+**md-editor-v3 advantages**:
+- Vue 3 + TypeScript native, zero adaptation cost
+- Built-in dark theme (`theme="dark"`)
+- Toolbar + live preview + split-screen modes
+- ~150KB gzip (lighter than editor.md + jQuery)
+- Actively maintained (2024+ updates)
+- Standard `v-model` support
+
+**Install**: `pnpm add md-editor-v3`
+**Usage**:
+```vue
+<template>
+  <MdEditor v-model="content" theme="dark" style="height: 500px" />
+</template>
+<script setup lang="ts">
+import { MdEditor } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
+</script>
+```
+
+**Other alternatives evaluated**: @bytemd/vue-next (ByteDance, plugin-based, minimal), cherry-markdown (Tencent, feature-rich but 300KB+), milkdown (framework-agnostic, heavy customization needed). md-editor-v3 is the best balance for Hoppscotch.
+
+### User preference: Direct deploy without kanban
+When the user is NOT using the kanban/orchestrator workflow (common for small UI tweaks and quick iterations), implement the change and deploy directly — do NOT create kanban cards or go through the 3-stage delivery flow. The user wants fast feedback: code → build → deploy → test in browser.
+
+### User preference: Direct technology recommendations with comparison
+When the user asks "有没有更加适合的X框架", provide a direct comparison table with recommendation — NOT a lengthy research task. Include: library name, size, key features, suitability, and a clear recommendation with reasoning. User makes fast decisions from structured comparisons.
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns
@@ -685,3 +913,4 @@ onBeforeUnmount(() => { reloadSub?.unsubscribe() })
 - See `references/design-mode-architecture.md` for the API documentation design mode (v20): component tree, edit/preview sub-modes, data model fields
 - See `references/password-auth-architecture.md` for email+password authentication system: API endpoints, Prisma schema, frontend components, platform auth methods
 - See `references/design-mode-examples-pattern.md` for the unified examples tabs pattern: virtual-to-stored materialization, tab UI, preview sync, XML/JSON generation
+- See `references/persistence-schema-validation.md` for the REST_TAB_STATE_SCHEMA `.strict()` → `.passthrough()` fix and field-addition checklist

@@ -1095,7 +1095,7 @@ export class PersistenceService extends Service {
           )
           console.error(
             `Failed parsing persisted REST_TABS:`,
-            JSON.stringify(loadResult.right)
+            JSON.stringify(result.error?.issues?.slice(0, 5))
           )
           // NOTE: Still loading data to match legacy behavior
           this.restTabService.loadTabsFromPersistedState(loadResult.right)

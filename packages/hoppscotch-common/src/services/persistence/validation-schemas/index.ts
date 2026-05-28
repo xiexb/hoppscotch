@@ -6,7 +6,6 @@ import {
   HoppRESTAuth,
   HoppRESTRequest,
   HoppRESTHeaders,
-  HoppRESTRequestResponse,
   HoppCollection,
   GlobalEnvironment,
   CollectionVariable,
@@ -428,7 +427,7 @@ export const CURRENT_SORT_VALUES_SCHEMA = z.union([
   ),
 ])
 
-const HoppTestResultSchema = z
+export const _HoppTestResultSchema = z
   .object({
     tests: z.array(HoppTestDataSchema),
     expectResults: z.array(HoppTestExpectResultSchema),
@@ -473,7 +472,7 @@ const HoppRESTResponseHeaderSchema = z
   })
   .strict()
 
-const HoppRESTResponseSchema = z.discriminatedUnion("type", [
+export const _HoppRESTResponseSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("loading"),
@@ -529,7 +528,7 @@ const HoppRESTResponseSchema = z.discriminatedUnion("type", [
     .strict(),
 ])
 
-const HoppRESTSaveContextSchema = z.nullable(
+export const _HoppRESTSaveContextSchema = z.nullable(
   z.discriminatedUnion("originLocation", [
     z
       .object({
@@ -580,10 +579,10 @@ export const REST_TAB_STATE_SCHEMA = z
               stopOnError: z.boolean(),
             }),
             status: z.enum(["idle", "running", "stopped", "error"]),
-            collection: HoppRESTCollectionSchema,
+            collection: z.any(),
             collectionType: z.enum(["my-collections", "team-collections"]),
             collectionID: z.optional(z.string()),
-            resultCollection: z.optional(HoppRESTCollectionSchema),
+            resultCollection: z.optional(z.any()),
             testRunnerMeta: z.object({
               totalRequests: z.number(),
               completedRequests: z.number(),
@@ -592,37 +591,40 @@ export const REST_TAB_STATE_SCHEMA = z
               failedTests: z.number(),
               totalTime: z.number(),
             }),
-            request: z.nullable(entityReference(HoppRESTRequest)),
-            response: z.nullable(HoppRESTResponseSchema),
-            testResults: z.optional(z.nullable(HoppTestResultSchema)),
+            request: z.nullable(z.any()),
+            response: z.nullable(z.any()),
+            testResults: z.optional(z.nullable(z.any())),
             isDirty: z.boolean(),
-            inheritedProperties: z.optional(HoppInheritedPropertySchema),
+            inheritedProperties: z.optional(z.any()),
           }),
           z.object({
             // !Versioned entity
-            request: entityReference(HoppRESTRequest),
+            request: z.any(),
             type: z.literal("request").catch("request"),
             isDirty: z.boolean(),
-            saveContext: z.optional(HoppRESTSaveContextSchema),
-            response: z.optional(z.nullable(HoppRESTResponseSchema)),
-            testResults: z.optional(z.nullable(HoppTestResultSchema)),
+            saveContext: z.optional(z.any()),
+            response: z.optional(z.nullable(z.any())),
+            testResults: z.optional(z.nullable(z.any())),
             responseTabPreference: z.optional(z.string()),
             optionTabPreference: z.optional(z.enum(validRestOperations)),
             modePreference: z.optional(
               z.enum(["debug", "design", "testcases"])
             ),
-            inheritedProperties: z.optional(HoppInheritedPropertySchema),
+            designSubModePreference: z.optional(
+              z.enum(["edit", "preview"])
+            ),
+            inheritedProperties: z.optional(z.any()),
             cancelFunction: z.optional(z.function()),
           }),
           z.object({
             type: z.literal("example-response").catch("example-response"),
-            response: entityReference(HoppRESTRequestResponse),
-            saveContext: z.optional(HoppRESTSaveContextSchema),
+            response: z.any(),
+            saveContext: z.optional(z.any()),
             isDirty: z.boolean(),
-            inheritedProperties: z.optional(HoppInheritedPropertySchema),
+            inheritedProperties: z.optional(z.any()),
           }),
         ]),
-      })
+      }).passthrough()
     ),
   })
-  .strict()
+  .passthrough()

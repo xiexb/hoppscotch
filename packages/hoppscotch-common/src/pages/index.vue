@@ -64,33 +64,35 @@
             <!-- END Render TabContents -->
           </HoppSmartWindow>
           <template #actions>
-            <tippy
-              trigger="click"
-              interactive
-              theme="popover"
-            >
-              <button
-                v-tippy="{ theme: 'tooltip', content: t('tab.more_options') }"
-                class="flex h-full items-center justify-center px-2 text-secondary hover:text-secondaryDark focus:outline-none"
+            <div class="flex h-full items-center">
+              <tippy
+                trigger="click"
+                interactive
+                theme="popover"
               >
-                <component :is="IconMoreHorizontal" class="h-4 w-4" />
-              </button>
-              <template #content="{ hide }">
-                <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
-                  <HoppSmartItem
-                    :icon="IconXSquare"
-                    :label="t('tab.close_all')"
-                    @click="() => { closeAllTabs(); hide() }"
-                  />
-                  <HoppSmartItem
-                    :icon="IconXCircle"
-                    :label="t('tab.close_others')"
-                    @click="() => { closeOtherTabsAction(currentTabID); hide() }"
-                  />
-                </div>
-              </template>
-            </tippy>
-            <EnvironmentsSelector class="h-full" />
+                <button
+                  v-tippy="{ theme: 'tooltip', content: t('tab.more_options') }"
+                  class="flex h-full items-center justify-center px-2 text-secondary hover:text-secondaryDark focus:outline-none"
+                >
+                  <component :is="IconMoreHorizontal" class="h-4 w-4" />
+                </button>
+                <template #content="{ hide }">
+                  <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+                    <HoppSmartItem
+                      :icon="IconXSquare"
+                      :label="t('tab.close_all')"
+                      @click="() => { closeAllTabs(); hide() }"
+                    />
+                    <HoppSmartItem
+                      :icon="IconXCircle"
+                      :label="t('tab.close_others')"
+                      @click="() => { closeOtherTabsAction(currentTabID); hide() }"
+                    />
+                  </div>
+                </template>
+              </tippy>
+              <EnvironmentsSelector class="h-full" />
+            </div>
           </template>
         </HoppSmartWindows>
       </template>
@@ -112,6 +114,46 @@
       @hide-modal="confirmingCloseAllTabs = false"
       @resolve="onResolveConfirmCloseAllTabs"
     />
+    <HoppSmartModal
+      v-if="showDirtyTabPrompt"
+      dialog
+      role="dialog"
+      aria-modal="true"
+      :title="t('modal.close_unsaved_tab')"
+      @close="onDirtyTabCancel"
+    >
+      <template #body>
+        <div class="flex flex-col items-center space-y-2 text-center">
+          <p class="text-secondaryLight text-sm">
+            {{ currentDirtyTabProgress }}
+          </p>
+          <p>
+            {{ t("confirm.save_unsaved_tab_named", { name: currentDirtyTabName }) }}
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <span class="flex space-x-2">
+          <HoppButtonPrimary
+            v-focus
+            :label="t('action.save')"
+            outline
+            @click="onDirtyTabSave"
+          />
+          <HoppButtonSecondary
+            :label="t('action.dont_save')"
+            outline
+            @click="onDirtyTabDontSave"
+          />
+          <HoppButtonSecondary
+            :label="t('action.cancel')"
+            filled
+            outline
+            @click="onDirtyTabCancel"
+          />
+        </span>
+      </template>
+    </HoppSmartModal>
     <HoppSmartModal
       v-if="confirmingCloseForTabID !== null"
       dialog
@@ -193,6 +235,12 @@ const reqName = ref<string>("")
 const unsavedTabsCount = ref(0)
 const exceptedTabID = ref<string | null>(null)
 const renameTabID = ref<string | null>(null)
+
+// Sequential dirty-tab save prompt state
+const dirtyTabsQueue = ref<string[]>([])
+const currentDirtyTabIndex = ref(0)
+type CloseOperation = "closeAll" | { type: "closeOthers"; exceptTabID: string }
+const pendingCloseOperation = ref<CloseOperation | null>(null)
 
 const t = useI18n()
 
@@ -289,16 +337,16 @@ const removeTab = (tabID: string) => {
 }
 
 const closeOtherTabsAction = (tabID: string) => {
-  const isTabDirty = tabs.getTabRef(tabID).value?.document.isDirty
-  const dirtyTabCount = tabs.getDirtyTabsCount()
-  // If current tab is dirty, so we need to subtract 1 from the dirty tab count
-  const balanceDirtyTabCount = isTabDirty ? dirtyTabCount - 1 : dirtyTabCount
+  const allTabs = tabs.getTabs()
+  const dirtyTabsToClose = allTabs.filter(
+    (tab) => tab.id !== tabID && tab.document.isDirty
+  )
 
-  // If there are dirty tabs, show the confirm modal
-  if (balanceDirtyTabCount > 0) {
-    confirmingCloseAllTabs.value = true
-    unsavedTabsCount.value = balanceDirtyTabCount
-    exceptedTabID.value = tabID
+  if (dirtyTabsToClose.length > 0) {
+    startSequentialSavePrompt(
+      dirtyTabsToClose.map((t) => t.id),
+      { type: "closeOthers", exceptTabID: tabID }
+    )
   } else {
     scrollService.cleanupAllScroll(tabID)
     tabs.closeOtherTabs(tabID)
@@ -306,13 +354,14 @@ const closeOtherTabsAction = (tabID: string) => {
 }
 
 const closeAllTabs = () => {
-  const dirtyTabCount = tabs.getDirtyTabsCount()
+  const allTabs = tabs.getTabs()
+  const dirtyTabs = allTabs.filter((tab) => tab.document.isDirty)
 
-  // If there are dirty tabs, show the confirm modal
-  if (dirtyTabCount > 0) {
-    confirmingCloseAllTabs.value = true
-    unsavedTabsCount.value = dirtyTabCount
-    exceptedTabID.value = null // null signals "close all" mode
+  if (dirtyTabs.length > 0) {
+    startSequentialSavePrompt(
+      dirtyTabs.map((t) => t.id),
+      "closeAll"
+    )
   } else {
     // Create a fresh tab and close all others
     const newTab = tabs.createNewTab({
@@ -322,6 +371,125 @@ const closeAllTabs = () => {
     })
     scrollService.cleanupAllScroll(newTab.id)
     tabs.closeOtherTabs(newTab.id)
+  }
+}
+
+// Sequential dirty-tab save prompt
+const showDirtyTabPrompt = computed(() => {
+  return (
+    pendingCloseOperation.value !== null &&
+    currentDirtyTabIndex.value < dirtyTabsQueue.value.length &&
+    !savingRequest.value // hide prompt modal while save dialog is open
+  )
+})
+
+const currentDirtyTabName = computed(() => {
+  const tabID = dirtyTabsQueue.value[currentDirtyTabIndex.value]
+  if (!tabID) return ""
+  try {
+    const tab = tabs.getTabRef(tabID).value
+    if (tab.document.type === "request") {
+      return tab.document.request.name || "Untitled"
+    }
+    return "Untitled"
+  } catch {
+    return "Untitled"
+  }
+})
+
+const currentDirtyTabProgress = computed(() => {
+  return `${currentDirtyTabIndex.value + 1} / ${dirtyTabsQueue.value.length}`
+})
+
+const startSequentialSavePrompt = (
+  dirtyTabIDs: string[],
+  operation: CloseOperation
+) => {
+  dirtyTabsQueue.value = dirtyTabIDs
+  currentDirtyTabIndex.value = 0
+  pendingCloseOperation.value = operation
+}
+
+const onDirtyTabSave = () => {
+  const tabID = dirtyTabsQueue.value[currentDirtyTabIndex.value]
+  if (!tabID) return
+
+  // Switch to this tab so user can see the content before deciding
+  tabs.setActiveTab(tabID)
+
+  // Always open the save dialog - let user decide
+  savingRequest.value = true
+  // onSaveModalClose -> onSaveModalCloseForBatch will advance to next
+}
+
+const onDirtyTabDontSave = () => {
+  const tabID = dirtyTabsQueue.value[currentDirtyTabIndex.value]
+  if (!tabID) return
+
+  // Mark as not dirty so it can be closed without prompt
+  try {
+    const tab = tabs.getTabRef(tabID).value
+    tab.document.isDirty = false
+    tabs.updateTab(tab)
+  } catch {
+    // tab might have been closed already
+  }
+  advanceToNextDirtyTab()
+}
+
+const onDirtyTabCancel = () => {
+  // Abort the entire operation
+  pendingCloseOperation.value = null
+  dirtyTabsQueue.value = []
+  currentDirtyTabIndex.value = 0
+}
+
+const advanceToNextDirtyTab = () => {
+  currentDirtyTabIndex.value++
+  if (currentDirtyTabIndex.value >= dirtyTabsQueue.value.length) {
+    // All dirty tabs processed, execute the close operation
+    executeCloseOperation()
+  }
+}
+
+const executeCloseOperation = () => {
+  const operation = pendingCloseOperation.value
+  pendingCloseOperation.value = null
+  dirtyTabsQueue.value = []
+  currentDirtyTabIndex.value = 0
+
+  if (!operation) return
+
+  if (operation === "closeAll") {
+    const newTab = tabs.createNewTab({
+      type: "request",
+      request: getDefaultRESTRequest(),
+      isDirty: false,
+    })
+    scrollService.cleanupAllScroll(newTab.id)
+    tabs.closeOtherTabs(newTab.id)
+  } else if (operation.type === "closeOthers") {
+    scrollService.cleanupAllScroll(operation.exceptTabID)
+    tabs.closeOtherTabs(operation.exceptTabID)
+  }
+}
+
+// Called when the save dialog closes during batch processing
+const onSaveModalCloseForBatch = () => {
+  savingRequest.value = false
+  if (showDirtyTabPrompt.value) {
+    // Mark current tab as not dirty (it was saved or the save was cancelled)
+    const tabID = dirtyTabsQueue.value[currentDirtyTabIndex.value]
+    if (tabID) {
+      try {
+        const tab = tabs.getTabRef(tabID).value
+        tab.document.isDirty = false
+        tabs.updateTab(tab)
+      } catch {
+        // ignore
+      }
+    }
+    advanceToNextDirtyTab()
   }
 }
 
@@ -427,7 +595,10 @@ const onResolveConfirmSaveTab = () => {
  */
 const onSaveModalClose = () => {
   savingRequest.value = false
-  if (confirmingCloseForTabID.value) {
+  if (showDirtyTabPrompt.value) {
+    // Batch processing mode - advance to next dirty tab
+    onSaveModalCloseForBatch()
+  } else if (confirmingCloseForTabID.value) {
     tabs.closeTab(confirmingCloseForTabID.value)
     confirmingCloseForTabID.value = null
   }

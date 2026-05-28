@@ -109,4 +109,10 @@ export class RESTTabService extends TabService<HoppTabDocument> {
 
     return count
   }
+
+  public getDirtyTabs() {
+    return Array.from(this.tabMap.values()).filter(
+      (tab) => tab.document.isDirty
+    )
+  }
 }
