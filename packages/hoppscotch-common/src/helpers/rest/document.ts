@@ -286,6 +286,43 @@ export type HoppSavedExampleDocument = {
   inheritedProperties?: HoppInheritedProperty
 }
 
+export type HoppMarkdownDocDocument = {
+  /**
+   * The document type
+   */
+  type: "markdown-doc"
+
+  /**
+   * The ID of the markdown doc in the collection's markdownDocs array
+   */
+  docId: string
+
+  /**
+   * The display name of the document
+   */
+  name: string
+
+  /**
+   * The markdown content
+   */
+  content: string
+
+  /**
+   * Whether the document has unsaved changes
+   */
+  isDirty: boolean
+
+  /**
+   * Path to the collection/folder containing this document
+   */
+  collectionPath: string
+
+  /**
+   * Index in the markdownDocs array
+   */
+  docIndex: number
+}
+
 /**
  * Defines a live 'document' (something that is open and being edited) in the app
  */
@@ -293,3 +330,4 @@ export type HoppTabDocument =
   | HoppSavedExampleDocument
   | HoppRequestDocument
   | HoppTestRunnerDocument
+  | HoppMarkdownDocDocument

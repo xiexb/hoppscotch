@@ -112,6 +112,14 @@
             @click="emit('add-folder')"
           />
           <HoppButtonSecondary
+            v-if="!hasNoTeamAccess"
+            v-tippy="{ theme: 'tooltip' }"
+            :icon="IconFileText"
+            :title="t('collection.add_markdown_doc')"
+            class="hidden group-hover:inline-flex"
+            @click="emit('add-markdown-doc')"
+          />
+          <HoppButtonSecondary
             v-tippy="{ theme: 'tooltip' }"
             :icon="IconPlaySquare"
             :title="t('collection_runner.run_collection')"
@@ -173,6 +181,18 @@
                     @click="
                       () => {
                         emit('add-folder')
+                        hide()
+                      }
+                    "
+                  />
+                  <HoppSmartItem
+                    v-if="!hasNoTeamAccess"
+                    ref="markdownDocAction"
+                    :icon="IconFileText"
+                    :label="t('collection.add_markdown_doc')"
+                    @click="
+                      () => {
+                        emit('add-markdown-doc')
                         hide()
                       }
                     "
@@ -341,6 +361,7 @@ import IconCopy from "~icons/lucide/copy"
 import IconDownload from "~icons/lucide/download"
 import IconEdit from "~icons/lucide/edit"
 import IconFilePlus from "~icons/lucide/file-plus"
+import IconFileText from "~icons/lucide/file-text"
 import IconFolder from "~icons/lucide/folder"
 import IconFolderOpen from "~icons/lucide/folder-open"
 import IconFolderPlus from "~icons/lucide/folder-plus"
@@ -405,6 +426,7 @@ const emit = defineEmits<{
   (event: "toggle-children"): void
   (event: "add-request"): void
   (event: "add-folder"): void
+  (event: "add-markdown-doc"): void
   (event: "run-collection"): void
   (event: "edit-collection"): void
   (event: "edit-properties"): void
@@ -442,6 +464,7 @@ const propertiesAction = ref<HTMLButtonElement | null>(null)
 const runCollectionAction = ref<HTMLButtonElement | null>(null)
 const sortAction = ref<HTMLButtonElement | null>(null)
 const documentationAction = ref<HTMLButtonElement | null>(null)
+const markdownDocAction = ref<HTMLButtonElement | null>(null)
 
 const { isDocumentationVisible } = useDocumentationVisibility()
 

@@ -61,6 +61,11 @@
               :model-value="tab"
               @update:model-value="onTabUpdate"
             />
+            <CollectionsMarkdownDocTab
+              v-if="tab.document.type === 'markdown-doc'"
+              :model-value="tab"
+              @update:model-value="onTabUpdate"
+            />
             <!-- END Render TabContents -->
           </HoppSmartWindow>
           <template #actions>
@@ -317,6 +322,8 @@ const getTabName = (tab: HoppTab<HoppTabDocument>) => {
     return tab.document.collection.name
   } else if (tab.document.type === "example-response") {
     return tab.document.response.name
+  } else if (tab.document.type === "markdown-doc") {
+    return tab.document.name
   }
 
   return "Unnamed tab"

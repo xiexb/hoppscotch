@@ -164,7 +164,10 @@ export class InspectionService extends Service {
 
     this.effectScope.run(() => {
       const currentTabRequest = computed(() => {
-        if (this.restTab.currentActiveTab.value.document.type === "test-runner")
+        if (
+          this.restTab.currentActiveTab.value.document.type === "test-runner" ||
+          this.restTab.currentActiveTab.value.document.type === "markdown-doc"
+        )
           return null
 
         return this.restTab.currentActiveTab.value.document.type === "request"

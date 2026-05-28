@@ -621,6 +621,15 @@ export const REST_TAB_STATE_SCHEMA = z
             isDirty: z.boolean(),
             inheritedProperties: z.optional(z.any()),
           }),
+          z.object({
+            type: z.literal("markdown-doc").catch("markdown-doc"),
+            docId: z.string(),
+            name: z.string(),
+            content: z.string(),
+            isDirty: z.boolean(),
+            collectionPath: z.string(),
+            docIndex: z.number(),
+          }),
         ]),
       }).passthrough()
     ),

@@ -65,3 +65,15 @@ const localRequest = computed({
   set: (val: HoppRESTRequest) => emit("update:request", val),
 })
 </script>
+
+<style scoped>
+/* Design mode edit view: disable sticky positioning on all descendant headers.
+   In debug mode, sticky is useful (tab bars stay fixed while scrolling).
+   In design mode edit view, content scrolls naturally — sticky headers
+   (Parameters column header, Headers header, Body header, PathParams header, etc.)
+   should scroll with the page, not float. */
+:deep(.sticky) {
+  position: relative !important;
+  top: auto !important;
+}
+</style>

@@ -42,6 +42,9 @@
       "
       @add-folder="addFolder"
       @add-request="addRequest"
+      @add-markdown-doc="addMarkdownDoc"
+      @delete-markdown-doc="deleteMarkdownDoc"
+      @rename-markdown-doc="renameMarkdownDoc"
       @edit-request="editRequest"
       @edit-collection="editCollection"
       @edit-folder="editFolder"
@@ -159,6 +162,36 @@
       @add-folder="onAddFolder"
       @hide-modal="displayModalAddFolder(false)"
     />
+    <HoppSmartModal
+      v-if="showAddMarkdownDocModal"
+      dialog
+      :title="t('collection.add_markdown_doc')"
+      @close="showAddMarkdownDocModal = false"
+    >
+      <template #body>
+        <HoppSmartInput
+          v-model="newMarkdownDocName"
+          :placeholder="t('collection.doc_name_placeholder')"
+          styles="w-full"
+          @submit="onAddMarkdownDoc(newMarkdownDocName)"
+        />
+      </template>
+      <template #footer>
+        <span class="flex space-x-2 justify-end">
+          <HoppButtonSecondary
+            :label="t('action.cancel')"
+            outline
+            filled
+            @click="showAddMarkdownDocModal = false"
+          />
+          <HoppButtonPrimary
+            :label="t('action.save')"
+            outline
+            @click="onAddMarkdownDoc(newMarkdownDocName)"
+          />
+        </span>
+      </template>
+    </HoppSmartModal>
     <CollectionsEdit
       :show="showModalEditCollection"
       :editing-collection-name="editingCollectionName ?? ''"
@@ -1060,6 +1093,120 @@ const onAddRequest = async (requestName: string) => {
       )
     )()
   }
+}
+
+// Markdown Doc handlers
+const editingMarkdownDocPath = ref<string | null>(null)
+const editingMarkdownDocFolder = ref<HoppCollection | null>(null)
+const showAddMarkdownDocModal = ref(false)
+const newMarkdownDocName = ref("")
+
+const addMarkdownDoc = (payload: {
+  path: string
+  folder: HoppCollection | TeamCollection
+}) => {
+  if (collectionsType.value.type === "team-collections") {
+    toast.error(t("collection.team_markdown_doc_not_supported"))
+    return
+  }
+
+  const { path, folder } = payload
+  editingMarkdownDocPath.value = path
+  editingMarkdownDocFolder.value = folder as HoppCollection
+  newMarkdownDocName.value = ""
+  showAddMarkdownDocModal.value = true
+}
+
+const onAddMarkdownDoc = (docName: string) => {
+  const path = editingMarkdownDocPath.value
+  if (!path || !docName.trim()) return
+
+  const name = docName.trim()
+  const docId = `md_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const newDoc = { id: docId, name, content: "" }
+
+  const pathIndices = path.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    // Root collection
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll) return
+    const docs = [...(coll.markdownDocs ?? []), newDoc]
+    editRESTCollection(collIdx, { markdownDocs: docs })
+  } else {
+    // Nested folder
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder) return
+    const docs = [...(folder.markdownDocs ?? []), newDoc]
+    editRESTFolder(path, { markdownDocs: docs })
+  }
+
+  showAddMarkdownDocModal.value = false
+  newMarkdownDocName.value = ""
+  toast.success(t("collection.markdown_doc_added"))
+}
+
+const deleteMarkdownDoc = (payload: {
+  collectionPath: string
+  docIndex: number
+}) => {
+  const { collectionPath, docIndex } = payload
+  const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll || !coll.markdownDocs) return
+    const docs = [...coll.markdownDocs]
+    docs.splice(docIndex, 1)
+    editRESTCollection(collIdx, { markdownDocs: docs })
+  } else {
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder || !folder.markdownDocs) return
+    const docs = [...folder.markdownDocs]
+    docs.splice(docIndex, 1)
+    editRESTFolder(collectionPath, { markdownDocs: docs })
+  }
+  toast.success(t("collection.markdown_doc_deleted"))
+}
+
+const renameMarkdownDoc = (payload: {
+  collectionPath: string
+  docIndex: number
+  newName: string
+}) => {
+  const { collectionPath, docIndex, newName } = payload
+  const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll || !coll.markdownDocs) return
+    const docs = [...coll.markdownDocs]
+    if (docs[docIdx]) {
+      docs[docIdx] = { ...docs[docIdx], name: newName }
+      editRESTCollection(collIdx, { markdownDocs: docs })
+    }
+  } else {
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder || !folder.markdownDocs) return
+    const docs = [...folder.markdownDocs]
+    if (docs[docIdx]) {
+      docs[docIdx] = { ...docs[docIdx], name: newName }
+      editRESTFolder(collectionPath, { markdownDocs: docs })
+    }
+  }
+  toast.success(t("collection.markdown_doc_renamed"))
 }
 
 const addFolder = (payload: {

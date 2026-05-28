@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.3.0
+version: 1.4.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -915,6 +915,49 @@ import 'md-editor-v3/lib/style.css'
 ```
 
 **Other alternatives evaluated**: @bytemd/vue-next (ByteDance, plugin-based, minimal), cherry-markdown (Tencent, feature-rich but 300KB+), milkdown (framework-agnostic, heavy customization needed). md-editor-v3 is the best balance for Hoppscotch.
+
+### Design mode edit view — disable ALL sticky headers with `:deep()` override
+In design mode edit view, ALL section headers (Parameters column header, Headers header, Body header, PathParams header, etc.) should scroll naturally with the page. The debug mode relies on `sticky` positioning for tab bars, but design mode's full-page scroll makes sticky headers float and obstruct content.
+
+**Fix:** Add a scoped CSS override in `EditView.vue` that disables sticky on ALL descendants:
+```vue
+<style scoped>
+:deep(.sticky) {
+  position: relative !important;
+  top: auto !important;
+}
+</style>
+```
+
+This is a **single-line fix** that covers ALL sub-components (Parameters.vue, Headers.vue, Body.vue, PathParams.vue, DesignBody.vue, etc.) without needing to add an `isDesignMode` prop to each one. The `HoppSmartTabs` in `RequestOptions.vue` should ALSO be conditionally de-sticked via its `styles` prop (as done in the initial sticky fix), but this `:deep()` override catches any remaining sticky elements in child components.
+
+**PITFALL:** Only apply this in `EditView.vue` (design mode edit sub-view). Do NOT put it in `RequestDesignPanel.vue` or `RequestTab.vue` — that would affect debug mode and preview mode too.
+
+### Markdown document feature — md-editor-v3 + HoppCollection verzod v14
+Hoppscotch supports adding Markdown documents to collections (alongside requests and folders). Technical decisions:
+
+**Editor:** `md-editor-v3` (Vue 3 native, dark theme, toolbar + live preview, ~150KB gzip). NOT editor.md (jQuery dependency, last updated 2019).
+```bash
+pnpm add md-editor-v3
+```
+```vue
+<MdEditor v-model="content" theme="dark" style="height: 500px" />
+import "md-editor-v3/lib/style.css"
+```
+
+**Data model:** HoppCollection verzod v14 adds `markdownDocs: Array<{ id: string, name: string, content: string }>`. Migration from v13: `markdownDocs: []` default.
+
+**3-phase implementation:**
+1. **Phase 1**: verzod v14 + md-editor-v3 install + base MarkdownDoc.vue editor component
+2. **Phase 2**: Sidebar integration (new button in Collection.vue/FolderItem, tree rendering of markdownDocs nodes) + Tab/Document model (`HoppMarkdownDocDocument` type, `MarkdownDocTab.vue`)
+3. **Phase 3**: Team collection GraphQL sync + import/export compatibility
+
+**Key files:**
+- `packages/hoppscotch-data/src/collection/v/14.ts` — verzod version
+- `packages/hoppscotch-data/src/collection/index.ts` — register v14
+- `packages/hoppscotch-common/src/components/collections/MarkdownDoc.vue` — editor component
+- `packages/hoppscotch-common/src/components/collections/Collection.vue` — sidebar new button
+- `packages/hoppscotch-common/src/helpers/rest/document.ts` — HoppMarkdownDocDocument type
 
 ### User preference: Direct deploy without kanban
 When the user is NOT using the kanban/orchestrator workflow (common for small UI tweaks and quick iterations), implement the change and deploy directly — do NOT create kanban cards or go through the 3-stage delivery flow. The user wants fast feedback: code → build → deploy → test in browser.

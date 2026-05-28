@@ -72,6 +72,13 @@
                 folder: node.data.data.data,
               })
             "
+            @add-markdown-doc="
+              node.data.type === 'collections' &&
+              emit('add-markdown-doc', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
             @run-collection="
               emit('run-collection', {
                 collectionIndex: node.id,
@@ -179,6 +186,13 @@
             @add-folder="
               node.data.type === 'folders' &&
               emit('add-folder', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
+            @add-markdown-doc="
+              node.data.type === 'folders' &&
+              emit('add-markdown-doc', {
                 path: node.id,
                 folder: node.data.data.data,
               })
@@ -500,6 +514,16 @@ type Requests = {
   }
 }
 
+type MarkdownDocs = {
+  type: "markdownDocs"
+  isLastItem: boolean
+  data: {
+    parentIndex: string
+    data: { id: string; name: string; content: string }
+    docIndex: number
+  }
+}
+
 const t = useI18n()
 const colorMode = useColorMode()
 
@@ -711,6 +735,28 @@ const emit = defineEmits<{
   ): void
   (event: "select", payload: Picked | null): void
   (event: "display-modal-import-export"): void
+  (
+    event: "add-markdown-doc",
+    payload: {
+      path: string
+      folder: HoppCollection
+    }
+  ): void
+  (
+    event: "delete-markdown-doc",
+    payload: {
+      collectionPath: string
+      docIndex: number
+    }
+  ): void
+  (
+    event: "rename-markdown-doc",
+    payload: {
+      collectionPath: string
+      docIndex: number
+      newName: string
+    }
+  ): void
   (event: "select-response", payload: ResponsePayload): void
   (
     event: "create-mock-server",
@@ -899,7 +945,7 @@ const debouncedSorting = useDebounceFn(() => {
   })
 }, 250)
 
-type MyCollectionNode = Collection | Folder | Requests
+type MyCollectionNode = Collection | Folder | Requests | MarkdownDocs
 
 class MyCollectionsAdapter implements SmartTreeAdapter<MyCollectionNode> {
   constructor(public data: Ref<HoppCollection[]>) {}
@@ -946,6 +992,7 @@ class MyCollectionsAdapter implements SmartTreeAdapter<MyCollectionNode> {
       )
 
       if (item) {
+        const mdDocs = item.markdownDocs ?? []
         const data = [
           ...item.folders.map((folder, index) => ({
             id: `${id}/${index}`,
@@ -972,6 +1019,18 @@ class MyCollectionsAdapter implements SmartTreeAdapter<MyCollectionNode> {
               data: {
                 parentIndex: id,
                 data: requests,
+              },
+            },
+          })),
+          ...mdDocs.map((doc: any, index: number) => ({
+            id: `${id}/md-${index}`,
+            data: {
+              isLastItem: index === mdDocs.length - 1,
+              type: "markdownDocs",
+              data: {
+                parentIndex: id,
+                data: doc,
+                docIndex: index,
               },
             },
           })),

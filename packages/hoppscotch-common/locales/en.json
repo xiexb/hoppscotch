@@ -380,7 +380,13 @@
     "markdown_doc_name": "Document Name",
     "edit_doc": "Edit",
     "preview_doc": "Preview",
-    "delete_doc_confirm": "Are you sure to delete this document?"
+    "delete_doc_confirm": "Are you sure to delete this document?",
+    "rename_doc": "Rename Document",
+    "doc_name_placeholder": "Enter document name",
+    "team_markdown_doc_not_supported": "Team collection markdown docs are not yet supported",
+    "markdown_doc_added": "Markdown document added",
+    "markdown_doc_deleted": "Markdown document deleted",
+    "markdown_doc_renamed": "Markdown document renamed"
   },
   "confirm": {
     "close_unsaved_tab": "Are you sure you want to close this tab?",

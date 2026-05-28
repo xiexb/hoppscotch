@@ -380,7 +380,13 @@
     "markdown_doc_name": "文档名称",
     "edit_doc": "编辑",
     "preview_doc": "预览",
-    "delete_doc_confirm": "确定删除此文档？"
+    "delete_doc_confirm": "确定删除此文档？",
+    "rename_doc": "重命名文档",
+    "doc_name_placeholder": "输入文档名称",
+    "team_markdown_doc_not_supported": "团队集合暂不支持 Markdown 文档",
+    "markdown_doc_added": "Markdown 文档已添加",
+    "markdown_doc_deleted": "Markdown 文档已删除",
+    "markdown_doc_renamed": "Markdown 文档已重命名"
   },
   "confirm": {
     "close_unsaved_tab": "您确定要关闭此标签页吗？",
