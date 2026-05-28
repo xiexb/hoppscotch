@@ -64,6 +64,32 @@
             <!-- END Render TabContents -->
           </HoppSmartWindow>
           <template #actions>
+            <tippy
+              trigger="click"
+              interactive
+              theme="popover"
+            >
+              <button
+                v-tippy="{ theme: 'tooltip', content: t('tab.more_options') }"
+                class="flex h-full items-center justify-center px-2 text-secondary hover:text-secondaryDark focus:outline-none"
+              >
+                <component :is="IconMoreHorizontal" class="h-4 w-4" />
+              </button>
+              <template #content="{ hide }">
+                <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+                  <HoppSmartItem
+                    :icon="IconXSquare"
+                    :label="t('tab.close_all')"
+                    @click="() => { closeAllTabs(); hide() }"
+                  />
+                  <HoppSmartItem
+                    :icon="IconXCircle"
+                    :label="t('tab.close_others')"
+                    @click="() => { closeOtherTabsAction(currentTabID); hide() }"
+                  />
+                </div>
+              </template>
+            </tippy>
             <EnvironmentsSelector class="h-full" />
           </template>
         </HoppSmartWindows>
@@ -149,6 +175,9 @@ import { EnvironmentInspectorService } from "~/services/inspection/inspectors/en
 import { ResponseInspectorService } from "~/services/inspection/inspectors/response.inspector"
 import { ScriptingInterceptorInspectorService } from "~/services/inspection/inspectors/scripting-interceptor.inspector"
 import { cloneDeep } from "lodash-es"
+import IconMoreHorizontal from "~icons/lucide/more-horizontal"
+import IconXSquare from "~icons/lucide/x-square"
+import IconXCircle from "~icons/lucide/x-circle"
 import { RESTTabService } from "~/services/tab/rest"
 import { HoppTab } from "~/services/tab"
 import { HoppRequestDocument, HoppTabDocument } from "~/helpers/rest/document"
@@ -276,6 +305,26 @@ const closeOtherTabsAction = (tabID: string) => {
   }
 }
 
+const closeAllTabs = () => {
+  const dirtyTabCount = tabs.getDirtyTabsCount()
+
+  // If there are dirty tabs, show the confirm modal
+  if (dirtyTabCount > 0) {
+    confirmingCloseAllTabs.value = true
+    unsavedTabsCount.value = dirtyTabCount
+    exceptedTabID.value = null // null signals "close all" mode
+  } else {
+    // Create a fresh tab and close all others
+    const newTab = tabs.createNewTab({
+      type: "request",
+      request: getDefaultRESTRequest(),
+      isDirty: false,
+    })
+    scrollService.cleanupAllScroll(newTab.id)
+    tabs.closeOtherTabs(newTab.id)
+  }
+}
+
 const duplicateTab = (tabID: string) => {
   const tab = tabs.getTabRef(tabID)
   if (tab.value && tab.value.document.type === "request") {
@@ -293,8 +342,18 @@ const duplicateTab = (tabID: string) => {
 
 const onResolveConfirmCloseAllTabs = () => {
   if (exceptedTabID.value) {
+    // Close others mode: keep the excepted tab
     scrollService.cleanupAllScroll(exceptedTabID.value)
     tabs.closeOtherTabs(exceptedTabID.value)
+  } else {
+    // Close all mode: create a fresh tab and close everything else
+    const newTab = tabs.createNewTab({
+      type: "request",
+      request: getDefaultRESTRequest(),
+      isDirty: false,
+    })
+    scrollService.cleanupAllScroll(newTab.id)
+    tabs.closeOtherTabs(newTab.id)
   }
   confirmingCloseAllTabs.value = false
 }

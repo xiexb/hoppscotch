@@ -641,6 +641,43 @@ When styling custom tab buttons (example tabs, status tabs, etc.) with a selecte
 
 This applies to any custom tab implementation (example selector tabs, response status tabs, etc.).
 
+### Environment v3 variable shape (NOT legacy { key, value, secret })
+When constructing Environment objects programmatically (e.g., in importers like `importEnvironments()`), variables **must** use the v3 shape: `{ key, initialValue, currentValue, secret }`. Do NOT use the legacy `{ key, value, secret }` shape — the `value` field is not recognized by `parseTemplateString()`, which looks for `currentValue`. This causes imported environment variables to silently fail to resolve in template strings.
+
+```typescript
+// CORRECT — v3 shape
+const envVar = { key: "BASE_URL", initialValue: "https://...", currentValue: "https://...", secret: false }
+
+// WRONG — legacy shape, parseTemplateString() ignores this
+const envVar = { key: "BASE_URL", value: "https://...", secret: false }
+```
+
+### Typecheck scope is limited (type-check.mjs)
+`pnpm run typecheck` (via `type-check.mjs`) only checks `src/services` and `src/helpers/auth` directories. Code in `src/helpers/import-export/` and other directories is **NOT** type-checked. This means type errors (e.g., wrong Environment variable shape) in uncovered directories are silently ignored.
+
+**Fix:** Always manually verify type correctness for code in uncovered directories. Consider adding new directories to `type-check.mjs` if they contain critical logic.
+
+### Subscription lifecycle in async workflows
+When creating subscriptions (e.g., `reloadSub` in `ImportApifoxModal.vue`) inside async functions, store the subscription reference at **component scope** and clean it up in `onBeforeUnmount`. Do NOT rely solely on `setTimeout` fallbacks for cleanup — if the component unmounts before the timeout fires, the subscription leaks.
+
+```typescript
+// CORRECT
+let reloadSub: Subscription | null = null
+
+async function startImport() {
+  reloadSub = someObservable$.subscribe(...)
+}
+
+onBeforeUnmount(() => { reloadSub?.unsubscribe() })
+```
+
+## Skill Appendix（执行提醒）
+
+> 这些是执行层面的提醒，不是 skill 本身的缺陷。在执行任务时注意检查。
+
+- ⚠️ **导出函数必须被调用**：当实现跨文件数据流功能时（如 exporter function + consumer component），务必验证每个导出的工具函数确实在集成点被调用了。曾有 `buildServerToServiceMap()` 被导出但从未调用，导致 service binding 功能完全无效。
+- ⚠️ **多环境映射覆盖完整性**：当构建跨实体映射（如 serverId→serviceId）时，验证所有源实体都被覆盖，不仅仅是第一个。曾有 `buildServerToServiceMap()` 只映射第一个环境的 baseUrls，导致其他环境的 collection 无法获取正确的 selectedServiceId。考虑遍历所有环境或使用 per-environment 方案。
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns
