@@ -121,6 +121,7 @@ const tryExampleResponse = () => {
     name,
     params,
     requestVariables,
+    pathParams,
   } = tab.value.document.response.originalRequest
 
   tabs.createNewTab({
@@ -136,6 +137,7 @@ const tryExampleResponse = () => {
       name,
       params,
       requestVariables,
+      pathParams: pathParams ?? [],
     },
     inheritedProperties: tab.value.document.inheritedProperties,
   })

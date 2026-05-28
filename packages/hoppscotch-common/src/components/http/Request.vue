@@ -679,6 +679,7 @@ const onSaveAsExample = () => {
       params,
       name,
       requestVariables,
+      pathParams,
     } = response.req
 
     const originalRequest: HoppRESTResponseOriginalRequest =
@@ -691,6 +692,7 @@ const onSaveAsExample = () => {
         params,
         name,
         requestVariables,
+        pathParams,
       })
 
     const resName = responseName.value.trim()
