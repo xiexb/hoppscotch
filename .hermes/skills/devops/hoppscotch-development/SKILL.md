@@ -684,6 +684,22 @@ This causes sibling elements (like StatusBadge) to appear at different horizonta
 
 Key classes: `border-0 p-0 m-0 leading-none` on both elements. Additionally, bind `:size` on `<input>` to the text length so the input width matches the rendered `<h1>` width (otherwise the default size=20 pushes siblings far right).
 
+### save-as-example must include pathParams (CRITICAL)
+When implementing "Save as Example" (saving a debug response as a named example), the
+`makeHoppRESTResponseOriginalRequest()` call MUST include `pathParams` from the original
+request. Omitting pathParams causes the saved example to lose URL path parameter values,
+and the "Try" button (which opens the example in a new debug tab) also loses them.
+
+**Affected locations:**
+1. `Response.vue` → `onSaveAsExample()` — constructs `HoppRESTResponseOriginalRequest`
+2. `Request.vue` → save-as-example dropdown handler — same constructor call
+3. `example/ResponseRequest.vue` → `tryExampleResponse()` — opens example in new tab
+
+All three must destructure and pass `pathParams` from the source request. The
+`makeHoppRESTResponseOriginalRequest()` helper accepts `pathParams` as an optional field
+(added in a later verzod version), so it defaults to `undefined` if omitted — which
+means "no path params" rather than "inherit from parent".
+
 ### Use HoppButtonPrimary/HoppButtonSecondary instead of raw `<button>`
 Raw `<button>` elements have different padding/height than Hoppscotch's button components. When a custom button sits next to a `HoppButtonPrimary` (e.g., the "手动调试" send button in the URL bar), the size mismatch is visually jarring.
 
@@ -906,11 +922,37 @@ When the user is NOT using the kanban/orchestrator workflow (common for small UI
 ### User preference: Direct technology recommendations with comparison
 When the user asks "有没有更加适合的X框架", provide a direct comparison table with recommendation — NOT a lengthy research task. Include: library name, size, key features, suitability, and a clear recommendation with reasoning. User makes fast decisions from structured comparisons.
 
+### Design mode sticky tabs — conditional via isDesignMode prop
+`RequestOptions.vue` accepts an `isDesignMode` prop. When true, the `HoppSmartTabs` bar removes sticky positioning so tabs scroll naturally with the page content (instead of sticking to the top). This prevents tab bars from overlapping content when scrolling through long API documentation in edit mode.
+
+```vue
+<!-- RequestOptions.vue -->
+<HoppSmartTabs
+  :styles="isDesignMode
+    ? 'overflow-x-auto flex-shrink-0 bg-primary'
+    : 'sticky overflow-x-auto flex-shrink-0 bg-primary top-upperMobilePrimaryStickyFold sm:top-upperPrimaryStickyFold z-10'"
+>
+```
+
+In debug mode, `isDesignMode` defaults to `false`, preserving the original sticky behavior.
+
+### Save as Example in debug mode (Request.vue)
+The Save button dropdown in `Request.vue` includes a "Save as Example" option (after "Save As"). This saves the current request parameters + response as an example on the request's `responses` object — functionally equivalent to the "Add Example" feature in the sidebar collection tree.
+
+**Conditions:** Only visible/enabled when `response?.type === "success"` (a successful response exists).
+**Flow:** Click → SaveResponseName modal → enter name → saves to `request.responses[name]` + updates `responseModels[].examples` for Design mode compatibility.
+**Key:** Uses `makeHoppRESTResponseOriginalRequest()` with ALL fields including `pathParams` — omitting pathParams was a bug caught in testing.
+
+### Example display — simplified (Try-only)
+`example/ResponseTab.vue` removed `HttpRequestOptions` (no editable params/body/headers tabs). `example/ResponseRequest.vue` removed the Save button. Examples are read-only snapshots with only the Try button (opens in a new debug tab) and the response preview.
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns
 - See `references/request-mode-tabs.md` for the design/debug/testcases mode tabs feature (data model v19, component structure, known bugs)
+- See `references/markdown-docs-architecture.md` for Markdown document feature: verzod v14, md-editor-v3, 3-phase implementation plan
 - See `references/design-mode-architecture.md` for the API documentation design mode (v20): component tree, edit/preview sub-modes, data model fields
 - See `references/password-auth-architecture.md` for email+password authentication system: API endpoints, Prisma schema, frontend components, platform auth methods
 - See `references/design-mode-examples-pattern.md` for the unified examples tabs pattern: virtual-to-stored materialization, tab UI, preview sync, XML/JSON generation
 - See `references/persistence-schema-validation.md` for the REST_TAB_STATE_SCHEMA `.strict()` → `.passthrough()` fix and field-addition checklist
+- See `references/markdown-docs-feature-plan.md` for the collection markdown document feature plan: md-editor-v3 integration, verzod v14 data model, 3-phase implementation, file list, i18n keys

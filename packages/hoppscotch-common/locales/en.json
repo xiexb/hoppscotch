@@ -374,7 +374,13 @@
     "select_location": "Select location",
     "sorted": "Collection sorted",
     "details": "Details",
-    "duplicated": "Collection duplicated"
+    "duplicated": "Collection duplicated",
+    "markdown_doc": "Markdown Document",
+    "add_markdown_doc": "Add Markdown Document",
+    "markdown_doc_name": "Document Name",
+    "edit_doc": "Edit",
+    "preview_doc": "Preview",
+    "delete_doc_confirm": "Are you sure to delete this document?"
   },
   "confirm": {
     "close_unsaved_tab": "Are you sure you want to close this tab?",

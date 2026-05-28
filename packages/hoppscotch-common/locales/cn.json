@@ -374,7 +374,13 @@
     "select_location": "选择位置",
     "sorted": "集合排序",
     "details": "详情",
-    "duplicated": "集合已复制"
+    "duplicated": "集合已复制",
+    "markdown_doc": "Markdown 文档",
+    "add_markdown_doc": "添加 Markdown 文档",
+    "markdown_doc_name": "文档名称",
+    "edit_doc": "编辑",
+    "preview_doc": "预览",
+    "delete_doc_confirm": "确定删除此文档？"
   },
   "confirm": {
     "close_unsaved_tab": "您确定要关闭此标签页吗？",

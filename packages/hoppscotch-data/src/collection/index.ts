@@ -13,8 +13,11 @@ import V10_VERSION from "./v/10"
 import V11_VERSION from "./v/11"
 import V12_VERSION from "./v/12"
 import V13_VERSION from "./v/13"
+import V14_VERSION from "./v/14"
 
 export { CollectionVariable } from "./v/10"
+export { MarkdownDocSchema } from "./v/14"
+export type { MarkdownDoc } from "./v/14"
 
 import { z } from "zod"
 import { translateToNewRequest } from "../rest"
@@ -26,7 +29,7 @@ const versionedObject = z.object({
 })
 
 export const HoppCollection = createVersionedEntity({
-  latestVersion: 13,
+  latestVersion: 14,
   versionMap: {
     1: V1_VERSION,
     2: V2_VERSION,
@@ -41,6 +44,7 @@ export const HoppCollection = createVersionedEntity({
     11: V11_VERSION,
     12: V12_VERSION,
     13: V13_VERSION,
+    14: V14_VERSION,
   },
   getVersion(data) {
     const versionCheck = versionedObject.safeParse(data)
@@ -60,7 +64,7 @@ export type HoppCollectionVariable = InferredEntity<
   typeof HoppCollection
 >["variables"][number]
 
-export const CollectionSchemaVersion = 13
+export const CollectionSchemaVersion = 14
 
 /**
  * Generates a Collection object. This ignores the version number object
@@ -73,6 +77,7 @@ export function makeCollection(x: Omit<HoppCollection, "v">): HoppCollection {
     ...x,
     _ref_id: x._ref_id ? x._ref_id : generateUniqueRefId("coll"),
     selectedServiceId: x.selectedServiceId ?? null,
+    markdownDocs: x.markdownDocs ?? [],
   }
 }
 
@@ -96,6 +101,7 @@ export function translateToNewRESTCollection(x: any): HoppCollection {
   const preRequestScript = x.preRequestScript ?? ""
   const testScript = x.testScript ?? ""
   const selectedServiceId = x.selectedServiceId ?? null
+  const markdownDocs = x.markdownDocs ?? []
 
   const obj = makeCollection({
     name,
@@ -108,6 +114,7 @@ export function translateToNewRESTCollection(x: any): HoppCollection {
     preRequestScript,
     testScript,
     selectedServiceId,
+    markdownDocs,
   })
 
   if (x.id) obj.id = x.id
@@ -138,6 +145,7 @@ export function translateToNewGQLCollection(x: any): HoppCollection {
   const preRequestScript = x.preRequestScript ?? ""
   const testScript = x.testScript ?? ""
   const gqlSelectedServiceId = x.selectedServiceId ?? null
+  const markdownDocs = x.markdownDocs ?? []
 
   const obj = makeCollection({
     name,
@@ -150,6 +158,7 @@ export function translateToNewGQLCollection(x: any): HoppCollection {
     preRequestScript,
     testScript,
     selectedServiceId: gqlSelectedServiceId,
+    markdownDocs,
   })
 
   if (x.id) obj.id = x.id

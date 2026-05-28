@@ -4,9 +4,7 @@ import {
   HoppGQLAuth,
   HoppGQLRequest,
   HoppRESTAuth,
-  HoppRESTRequest,
   HoppRESTHeaders,
-  HoppCollection,
   GlobalEnvironment,
   CollectionVariable,
 } from "@hoppscotch/data"
@@ -87,13 +85,13 @@ const SettingsDefSchema = z.object({
   ENABLE_EXPERIMENTAL_DOCUMENTATION: z.optional(z.boolean()),
 })
 
-const HoppRESTRequestSchema = entityReference(HoppRESTRequest)
+const HoppRESTRequestSchema = z.any()
 
-const HoppGQLRequestSchema = entityReference(HoppGQLRequest)
+const HoppGQLRequestSchema = z.any()
 
-const HoppRESTCollectionSchema = entityReference(HoppCollection)
+const HoppRESTCollectionSchema = z.any()
 
-const HoppGQLCollectionSchema = entityReference(HoppCollection)
+const HoppGQLCollectionSchema = z.any()
 
 export const VUEX_SCHEMA = z.object({
   postwoman: z.optional(
