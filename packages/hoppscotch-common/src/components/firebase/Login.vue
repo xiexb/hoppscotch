@@ -163,7 +163,7 @@
     <template #footer>
       <div
         v-if="mode === 'sign-in' && tosLink && privacyPolicyLink"
-        class="text-tiny text-secondaryLight"
+        class="text-tiny text-secondaryLight mr-auto"
       >
         By signing in, you are agreeing to our
         <HoppSmartAnchor

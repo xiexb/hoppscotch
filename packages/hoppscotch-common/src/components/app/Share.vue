@@ -30,7 +30,7 @@
       </div>
     </template>
     <template #footer>
-      <p class="text-secondaryLight">
+      <p class="text-secondaryLight mr-auto">
         {{ t("app.invite_description") }}
       </p>
     </template>
