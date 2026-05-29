@@ -253,16 +253,16 @@ erd-editor {
 
 /* Define CSS variables at page level so both our toolbar and erd-editor use the same values */
 .erd-page {
-  /* Dark theme defaults (matching erd-editor's dark theme) */
-  --toolbar-background: #1a1a1a;
-  --foreground: #8b8b8b;
-  --active: #ffffff;
+  /* Light theme defaults (matching erd-editor's light theme) */
+  --toolbar-background: #fcfcfd;
+  --foreground: #60646c;
+  --active: #1c2024;
 
-  /* Light theme override */
-  :root[data-theme="light"] & {
-    --toolbar-background: #fcfcfd;
-    --foreground: #60646c;
-    --active: #1c2024;
+  /* Dark theme override */
+  :root.dark & {
+    --toolbar-background: #1a1a1a;
+    --foreground: #8b8b8b;
+    --active: #ffffff;
   }
 }
 
