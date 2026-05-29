@@ -81,7 +81,7 @@ export class EnvironmentInspectorService extends Service implements Inspector {
       currentTab.document.type === "request"
         ? currentTab.document.request
         : currentTab.document.type === "example-response"
-          ? currentTab.document.response.originalRequest
+          ? currentTab.document.response?.originalRequest
           : null
 
     // inherited collection-level variables
@@ -223,7 +223,7 @@ export class EnvironmentInspectorService extends Service implements Inspector {
           currentTab.document.type === "request"
             ? currentTab.document.request
             : currentTab.document.type === "example-response"
-              ? currentTab.document.response.originalRequest
+              ? currentTab.document.response?.originalRequest
               : null
 
         // request variables (active only)

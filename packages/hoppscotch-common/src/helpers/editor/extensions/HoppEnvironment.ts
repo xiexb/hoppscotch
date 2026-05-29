@@ -537,7 +537,7 @@ export class HoppEnvironmentPlugin {
       (currentTab) => {
         const request =
           currentTab.document.type === "example-response"
-            ? currentTab.document.response.originalRequest
+            ? currentTab.document.response?.originalRequest
             : currentTab.document.request
 
         const inheritedProperties = currentTab.document.inheritedProperties
@@ -582,7 +582,7 @@ export class HoppEnvironmentPlugin {
       const tab = restTabs.currentActiveTab.value
       const request =
         tab.document.type === "example-response"
-          ? tab.document.response.originalRequest
+          ? tab.document.response?.originalRequest
           : tab.document.request
       const inheritedProperties = tab.document.inheritedProperties
 

@@ -119,23 +119,56 @@ export abstract class TabService<Doc>
   }
 
   public loadTabsFromPersistedState(data: PersistableTabState<Doc>): void {
-    if (data) {
-      this.tabMap.clear()
-      this.tabOrdering.value = []
-      this.mruOrder = []
-      this.mruNavigationIndex = -1
+    if (data && data.orderedDocs?.length) {
+      // Save the constructor's default tab as fallback before clearing
+      const savedTabMap = new Map(this.tabMap)
+      const savedOrdering = [...this.tabOrdering.value]
+
+      // Build new valid tab list first (don't clear yet to avoid race)
+      const newTabMap = new Map<string, { id: string; document: Doc }>()
+      const newOrdering: string[] = []
 
       for (const doc of data.orderedDocs) {
-        this.tabMap.set(doc.tabID, {
-          id: doc.tabID,
-          document: doc.doc,
-        })
+        const d = doc.doc as any
+        // Skip obviously corrupted tabs
+        if (!d) continue
 
-        this.tabOrdering.value.push(doc.tabID)
-        this.mruOrder.push(doc.tabID)
+        // REST tabs have a `type` discriminator field
+        if (d.type !== undefined) {
+          if (d.type === "request" && (!d.request || !d.request.method)) continue
+          if (d.type === "example-response" && !d.response) continue
+          if (d.type === "test-runner" && !d.collection) continue
+          if (d.type === "markdown-doc" && d.docId === undefined) continue
+        } else {
+          // GQL tabs have no `type` field, but must have `request`
+          if (!d.request) continue
+        }
+
+        newTabMap.set(doc.tabID, { id: doc.tabID, document: doc.doc })
+        newOrdering.push(doc.tabID)
       }
 
-      this.setActiveTab(data.lastActiveTabID)
+      // Now apply the result atomically
+      if (newOrdering.length === 0) {
+        // All tabs were corrupted - keep the constructor's default tab(s)
+        // tabMap and tabOrdering are unchanged
+        return
+      }
+
+      this.tabMap.clear()
+      for (const [k, v] of newTabMap) {
+        this.tabMap.set(k, v)
+      }
+      this.tabOrdering.value = newOrdering
+      this.mruOrder = [...newOrdering]
+      this.mruNavigationIndex = -1
+
+      // Activate the last active tab if it survived, otherwise the first valid one
+      if (this.tabMap.has(data.lastActiveTabID)) {
+        this.setActiveTab(data.lastActiveTabID)
+      } else {
+        this.setActiveTab(newOrdering[0])
+      }
     }
   }
 

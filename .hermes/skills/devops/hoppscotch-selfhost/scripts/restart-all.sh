@@ -30,6 +30,13 @@ echo "Ports 3003/3101/3170 are free."
 
 echo "=== Starting backend ==="
 cd "$PROJECT_DIR/packages/hoppscotch-backend"
+
+# Build if needed (dist/src/main.js may not exist after clean checkout)
+if [ ! -f dist/src/main.js ]; then
+  echo "No build found, running pnpm run build..."
+  pnpm run build
+fi
+
 # Backend needs all env vars exported (doesn't read .env)
 set -a; source "$PROJECT_DIR/.env"; set +a
 node dist/src/main.js > "$LOG_DIR/backend.log" 2>&1 &

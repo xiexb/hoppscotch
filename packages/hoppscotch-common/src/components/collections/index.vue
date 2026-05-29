@@ -2038,7 +2038,7 @@ const onAddExample = async () => {
     return
   }
 
-  // Create the original request from the parent request
+  // Create the original request from the parent request (include pathParams!)
   const originalRequest = makeHoppRESTResponseOriginalRequest({
     name: request.name,
     method: request.method,
@@ -2048,6 +2048,7 @@ const onAddExample = async () => {
     body: request.body,
     auth: request.auth,
     requestVariables: request.requestVariables,
+    pathParams: request.pathParams,
   })
 
   // Create a new example response with default values and original request

@@ -317,13 +317,13 @@ const sortTabs = (e: { oldIndex: number; newIndex: number }) => {
 
 const getTabName = (tab: HoppTab<HoppTabDocument>) => {
   if (tab.document.type === "request") {
-    return tab.document.request.name
+    return tab.document.request?.name ?? "Untitled"
   } else if (tab.document.type === "test-runner") {
-    return tab.document.collection.name
+    return tab.document.collection?.name ?? "Test Runner"
   } else if (tab.document.type === "example-response") {
-    return tab.document.response.name
+    return tab.document.response?.name ?? "Example Response"
   } else if (tab.document.type === "markdown-doc") {
-    return tab.document.name
+    return tab.document.name ?? "Untitled Doc"
   }
 
   return "Unnamed tab"

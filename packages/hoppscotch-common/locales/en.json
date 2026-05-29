@@ -1444,6 +1444,7 @@
     "data_schema": "Data Schema",
     "saved": "Response saved",
     "invalid_name": "Please provide a name for the response",
+    "save_example_requires_save": "Please save the request to a collection before saving as example",
     "actual_request": "Actual Request"
   },
   "script": {

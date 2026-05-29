@@ -422,13 +422,13 @@ const envVars = computed(() => {
 
   // request-level variables
   const rawRequestVars = isRequest
-    ? document.request.requestVariables
+    ? document.request?.requestVariables ?? []
     : isExample
-      ? document.response.originalRequest.requestVariables
+      ? document.response?.originalRequest?.requestVariables ?? []
       : []
 
   // formated request variables
-  const requestVariables = rawRequestVars
+  const requestVariables = (rawRequestVars ?? [])
     .filter((v) => v.active)
     .map(({ key, value }) => ({
       key,
@@ -449,9 +449,9 @@ const pathParams = computed<HoppRESTPathParam[]>(() => {
   const isExample = document.type === "example-response"
 
   if (isRequest) {
-    return document.request.pathParams ?? []
+    return document.request?.pathParams ?? []
   } else if (isExample) {
-    return document.response.originalRequest.pathParams ?? []
+    return document.response?.originalRequest?.pathParams ?? []
   }
   return []
 })

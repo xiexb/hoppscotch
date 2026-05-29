@@ -502,6 +502,8 @@ is not set"). Use this to verify the backend can start before wrapping in
 background mode.
 
 **For production restart**: Use `node dist/src/main.js` (pre-built, no TS compile).
+**PITFALL**: The compiled output is at `dist/src/main.js`, NOT `dist/main.js`.
+Running `node dist/main` or `node dist/main.js` fails with MODULE_NOT_FOUND.
 
 ### P45: `export $(grep ... | xargs)` breaks on quoted .env values with special chars
 The common pattern `export $(grep -v '^#' .env | xargs)` breaks when .env
@@ -569,6 +571,33 @@ pnpm run preview --port 3003 --host 0.0.0.0  # background
 
 **PITFALL:** If you make a code fix but forget to rebuild, users will still see the
 old behavior. Always verify the build output (`dist/`) timestamp after rebuilding.
+
+### P49: `.env` corruption — line-number prefixes from `read_file` output
+
+When the backend's `.env` is accidentally overwritten with `read_file` output,
+every line gets a prefix like `3|DATABASE_URL=postgresql://...`. This causes
+`DATABASE_URL environment variable is not set` because the shell sees the line
+as a comment or invalid identifier, not as a variable assignment.
+
+**Symptoms**: Backend starts but immediately crashes with
+`Error: DATABASE_URL environment variable is not set` even though the .env
+file "looks like it has the right content" when viewed with `head` or `cat`.
+
+**Diagnosis**:
+```bash
+hexdump -C .env | head -5
+# Corrupt: starts with "     1|#..." (line numbers + pipe)
+# Clean:   starts with "#---" or "DATABASE_URL=..."
+```
+
+**Fix**: The canonical `.env` is at the project root (`/path/to/hoppscotch/.env`).
+Copy it to the backend:
+```bash
+cp /path/to/hoppscotch/.env /path/to/hoppscotch/packages/hoppscotch-backend/.env
+```
+
+**Prevention**: Never pipe `read_file` output back into `write_file` without
+stripping the `LINE|` prefixes first.
 
 ### P48: Kanban SQLite DB corruption recovery
 The kanban plugin's SQLite DB can get corrupted (page reference errors) during concurrent writes or unclean shutdowns. Symptoms: `kanban list` fails with "Refusing to open corrupt kanban DB" + integrity_check errors about "2nd reference to page N".

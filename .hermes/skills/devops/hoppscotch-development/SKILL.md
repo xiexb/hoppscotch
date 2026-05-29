@@ -784,6 +784,62 @@ export PATH="/home/jcwl/.hermes/node/bin:$PATH" && cd <package> && pnpm run dev
 ```
 Without this, the process exits immediately with `bash: node: command not found` or `bash: pnpm: command not found`.
 
+### Frontend stuck on loading spinner — rebuild hoppscotch-data
+**Symptom:** Frontend loads (HTTP 200), shows Hoppscotch logo with spinning loader, but never renders the main UI. No JavaScript errors in console. Vue router shows `currentMatched: 0` (no route matched).
+
+**Root cause:** `hoppscotch-data` package dist is stale — missing newly added exports (e.g., `MarkdownDocSchema`). When a route's lazy-loaded component imports from `hoppscotch-data`, the import fails silently during route resolution, preventing the route from matching.
+
+**Diagnosis:** In browser console, manually trigger a route push:
+```javascript
+(async () => {
+  const vueApp = document.querySelector('#app').__vue_app__;
+  const router = vueApp.config.globalProperties.$router;
+  try {
+    await router.push('/');
+    return JSON.stringify({ success: true, matched: router.currentRoute.value.matched.length });
+  } catch (err) {
+    return JSON.stringify({ success: false, error: err.message });
+  }
+})()
+```
+If it returns an error like `"does not provide an export named 'X'"`, the hoppscotch-data package needs rebuilding.
+
+**Fix:**
+```bash
+cd packages/hoppscotch-data && pnpm run build  # ~2s, rebuilds dist/
+# Then kill and restart frontend dev server
+kill $(lsof -t -i:3003 2>/dev/null) 2>/dev/null
+sleep 1
+export PATH="/home/jcwl/.hermes/node/bin:$PATH" && cd packages/hoppscotch-selfhost-web && pnpm run dev  # background
+```
+
+**Prevention:** After ANY change to `packages/hoppscotch-data/src/` (new schemas, types, verzod versions), ALWAYS run `pnpm run build` in that package before testing frontend. The dev server does NOT auto-rebuild hoppscotch-data.
+
+### Backend startup — .env file integrity
+**Symptom:** Backend crashes immediately with `DATABASE_URL environment variable is not set`.
+
+**Common causes:**
+1. **Corrupted .env file** — Check if file has line numbers prepended (e.g., `3|DATABASE_URL=...` instead of `DATABASE_URL=...`). This can happen if the file was accidentally edited with an editor that added line numbers. Fix: copy from root `.env` or restore from git.
+2. **Environment variables not loaded** — The backend's `node dist/src/main` does NOT auto-load `.env`. You must either:
+   - Use `set -a && source .env && set +a && node dist/src/main` (if .env is clean)
+   - Or: `export $(grep -v '^#' .env | grep -v '^$' | xargs) && node dist/src/main` (more robust, handles comments)
+
+**Verification:** Backend logs should show `Port: 3170` (not `Port: undefined`). If Port is undefined, env vars are not loaded correctly.
+
+**Correct startup sequence:**
+```bash
+# 1. Verify .env file is clean
+head -3 packages/hoppscotch-backend/.env  # Should NOT have line numbers
+
+# 2. Start backend with env vars loaded
+export PATH="/home/jcwl/.hermes/node/bin:$PATH"
+cd packages/hoppscotch-backend
+export $(grep -v '^#' .env | grep -v '^$' | xargs) && node dist/src/main  # background
+
+# 3. Verify health
+curl -s http://localhost:3170/health  # Should return {"status":"ok"}
+```
+
 ### Virtual vs stored examples — "auto" badge pattern (USER PREFERENCE)
 Design mode examples (both request body and response) use a virtual-to-stored pattern:
 - **Virtual default**: Auto-generated from schema tree, shown with an "auto" badge, **fully interactive**
@@ -932,6 +988,65 @@ In design mode edit view, ALL section headers (Parameters column header, Headers
 This is a **single-line fix** that covers ALL sub-components (Parameters.vue, Headers.vue, Body.vue, PathParams.vue, DesignBody.vue, etc.) without needing to add an `isDesignMode` prop to each one. The `HoppSmartTabs` in `RequestOptions.vue` should ALSO be conditionally de-sticked via its `styles` prop (as done in the initial sticky fix), but this `:deep()` override catches any remaining sticky elements in child components.
 
 **PITFALL:** Only apply this in `EditView.vue` (design mode edit sub-view). Do NOT put it in `RequestDesignPanel.vue` or `RequestTab.vue` — that would affect debug mode and preview mode too.
+
+### Corrupted persisted tab data causes white screen (CRITICAL)
+**Symptom:** Page loads (HTTP 200, Vue app mounts) but crashes to white screen with errors like:
+- `Cannot read properties of undefined (reading 'name')` at `index.vue:getTabName`
+- `Cannot read properties of undefined (reading 'requestVariables')` at `EnvInput.vue`
+- `Cannot read properties of undefined (reading 'pathParams')` at `EnvInput.vue`
+
+**Root cause:** IndexedDB stores tab data (restTabs/gqlTabs). If a tab's `document.request` (or `document.response`, `document.collection`) is `undefined` — e.g., from a partial save, migration bug, or storage corruption — multiple components crash when they access `document.request.name`, `document.request.pathParams`, `document.request.requestVariables` etc.
+
+**Defense-in-depth fix (3 layers):**
+
+1. **Tab loading validation** (`services/tab/tab.ts` → `loadTabsFromPersistedState`):
+```typescript
+for (const doc of data.orderedDocs) {
+  const d = doc.doc as any
+  if (!d || !d.type) continue  // skip completely broken docs
+  if (d.type === "request" && !d.request) continue  // request tab without request
+  if (d.type === "example-response" && !d.response) continue
+  if (d.type === "test-runner" && !d.collection) continue
+  // ... load valid tab
+}
+// Fallback if all tabs corrupted:
+if (this.tabOrdering.value.length === 0) {
+  this.currentTabID.value = ""  // app will create default tab
+} else if (!this.tabMap.has(data.lastActiveTabID)) {
+  this.setActiveTab(this.tabOrdering.value[0])  // last active was corrupted
+} else {
+  this.setActiveTab(data.lastActiveTabID)
+}
+```
+
+2. **UI component defensive access** (`pages/index.vue` → `getTabName`):
+```typescript
+const getTabName = (tab) => {
+  if (tab.document.type === "request") return tab.document.request?.name ?? "Untitled"
+  if (tab.document.type === "test-runner") return tab.document.collection?.name ?? "Test Runner"
+  if (tab.document.type === "example-response") return tab.document.response?.name ?? "Example"
+  if (tab.document.type === "markdown-doc") return tab.document.name ?? "Untitled Doc"
+  return "Unnamed tab"
+}
+```
+
+3. **Computed properties** (`components/smart/EnvInput.vue`):
+```typescript
+const rawRequestVars = isRequest
+  ? document.request?.requestVariables ?? []
+  : isExample
+    ? document.response?.originalRequest?.requestVariables ?? []
+    : []
+const pathParams = isRequest
+  ? document.request?.pathParams ?? []
+  : isExample
+    ? document.response?.originalRequest?.pathParams ?? []
+    : []
+```
+
+**User-facing workaround:** Clear IndexedDB → Application → IndexedDB → delete `121.41.26.6:35051.hoppscotch.store`.
+
+**General rule:** Any code that reads `tab.document.request.*`, `tab.document.response.*`, or `tab.document.collection.*` from persisted data MUST use optional chaining (`?.`) and nullish coalescing (`??`) — persisted data can be partially corrupt.
 
 ### Markdown document feature — md-editor-v3 + HoppCollection verzod v14
 Hoppscotch supports adding Markdown documents to collections (alongside requests and folders). Technical decisions:

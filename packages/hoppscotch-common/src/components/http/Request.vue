@@ -735,7 +735,10 @@ const onSaveAsExample = () => {
     showSaveResponseName.value = false
 
     const saveCtx = tab.value.document.saveContext
-    if (!saveCtx) return
+    if (!saveCtx) {
+      toast.error(t("response.save_example_requires_save"))
+      return
+    }
 
     const req = tab.value.document.request
 

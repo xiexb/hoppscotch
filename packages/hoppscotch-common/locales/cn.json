@@ -1438,6 +1438,7 @@
     "data_schema": "数据结构",
     "saved": "响应已保存",
     "invalid_name": "请为响应提供名称",
+    "save_example_requires_save": "请先将请求保存到集合中，然后再保存为示例",
     "actual_request": "实际请求"
   },
   "settings": {
