@@ -540,7 +540,8 @@
     "profile": "Profil",
     "realtime": "Realtime",
     "rest": "REST",
-    "settings": "Pengaturan"
+    "settings": "Pengaturan",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript Code",

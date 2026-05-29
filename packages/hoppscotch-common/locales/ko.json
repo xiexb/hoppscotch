@@ -540,7 +540,8 @@
     "profile": "프로필",
     "realtime": "실시간",
     "rest": "REST",
-    "settings": "설정"
+    "settings": "설정",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "자바스크립트 코드",

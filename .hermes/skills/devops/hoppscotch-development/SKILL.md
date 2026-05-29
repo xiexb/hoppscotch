@@ -1103,8 +1103,17 @@ The Save button dropdown in `Request.vue` includes a "Save as Example" option (a
 
 **PITFALL: saveContext null causes silent failure.** `onSaveAsExample()` (line ~737) checks `const saveCtx = tab.value.document.saveContext; if (!saveCtx) return` — if the request hasn't been saved to a collection yet, saveContext is null and the function silently returns without saving the example or showing any error. **Fix:** Show a toast error before returning: `toast.error(t("response.save_example_requires_save"))` so the user knows they must save the request to a collection first.
 
-### Example display — simplified (Try-only)
-`example/ResponseTab.vue` removed `HttpRequestOptions` (no editable params/body/headers tabs). `example/ResponseRequest.vue` removed the Save button. Examples are read-only snapshots with only the Try button (opens in a new debug tab) and the response preview.
+### Example display — full request params + save
+`example/ResponseTab.vue` includes `HttpRequestOptions` with editable params/body/headers/auth tabs below the URL bar. `example/ResponseRequest.vue` has both Try and Save buttons. The Save button persists modified `originalRequest` back to the parent request's `responses[exampleName]` in the collection.
+
+**Type bridge:** `RequestOptions.vue` accepts `HoppRESTRequest | HoppRESTResponseOriginalRequest` as `modelValue`. A computed bridge in `ResponseTab.vue` maps `tab.document.response.originalRequest` to the component.
+
+**Save flow:**
+1. User-collection: Read parent request from `restCollectionStore` via `navigateToFolderWithIndexPath`, clone, update `responses[name].originalRequest`, call `editRESTRequest(folderPath, requestIndex, updatedRequest)`
+2. Team-collection: Fetch via `getSingleRequest(requestID)`, parse JSON, update response, save via `updateTeamRequest(requestID, { request: JSON.stringify(req), title })`
+3. Both paths use `taskToPromise()` helper to convert fp-ts `TaskEither` to native `Promise`
+
+**Dirty state:** The existing deep watch on `tab.document.response` (which includes `originalRequest`) automatically sets `isDirty = true` when any request parameter changes. The Save button is disabled when `!isDirty`.
 
 ## References
 

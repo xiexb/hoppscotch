@@ -31,6 +31,7 @@ import { breakpointsTailwind, useBreakpoints } from "@vueuse/core"
 import IconLink2 from "~icons/lucide/link-2"
 import IconGraphql from "~icons/hopp/graphql"
 import IconGlobe from "~icons/lucide/globe"
+import IconDatabase from "~icons/lucide/database"
 import IconSettings from "~icons/lucide/settings"
 import { useSetting } from "@composables/settings"
 import { useI18n } from "@composables/i18n"
@@ -59,6 +60,12 @@ const primaryNavigation = [
     target: "/realtime",
     svg: IconGlobe,
     title: "navigation.realtime",
+    exact: false,
+  },
+  {
+    target: "/erd",
+    svg: IconDatabase,
+    title: "navigation.erd",
     exact: false,
   },
   {

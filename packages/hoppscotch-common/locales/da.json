@@ -537,7 +537,8 @@
     "profile": "Profil",
     "realtime": "Realtid",
     "rest": "REST",
-    "settings": "Indstillinger"
+    "settings": "Indstillinger",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript-kode",

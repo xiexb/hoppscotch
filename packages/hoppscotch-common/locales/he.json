@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "זמן אמת",
     "rest": "REST",
-    "settings": "הגדרות"
+    "settings": "הגדרות",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "קוד JavaScript",

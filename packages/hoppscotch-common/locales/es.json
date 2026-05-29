@@ -1077,7 +1077,8 @@
     "mock_servers": "Servidores mock",
     "settings": "Ajustes",
     "goto_app": "Ir a la aplicación",
-    "authentication": "Autenticación"
+    "authentication": "Autenticación",
+    "erd": "ER Diagram"
   },
   "mock_server": {
     "confirm_delete_log": "¿Estás seguro de que deseas eliminar este registro?",

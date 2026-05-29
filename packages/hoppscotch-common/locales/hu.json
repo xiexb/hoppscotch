@@ -540,7 +540,8 @@
     "profile": "Profil",
     "realtime": "Valós idő",
     "rest": "REST",
-    "settings": "Beállítások"
+    "settings": "Beállítások",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript kód",

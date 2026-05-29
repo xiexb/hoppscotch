@@ -540,7 +540,8 @@
     "profile": "الملف الشخصي",
     "realtime": "في الوقت الحالى",
     "rest": "REST",
-    "settings": "إعدادات"
+    "settings": "إعدادات",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "كود جافا سكريبت",

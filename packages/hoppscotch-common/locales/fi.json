@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Reaaliaika",
     "rest": "REST",
-    "settings": "asetukset"
+    "settings": "asetukset",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript -koodi",

@@ -1184,7 +1184,8 @@
     "mock_servers": "Mock 服务",
     "settings": "设置",
     "goto_app": "转到应用",
-    "authentication": "认证"
+    "authentication": "认证",
+    "erd": "ER 图"
   },
   "mock_server": {
     "confirm_delete_log": "确定要删除此日志吗？",
@@ -2638,5 +2639,19 @@
     "beautified": "已美化",
     "invalid_json": "JSON 格式无效，无法美化",
     "unsupported_format": "不支持美化该格式"
+  },
+  "erd": {
+    "import_json": "导入 JSON",
+    "import_sql": "导入 SQL",
+    "export_sql": "导出 SQL",
+    "export_json": "导出 JSON",
+    "clear": "清空",
+    "import_success": "Schema 导入成功",
+    "import_error": "文件导入失败，请检查格式",
+    "export_success": "JSON Schema 导出成功",
+    "export_success_note": "Schema 已导出。请使用编辑器工具栏生成 SQL。",
+    "export_error": "Schema 导出失败",
+    "clear_success": "编辑器已清空",
+    "title": "ER 图"
   }
 }

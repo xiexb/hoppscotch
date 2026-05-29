@@ -1047,7 +1047,8 @@
     "mock_servers": "Mock servery",
     "settings": "Nastavení",
     "goto_app": "Přejít na aplikaci",
-    "authentication": "Autentizace"
+    "authentication": "Autentizace",
+    "erd": "ER Diagram"
   },
   "mock_server": {
     "confirm_delete_log": "Opravdu chcete tento protokol smazat?",

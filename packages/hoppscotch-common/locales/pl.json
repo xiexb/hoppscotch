@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Czas rzeczywisty",
     "rest": "REST",
-    "settings": "Ustawienia"
+    "settings": "Ustawienia",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Kod JavaScript",

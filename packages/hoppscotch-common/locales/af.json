@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Ware tyd",
     "rest": "REST",
-    "settings": "Instellings"
+    "settings": "Instellings",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript -kode",

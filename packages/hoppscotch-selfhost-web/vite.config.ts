@@ -106,7 +106,13 @@ export default defineConfig({
     HtmlConfig({
       metas: META_TAGS(ENV),
     }),
-    Vue(),
+    Vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag === 'erd-editor',
+        },
+      },
+    }),
     Pages({
       routeStyle: "nuxt",
       dirs: ["../hoppscotch-common/src/pages", "./src/pages"],

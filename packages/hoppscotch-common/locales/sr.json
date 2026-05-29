@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Реалном времену",
     "rest": "REST",
-    "settings": "Подешавања"
+    "settings": "Подешавања",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "ЈаваСцрипт код",

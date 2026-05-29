@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Realtid",
     "rest": "REST",
-    "settings": "inställningar"
+    "settings": "inställningar",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript -kod",

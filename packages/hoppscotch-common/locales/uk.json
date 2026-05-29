@@ -540,7 +540,8 @@
     "profile": "Профіль",
     "realtime": "Реальний час",
     "rest": "REST",
-    "settings": "Налаштування"
+    "settings": "Налаштування",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Код JavaScript",

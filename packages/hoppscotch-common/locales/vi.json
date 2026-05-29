@@ -540,7 +540,8 @@
     "profile": "Hồ sơ",
     "realtime": "Thời gian thực",
     "rest": "REST",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Mã JavaScript",

@@ -840,7 +840,8 @@
     "rest": "REST",
     "settings": "Paramètres",
     "goto_app": "Aller à l'application",
-    "authentication": "Authentification"
+    "authentication": "Authentification",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Code JavaScript",

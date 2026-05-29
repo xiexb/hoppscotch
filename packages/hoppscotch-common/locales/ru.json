@@ -536,7 +536,8 @@
     "profile": "Профиль",
     "realtime": "Realtime",
     "rest": "REST",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Код JavaScript",

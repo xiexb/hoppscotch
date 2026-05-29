@@ -538,6 +538,9 @@ importers:
       '@codemirror/view':
         specifier: 6.38.8
         version: 6.38.8
+      '@dineug/erd-editor':
+        specifier: 3.3.0
+        version: 3.3.0
       '@guolao/vue-monaco-editor':
         specifier: 1.6.0
         version: 1.6.0(monaco-editor@0.55.1)(vue@3.5.33(typescript@5.9.3))
@@ -2901,6 +2904,9 @@ packages:
 
   '@digitak/grubber@3.1.4':
     resolution: {integrity: sha512-pqsnp2BUYlDoTXWG34HWgEJse/Eo1okRgNex8IG84wHrJp8h3SakeR5WhB4VxSA2+/D+frNYJ0ch3yXzsfNDoA==}
+
+  '@dineug/erd-editor@3.3.0':
+    resolution: {integrity: sha512-XcpzYqTGQzUH+TMyhCd6WQx4GQ0P5r7tLcKlXgG26xz7dineNEUpx1xxc7YMuF1kGJtcuKAxAE3+LDGJZNmLZg==}
 
   '@electric-sql/pglite-socket@0.1.1':
     resolution: {integrity: sha512-p2hoXw3Z3LQHwTeikdZNsFBOvXGqKY2hk51BBw+8NKND8eoH+8LFOtW9Z8CQKmTJ2qqGYu82ipqiyFZOTTXNfw==}
@@ -14858,6 +14864,8 @@ snapshots:
       esbuild: 0.17.19
 
   '@digitak/grubber@3.1.4': {}
+
+  '@dineug/erd-editor@3.3.0': {}
 
   '@electric-sql/pglite-socket@0.1.1(@electric-sql/pglite@0.4.1)':
     dependencies:

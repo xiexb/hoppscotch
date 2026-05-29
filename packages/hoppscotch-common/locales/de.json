@@ -640,7 +640,8 @@
     "profile": "Profil",
     "realtime": "Echtzeit",
     "rest": "REST",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "JavaScript-Code",

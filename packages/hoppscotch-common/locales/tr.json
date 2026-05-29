@@ -1077,7 +1077,8 @@
     "mock_servers": "Mock Sunucular",
     "settings": "Ayarlar",
     "goto_app": "Uygulamaya Git",
-    "authentication": "Kimlik Doğrulama"
+    "authentication": "Kimlik Doğrulama",
+    "erd": "ER Diagram"
   },
   "mock_server": {
     "confirm_delete_log": "Bu günlüğü silmek istediğinizden emin misiniz?",

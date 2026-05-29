@@ -540,7 +540,8 @@
     "profile": "Profil",
     "realtime": "Timp real",
     "rest": "REST",
-    "settings": "Setări"
+    "settings": "Setări",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Cod JavaScript",

@@ -540,7 +540,8 @@
     "profile": "Profile",
     "realtime": "Πραγματικός χρόνος",
     "rest": "REST",
-    "settings": "Ρυθμίσεις"
+    "settings": "Ρυθμίσεις",
+    "erd": "ER Diagram"
   },
   "preRequest": {
     "javascript_code": "Κώδικας JavaScript",
