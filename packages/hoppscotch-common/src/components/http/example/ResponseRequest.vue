@@ -60,7 +60,7 @@
         />
       </div>
     </div>
-    <div class="mt-2 flex sm:mt-0 items-stretch">
+    <div class="mt-2 flex sm:mt-0 items-stretch space-x-2">
       <HoppButtonPrimary
         id="send"
         v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
@@ -68,6 +68,17 @@
         label="Try"
         class="min-w-[5rem]"
         @click="tryExampleResponse"
+      />
+      <HoppButtonSecondary
+        id="save"
+        v-tippy="{ theme: 'tooltip', delay: [500, 20], allowHTML: true }"
+        :title="t('action.save')"
+        :label="t('action.save')"
+        :icon="IconSave"
+        :loading="isSaving"
+        :disabled="!tab.document.isDirty || isSaving"
+        class="min-w-[5rem]"
+        @click="saveExample"
       />
     </div>
   </div>
@@ -84,8 +95,29 @@ import { HoppTab } from "~/services/tab"
 import { HoppSavedExampleDocument } from "~/helpers/rest/document"
 import { RESTTabService } from "~/services/tab/rest"
 import { getMethodLabelColor } from "~/helpers/rest/labelColoring"
+import { HoppRESTRequest } from "@hoppscotch/data"
+import {
+  editRESTRequest,
+  navigateToFolderWithIndexPath,
+  restCollectionStore,
+} from "~/newstore/collections"
+import { useToast } from "@composables/toast"
+import { cloneDeep } from "lodash-es"
+import { getSingleRequest } from "~/helpers/teams/TeamRequest"
+import { updateTeamRequest } from "~/helpers/backend/mutations/TeamRequest"
+import * as E from "fp-ts/Either"
+import * as TE from "fp-ts/TaskEither"
+import IconSave from "~icons/lucide/save"
+
+// Promise wrapper for fp-ts TaskEither
+const taskToPromise = <E, A>(task: TE.TaskEither<E, A>): Promise<A> =>
+  task().then((result) => {
+    if (E.isLeft(result)) throw result.left
+    return result.right
+  })
 
 const t = useI18n()
+const toast = useToast()
 
 const methods = [
   "GET",
@@ -106,6 +138,8 @@ const emit = defineEmits(["update:modelValue"])
 const tabs = useService(RESTTabService)
 
 const tab = useVModel(props, "modelValue", emit)
+
+const isSaving = ref(false)
 
 const newMethod = computed(() => {
   return tab.value.document.response.originalRequest.method
@@ -143,6 +177,117 @@ const tryExampleResponse = () => {
   })
 }
 
+const saveExample = async () => {
+  const saveCtx = tab.value.document.saveContext
+  if (!saveCtx) {
+    toast.error(t("error.something_went_wrong"))
+    return
+  }
+
+  const responseName = tab.value.document.response.name
+  if (!responseName) {
+    toast.error(t("error.something_went_wrong"))
+    return
+  }
+
+  isSaving.value = true
+
+  try {
+    if (saveCtx.originLocation === "user-collection") {
+      saveUserCollectionExample(saveCtx, responseName)
+    } else {
+      await saveTeamCollectionExample(saveCtx, responseName)
+    }
+
+    tab.value.document.isDirty = false
+    toast.success(t("response.saved"))
+  } catch (e) {
+    console.error("Failed to save example:", e)
+    toast.error(t("error.something_went_wrong"))
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const saveUserCollectionExample = (
+  saveCtx: { folderPath: string; requestIndex?: number },
+  responseName: string
+) => {
+  const { folderPath, requestIndex } = saveCtx
+  if (requestIndex === undefined || requestIndex === null) {
+    throw new Error("requestIndex is required for user-collection save")
+  }
+
+  // Read the parent request from the collection store
+  const indexPaths = folderPath.split("/").map((x) => parseInt(x))
+  const folder = navigateToFolderWithIndexPath(
+    restCollectionStore.value.state,
+    indexPaths
+  )
+  if (!folder) {
+    throw new Error("Folder not found")
+  }
+
+  const request = cloneDeep(folder.requests[requestIndex]) as HoppRESTRequest
+  if (!request) {
+    throw new Error("Request not found")
+  }
+
+  // Update the response's originalRequest with the current edited one
+  if (request.responses && request.responses[responseName]) {
+    request.responses[responseName] = {
+      ...request.responses[responseName],
+      originalRequest: cloneDeep(
+        tab.value.document.response.originalRequest
+      ),
+    }
+  } else {
+    throw new Error(`Response "${responseName}" not found in request`)
+  }
+
+  editRESTRequest(folderPath, requestIndex, request)
+}
+
+const saveTeamCollectionExample = async (
+  saveCtx: { requestID: string },
+  responseName: string
+) => {
+  const { requestID } = saveCtx
+
+  // Fetch the request from the backend
+  const queryResult = await taskToPromise(getSingleRequest(requestID))
+  const reqData = queryResult.request
+  if (!reqData) {
+    throw new Error("Request not found in team collections")
+  }
+
+  // Parse the request data (it comes as a JSON string)
+  const request: HoppRESTRequest =
+    typeof reqData.request === "string"
+      ? JSON.parse(reqData.request)
+      : (reqData.request as unknown as HoppRESTRequest)
+
+  // Update the response's originalRequest
+  if (request.responses && request.responses[responseName]) {
+    request.responses[responseName] = {
+      ...request.responses[responseName],
+      originalRequest: cloneDeep(
+        tab.value.document.response.originalRequest
+      ),
+    }
+  } else {
+    throw new Error(`Response "${responseName}" not found in request`)
+  }
+
+  // Save back to the backend
+  await taskToPromise(
+    updateTeamRequest(requestID, {
+      request: JSON.stringify(request),
+      title: request.name,
+    })
+  )
+}
+
 // Template refs
 const methodTippyActions = ref<any | null>(null)
 
@@ -153,7 +298,6 @@ const updateMethod = (method: string) => {
 }
 
 const onSelectMethod = (e: Event | any) => {
-  // type any because of value property not being recognized by TS in the event.target object. It is a valid property though.
   updateMethod(e.target.value)
 }
 
@@ -165,5 +309,4 @@ const isCustomMethod = computed(() => {
 })
 
 const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
-
 </script>

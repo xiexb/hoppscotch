@@ -1101,6 +1101,8 @@ The Save button dropdown in `Request.vue` includes a "Save as Example" option (a
 **Flow:** Click → SaveResponseName modal → enter name → saves to `request.responses[name]` + updates `responseModels[].examples` for Design mode compatibility.
 **Key:** Uses `makeHoppRESTResponseOriginalRequest()` with ALL fields including `pathParams` — omitting pathParams was a bug caught in testing.
 
+**PITFALL: saveContext null causes silent failure.** `onSaveAsExample()` (line ~737) checks `const saveCtx = tab.value.document.saveContext; if (!saveCtx) return` — if the request hasn't been saved to a collection yet, saveContext is null and the function silently returns without saving the example or showing any error. **Fix:** Show a toast error before returning: `toast.error(t("response.save_example_requires_save"))` so the user knows they must save the request to a collection first.
+
 ### Example display — simplified (Try-only)
 `example/ResponseTab.vue` removed `HttpRequestOptions` (no editable params/body/headers tabs). `example/ResponseRequest.vue` removed the Save button. Examples are read-only snapshots with only the Try button (opens in a new debug tab) and the response preview.
 
@@ -1114,3 +1116,4 @@ The Save button dropdown in `Request.vue` includes a "Save as Example" option (a
 - See `references/design-mode-examples-pattern.md` for the unified examples tabs pattern: virtual-to-stored materialization, tab UI, preview sync, XML/JSON generation
 - See `references/persistence-schema-validation.md` for the REST_TAB_STATE_SCHEMA `.strict()` → `.passthrough()` fix and field-addition checklist
 - See `references/markdown-docs-feature-plan.md` for the collection markdown document feature plan: md-editor-v3 integration, verzod v14 data model, 3-phase implementation, file list, i18n keys
+- See `references/md-editor-v3-theming.md` for CSS variable mapping between md-editor-v3 and Hoppscotch themes (dropdown/modal/toolbar background fix)
