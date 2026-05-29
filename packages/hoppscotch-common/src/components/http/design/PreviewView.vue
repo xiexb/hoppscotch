@@ -10,46 +10,44 @@
           {{ request.method }}
         </span>
         <!-- URL with prefix highlight -->
-        <span class="text-sm font-mono break-all flex-1 flex items-center flex-wrap">
-          <!-- Prefix URL link icon + URL (clickable to change, shown when prefix URL is active and endpoint is not a full URL) -->
-          <tippy
-            v-if="resolvedPrefixUrl && !isEndpointFullUrl"
-            interactive
-            trigger="click"
-            theme="popover"
-          >
+        <span class="text-sm font-mono break-all flex-1 flex items-center flex-wrap relative">
+          <!-- Prefix URL (clickable icon+URL, no tippy wrapper) -->
+          <template v-if="resolvedPrefixUrl && !isEndpointFullUrl">
             <span
-              v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl} (点击切换)` }"
-              class="text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
+              class="text-accent cursor-pointer hover:text-accentDark transition-colors"
+              @click="showPrefixDropdown = !showPrefixDropdown"
+            ><icon-lucide-link class="w-3.5 h-3.5 align-text-bottom" />{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span><span class="text-secondary">{{ request.endpoint || '/' }}</span>
+            <!-- Dropdown menu (positioned absolute) -->
+            <div
+              v-if="showPrefixDropdown"
+              class="absolute top-full left-0 z-50 mt-1 bg-primary border border-divider rounded shadow-lg py-1 min-w-[200px]"
+              @click.stop
             >
-              <icon-lucide-link class="w-3.5 h-3.5 inline" />{{ resolvedPrefixUrl.replace(/\/+$/, '') }}
-            </span>
-            <template #content="{ hide }">
-              <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
-                <div class="text-xs text-secondaryLight px-2 py-1 font-semibold">前置URL (环境服务)</div>
-                <HoppSmartItem
-                  v-for="svc in environmentServices"
-                  :key="svc.id"
-                  :label="svc.name || svc.url"
-                  :info="svc.url"
-                  :icon="currentSelectedServiceId === svc.id ? IconCheck : IconLink"
-                  @click="() => { selectService(svc.id); hide() }"
-                />
-                <hr v-if="environmentServices.length" class="border-dividerLight" />
-                <HoppSmartItem
-                  label="继承父级"
-                  :icon="IconRotateCCW"
-                  @click="() => { inheritService(); hide() }"
-                />
-              </div>
-            </template>
-          </tippy>
-          <!-- Endpoint display -->
-          <template v-if="request.endpoint && request.endpoint.startsWith('http')">
-            <span class="text-secondary">{{ fullEndpoint }}</span>
+              <div class="text-xs text-secondaryLight px-3 py-1 font-semibold">前置URL (环境服务)</div>
+              <button
+                v-for="svc in environmentServices"
+                :key="svc.id"
+                class="w-full text-left px-3 py-1.5 text-xs hover:bg-primaryLight transition-colors flex items-center gap-2"
+                @click="selectService(svc.id); showPrefixDropdown = false"
+              >
+                <icon-lucide-check v-if="currentSelectedServiceId === svc.id" class="w-3.5 h-3.5 text-accent shrink-0" />
+                <icon-lucide-link v-else class="w-3.5 h-3.5 text-secondaryLight shrink-0" />
+                <span class="truncate">{{ svc.name || svc.url }}</span>
+                <span class="text-secondaryLight ml-auto shrink-0 text-[10px]">{{ svc.url }}</span>
+              </button>
+              <hr class="border-dividerLight my-1" />
+              <button
+                class="w-full text-left px-3 py-1.5 text-xs hover:bg-primaryLight transition-colors flex items-center gap-2"
+                @click="inheritService(); showPrefixDropdown = false"
+              >
+                <icon-lucide-rotate-ccw class="w-3.5 h-3.5 text-secondaryLight shrink-0" />
+                <span>继承父级</span>
+              </button>
+            </div>
           </template>
+          <!-- No prefix URL or full URL endpoint -->
           <template v-else>
-            <span class="text-secondary">{{ request.endpoint || '/' }}</span>
+            <span class="text-secondary">{{ fullEndpoint || request.endpoint || '/' }}</span>
           </template>
         </span>
         <HoppButtonPrimary
@@ -583,7 +581,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV23,
@@ -675,6 +673,19 @@ const showResponseHeaders = ref(true)
 const activeResponseTab = ref(0)
 const activeExamplePreviewTab = ref(0)
 const activeBodyExamplePreviewTab = ref(0)
+const showPrefixDropdown = ref(false)
+
+// Close dropdown on outside click
+function onClickOutside(e: MouseEvent) {
+  if (showPrefixDropdown.value) showPrefixDropdown.value = false
+}
+
+onMounted(() => {
+  document.addEventListener("click", onClickOutside, true)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onClickOutside, true)
+})
 
 // --- Body examples preview ---
 
