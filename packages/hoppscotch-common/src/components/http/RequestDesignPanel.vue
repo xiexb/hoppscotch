@@ -84,6 +84,7 @@
       :request="request"
       :inherited-properties="inheritedProperties"
       @switch-to-debug="emit('switchToDebug')"
+      @update:request="onRequestUpdate"
     />
   </div>
 </template>

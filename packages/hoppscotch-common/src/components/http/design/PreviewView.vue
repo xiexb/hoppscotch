@@ -11,11 +11,49 @@
         </span>
         <!-- URL with prefix highlight -->
         <span class="text-sm font-mono break-all flex-1 flex items-center gap-1 flex-wrap">
-          <!-- Prefix URL link icon (shown when prefix URL is active and endpoint is not a full URL) -->
+          <!-- Prefix URL link icon (clickable to change, shown when prefix URL is active and endpoint is not a full URL) -->
+          <tippy
+            v-if="resolvedPrefixUrl && !isEndpointFullUrl"
+            interactive
+            trigger="click"
+            theme="popover"
+          >
+            <span
+              v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl} (点击切换)` }"
+              class="flex items-center text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
+            >
+              <icon-lucide-link class="w-3.5 h-3.5" />
+            </span>
+            <template #content="{ hide }">
+              <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+                <div class="text-xs text-secondaryLight px-2 py-1 font-semibold">前置URL (环境服务)</div>
+                <HoppSmartItem
+                  v-for="svc in environmentServices"
+                  :key="svc.id"
+                  :label="svc.name || svc.url"
+                  :info="svc.url"
+                  :icon="currentSelectedServiceId === svc.id ? IconCheck : IconLink"
+                  @click="() => { selectService(svc.id); hide() }"
+                />
+                <hr v-if="environmentServices.length" class="border-dividerLight" />
+                <HoppSmartItem
+                  label="继承父级"
+                  :icon="IconRotateCCW"
+                  @click="() => { inheritService(); hide() }"
+                />
+                <HoppSmartItem
+                  label="无前置URL"
+                  :icon="IconX"
+                  @click="() => { clearService(); hide() }"
+                />
+              </div>
+            </template>
+          </tippy>
+          <!-- Prefix URL icon when endpoint IS a full URL (informational only) -->
           <span
-            v-if="resolvedPrefixUrl && !(request.endpoint && request.endpoint.startsWith('http'))"
-            v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-            class="flex items-center text-accent shrink-0"
+            v-else-if="resolvedPrefixUrl && isEndpointFullUrl"
+            v-tippy="{ theme: 'tooltip', content: `endpoint已是完整URL，前置URL不生效` }"
+            class="flex items-center text-secondaryLight shrink-0"
           >
             <icon-lucide-link class="w-3.5 h-3.5" />
           </span>
@@ -24,7 +62,7 @@
             <span class="text-secondary">{{ fullEndpoint }}</span>
           </template>
           <template v-else-if="resolvedPrefixUrl">
-            <span class="text-secondary">{{ request.endpoint || '/' }}</span>
+            <span class="text-accent">{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span><span class="text-secondary">{{ request.endpoint || '/' }}</span>
           </template>
           <template v-else>
             <span class="text-secondary">{{ fullEndpoint || '/' }}</span>
@@ -581,6 +619,9 @@ import IconChevronRight from "~icons/lucide/chevron-right"
 import IconSave from "~icons/lucide/save"
 import IconFolderPlus from "~icons/lucide/folder-plus"
 import IconLink from "~icons/lucide/link"
+import IconCheck from "~icons/lucide/check"
+import IconX from "~icons/lucide/x"
+import IconRotateCCW from "~icons/lucide/rotate-ccw"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
@@ -635,6 +676,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: "switchToDebug"): void
+  (e: "update:request", val: HoppRESTRequest): void
 }>()
 
 function onSave() {
@@ -813,6 +855,8 @@ const inheritedServiceId = computed(
 /** Resolve the prefix URL: request override > inherited service > none */
 const resolvedPrefixUrl = computed(() => {
   const val = props.request.inheritedBaseUrl || ""
+  // __none__ means explicitly "no prefix URL" (user cleared it)
+  if (val === "__none__") return ""
   if (!val) {
     // No request-level override, use inherited service
     if (inheritedServiceId.value) {
@@ -839,6 +883,35 @@ const fullEndpoint = computed(() => {
   const cleanBase = base.replace(/\/+$/, "")
   return cleanBase + (endpoint.startsWith("/") ? "" : "/") + endpoint
 })
+
+/** Whether the endpoint is already a full URL (prefix URL won't apply) */
+const isEndpointFullUrl = computed(() => {
+  const endpoint = props.request.endpoint || ""
+  return /^https?:\/\//i.test(endpoint)
+})
+
+/** Currently selected service ID (from request override or inherited) */
+const currentSelectedServiceId = computed(() => {
+  const val = props.request.inheritedBaseUrl || ""
+  if (val && environmentServices.value.some((s) => s.id === val)) return val
+  // Fall back to inherited service
+  return inheritedServiceId.value ?? null
+})
+
+/** Select a specific service as prefix URL (request-level override) */
+function selectService(svcId: string) {
+  emit("update:request", { ...props.request, inheritedBaseUrl: svcId })
+}
+
+/** Clear prefix URL (set to empty, will inherit from parent) */
+function inheritService() {
+  emit("update:request", { ...props.request, inheritedBaseUrl: "" })
+}
+
+/** Explicitly set no prefix URL */
+function clearService() {
+  emit("update:request", { ...props.request, inheritedBaseUrl: "__none__" })
+}
 
 const methodClass = computed(() => {
   switch (props.request.method) {
