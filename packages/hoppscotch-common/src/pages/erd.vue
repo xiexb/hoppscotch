@@ -251,6 +251,21 @@ erd-editor {
   height: 100%;
 }
 
+/* Define CSS variables at page level so both our toolbar and erd-editor use the same values */
+.erd-page {
+  /* Dark theme defaults (matching erd-editor's dark theme) */
+  --toolbar-background: #1a1a1a;
+  --foreground: #8b8b8b;
+  --active: #ffffff;
+
+  /* Light theme override */
+  :root[data-theme="light"] & {
+    --toolbar-background: #fcfcfd;
+    --foreground: #60646c;
+    --active: #1c2024;
+  }
+}
+
 /* Toolbar overlay: matches erd-editor's built-in toolbar style */
 .erd-toolbar-overlay {
   position: absolute;
@@ -262,7 +277,7 @@ erd-editor {
   height: 30px;
   padding: 0 15px;
   pointer-events: none;
-  background-color: #1a1a1a; /* Dark mode toolbar background */
+  background-color: var(--toolbar-background);
 }
 
 .erd-toolbar-menu {
@@ -276,24 +291,14 @@ erd-editor {
   pointer-events: auto;
   transition: fill 0.15s ease;
 
-  /* Use appropriate colors based on theme */
-  fill: #8b8b8b;
+  fill: var(--foreground);
 
   &:hover {
-    fill: #ffffff;
+    fill: var(--active);
   }
 
   &--danger:hover {
     fill: #f87171;
-  }
-}
-
-/* Light mode adjustments */
-:root[data-theme="light"] .erd-toolbar-menu {
-  fill: #60646c;
-
-  &:hover {
-    fill: #1c2024;
   }
 }
 
