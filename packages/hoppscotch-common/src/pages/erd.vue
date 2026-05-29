@@ -1,46 +1,46 @@
 <template>
   <div class="erd-page relative h-full">
-    <!-- Floating icon toolbar over erd-editor -->
-    <div class="erd-icon-toolbar">
-      <button
+    <!-- Toolbar overlay: matches erd-editor toolbar style -->
+    <div class="erd-toolbar-overlay">
+      <div
+        class="erd-toolbar-menu"
         :title="t('erd.import_json')"
-        class="toolbar-icon-btn"
         @click="triggerImportJSON"
       >
-        <IconFileJson class="toolbar-icon" />
-      </button>
-      <button
+        <IconFileJson class="erd-toolbar-icon" />
+      </div>
+      <div
+        class="erd-toolbar-menu"
         :title="t('erd.import_sql')"
-        class="toolbar-icon-btn"
         @click="triggerImportSQL"
       >
-        <IconFileCode class="toolbar-icon" />
-      </button>
-      <div class="toolbar-divider" />
-      <button
+        <IconFileCode class="erd-toolbar-icon" />
+      </div>
+      <div class="erd-toolbar-vertical" />
+      <div
+        class="erd-toolbar-menu"
         :title="t('erd.export_json')"
-        class="toolbar-icon-btn"
         @click="exportJSON"
       >
-        <IconFileJson class="toolbar-icon" />
-        <IconDownload class="toolbar-icon-badge" />
-      </button>
-      <button
+        <IconFileJson class="erd-toolbar-icon" />
+        <IconDownload class="erd-toolbar-badge" />
+      </div>
+      <div
+        class="erd-toolbar-menu"
         :title="t('erd.export_sql')"
-        class="toolbar-icon-btn"
         @click="exportSQL"
       >
-        <IconFileCode class="toolbar-icon" />
-        <IconDownload class="toolbar-icon-badge" />
-      </button>
-      <div class="toolbar-divider" />
-      <button
+        <IconFileCode class="erd-toolbar-icon" />
+        <IconDownload class="erd-toolbar-badge" />
+      </div>
+      <div class="erd-toolbar-vertical" />
+      <div
+        class="erd-toolbar-menu erd-toolbar-menu--danger"
         :title="t('erd.clear')"
-        class="toolbar-icon-btn toolbar-icon-btn--danger"
         @click="clearEditor"
       >
-        <IconTrash class="toolbar-icon" />
-      </button>
+        <IconTrash class="erd-toolbar-icon" />
+      </div>
     </div>
 
     <!-- erd-editor -->
@@ -251,71 +251,69 @@ erd-editor {
   height: 100%;
 }
 
-/* Floating toolbar: positioned over erd-editor's top-right area */
-.erd-icon-toolbar {
+/* Toolbar overlay: matches erd-editor's built-in toolbar style */
+.erd-toolbar-overlay {
   position: absolute;
-  top: 6px;
-  right: 12px;
+  top: 0;
+  right: 0;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px 4px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  height: 30px;
+  padding: 0 15px;
+  pointer-events: none;
+  background-color: #1a1a1a; /* Dark mode toolbar background */
 }
 
-.toolbar-icon-btn {
+.erd-toolbar-menu {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.75);
+  height: 100%;
+  padding: 0 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  pointer-events: auto;
+  transition: fill 0.15s ease;
+
+  /* Use appropriate colors based on theme */
+  fill: #8b8b8b;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.2);
+    fill: #ffffff;
   }
 
   &--danger:hover {
-    background: rgba(239, 68, 68, 0.25);
-    color: #f87171;
+    fill: #f87171;
   }
 }
 
-.toolbar-icon {
+/* Light mode adjustments */
+:root[data-theme="light"] .erd-toolbar-menu {
+  fill: #60646c;
+
+  &:hover {
+    fill: #1c2024;
+  }
+}
+
+.erd-toolbar-icon {
   width: 16px;
   height: 16px;
 }
 
-.toolbar-icon-badge {
+.erd-toolbar-badge {
   position: absolute;
-  bottom: 1px;
-  right: 1px;
-  width: 10px;
-  height: 10px;
-  opacity: 0.6;
+  bottom: 4px;
+  right: 0px;
+  width: 9px;
+  height: 9px;
+  opacity: 0.7;
 }
 
-.toolbar-divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 2px;
-  background: rgba(255, 255, 255, 0.15);
+.erd-toolbar-vertical {
+  width: 10px;
+  height: 100%;
 }
 
 .hidden {
