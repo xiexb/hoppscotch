@@ -60,11 +60,12 @@
       </div>
     </div>
 
-    <!-- URL bar (only visible in edit mode, but always mounted to keep action handlers alive) -->
-    <div v-show="subMode === 'edit'" class="shrink-0">
+    <!-- URL bar (always visible, readonly in preview mode) -->
+    <div class="shrink-0">
       <HttpRequest
         v-model="tabModel"
-        send-label="手动调试"
+        :send-label="subMode === 'edit' ? '手动调试' : undefined"
+        :readonly="subMode === 'preview'"
         @send-action="emit('switchToDebug')"
       />
     </div>
@@ -83,8 +84,6 @@
       v-if="subMode === 'preview'"
       :request="request"
       :inherited-properties="inheritedProperties"
-      @switch-to-debug="emit('switchToDebug')"
-      @update:request="onRequestUpdate"
     />
   </div>
 </template>

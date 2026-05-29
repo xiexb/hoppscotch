@@ -8,6 +8,7 @@
       <div class="relative flex">
         <label for="method">
           <tippy
+            v-if="!readonly"
             interactive
             trigger="click"
             theme="popover"
@@ -50,6 +51,17 @@
               </div>
             </template>
           </tippy>
+          <input
+            v-else
+            id="method"
+            class="flex w-26 cursor-default rounded-l bg-primaryLight px-4 py-2 font-semibold text-secondaryDark transition opacity-80"
+            :value="tab.document.request.method"
+            readonly
+            :placeholder="`${t('request.method')}`"
+            :style="{
+              color: getMethodLabelColor(tab.document.request.method),
+            }"
+          />
         </label>
       </div>
       <div
@@ -57,14 +69,14 @@
       >
         <!-- Prefix URL indicator (🔗 icon when prefix URL is active, clickable to change) -->
         <tippy
-          v-if="resolvedPrefixUrl && !isEndpointFullUrl"
+          v-if="resolvedPrefixUrl && !isEndpointFullUrl && !readonly"
           interactive
           trigger="click"
           theme="popover"
         >
           <span
             v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-            class="flex items-center px-2 text-accent shrink-0 cursor-pointer"
+            class="flex items-center text-accent shrink-0 cursor-pointer"
           >
             <icon-lucide-link class="w-4 h-4" />
           </span>
@@ -88,7 +100,14 @@
             </div>
           </template>
         </tippy>
+        <!-- Read-only prefix URL icon (no tippy wrapper gap) -->
+        <span
+          v-else-if="resolvedPrefixUrl && !isEndpointFullUrl && readonly"
+          v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
+          class="text-accent shrink-0 leading-none"
+        ><icon-lucide-link class="w-4 h-4 align-text-bottom" /></span>
         <SmartEnvInput
+          v-if="!readonly"
           ref="urlInput"
           v-model="tab.document.request.endpoint"
           :placeholder="`${t('request.url_placeholder')}`"
@@ -98,6 +117,11 @@
           @paste="onPasteUrl($event)"
           @enter="newSendRequest"
         />
+        <!-- Read-only URL display (no SmartEnvInput wrapper) -->
+        <span
+          v-else
+          class="flex-1 px-2 py-2 text-sm font-mono text-secondaryDark truncate"
+        >{{ tab.document.request.endpoint || t('request.url_placeholder') }}</span>
       </div>
     </div>
     <div class="mt-2 flex sm:mt-0">
@@ -369,9 +393,11 @@ const props = withDefaults(
   defineProps<{
     modelValue: HoppTab<HoppRequestDocument>
     sendLabel?: string
+    readonly?: boolean
   }>(),
   {
     sendLabel: undefined,
+    readonly: false,
   }
 )
 const emit = defineEmits<{

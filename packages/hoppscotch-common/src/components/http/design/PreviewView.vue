@@ -1,60 +1,8 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
-    <!-- Method + URL row (read-only) + action buttons -->
+    <!-- Save button group -->
     <div class="px-4 py-3">
-      <div class="flex items-center gap-2">
-        <span
-          class="px-2 py-0.5 text-xs font-mono font-semibold rounded"
-          :class="methodClass"
-        >
-          {{ request.method }}
-        </span>
-        <!-- URL with prefix highlight -->
-        <span class="text-sm font-mono break-all flex-1 flex items-center flex-wrap relative">
-          <!-- Prefix URL (clickable icon+URL, no tippy wrapper) -->
-          <template v-if="resolvedPrefixUrl && !isEndpointFullUrl">
-            <span
-              class="text-accent cursor-pointer hover:text-accentDark transition-colors"
-              @click="showPrefixDropdown = !showPrefixDropdown"
-            ><icon-lucide-link class="w-3.5 h-3.5 align-text-bottom" />{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span><span class="text-secondary">{{ request.endpoint || '/' }}</span>
-            <!-- Dropdown menu (positioned absolute) -->
-            <div
-              v-if="showPrefixDropdown"
-              class="absolute top-full left-0 z-50 mt-1 bg-primary border border-divider rounded shadow-lg py-1 min-w-[200px]"
-              @click.stop
-            >
-              <div class="text-xs text-secondaryLight px-3 py-1 font-semibold">前置URL (环境服务)</div>
-              <button
-                v-for="svc in environmentServices"
-                :key="svc.id"
-                class="w-full text-left px-3 py-1.5 text-xs hover:bg-primaryLight transition-colors flex items-center gap-2"
-                @click="selectService(svc.id); showPrefixDropdown = false"
-              >
-                <icon-lucide-check v-if="currentSelectedServiceId === svc.id" class="w-3.5 h-3.5 text-accent shrink-0" />
-                <icon-lucide-link v-else class="w-3.5 h-3.5 text-secondaryLight shrink-0" />
-                <span class="truncate">{{ svc.name || svc.url }}</span>
-                <span class="text-secondaryLight ml-auto shrink-0 text-[10px]">{{ svc.url }}</span>
-              </button>
-              <hr class="border-dividerLight my-1" />
-              <button
-                class="w-full text-left px-3 py-1.5 text-xs hover:bg-primaryLight transition-colors flex items-center gap-2"
-                @click="inheritService(); showPrefixDropdown = false"
-              >
-                <icon-lucide-rotate-ccw class="w-3.5 h-3.5 text-secondaryLight shrink-0" />
-                <span>继承父级</span>
-              </button>
-            </div>
-          </template>
-          <!-- No prefix URL or full URL endpoint -->
-          <template v-else>
-            <span class="text-secondary">{{ fullEndpoint || request.endpoint || '/' }}</span>
-          </template>
-        </span>
-        <HoppButtonPrimary
-          :label="t('preview_view.manual_debug')"
-          class="shrink-0"
-          @click="emit('switchToDebug')"
-        />
+      <div class="flex items-center justify-end gap-2">
         <!-- Save button group: same style as edit mode's Request.vue -->
         <span class="flex rounded border border-divider transition shrink-0">
           <HoppButtonSecondary
@@ -581,28 +529,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, watch } from "vue"
 import type {
   HoppRESTRequest,
   HoppRESTResponseModelV23,
   HoppRESTSchemaNode,
   HoppRESTBodyExample,
-  EnvironmentService,
 } from "@hoppscotch/data"
 import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedProperties"
-import { useReadonlyStream } from "@composables/stream"
-import {
-  currentEnvironment$,
-  globalEnv$,
-} from "~/newstore/environments"
 import { useService } from "dioc/vue"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconSave from "~icons/lucide/save"
 import IconFolderPlus from "~icons/lucide/folder-plus"
 import IconLink from "~icons/lucide/link"
-import IconCheck from "~icons/lucide/check"
-import IconRotateCCW from "~icons/lucide/rotate-ccw"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
@@ -655,11 +595,6 @@ const props = withDefaults(
   }
 )
 
-const emit = defineEmits<{
-  (e: "switchToDebug"): void
-  (e: "update:request", val: HoppRESTRequest): void
-}>()
-
 function onSave() {
   invokeAction("request-response.save")
 }
@@ -673,19 +608,6 @@ const showResponseHeaders = ref(true)
 const activeResponseTab = ref(0)
 const activeExamplePreviewTab = ref(0)
 const activeBodyExamplePreviewTab = ref(0)
-const showPrefixDropdown = ref(false)
-
-// Close dropdown on outside click
-function onClickOutside(e: MouseEvent) {
-  if (showPrefixDropdown.value) showPrefixDropdown.value = false
-}
-
-onMounted(() => {
-  document.addEventListener("click", onClickOutside, true)
-})
-onBeforeUnmount(() => {
-  document.removeEventListener("click", onClickOutside, true)
-})
 
 // --- Body examples preview ---
 
@@ -827,78 +749,6 @@ const boundModelName = computed(() => {
   const model = workspaceModelService.getModelById(refId)
   return model?.name ?? t("preview_view.unknown_model")
 })
-
-// --- Environment services for prefix URL resolution ---
-const currentEnv = useReadonlyStream(currentEnvironment$, undefined)
-const globalEnv = useReadonlyStream(globalEnv$, { variables: [], services: [] })
-
-const environmentServices = computed<EnvironmentService[]>(() => {
-  const envServices = (currentEnv.value as any)?.services ?? []
-  const globalServices = (globalEnv.value as any)?.services ?? []
-  const ids = new Set(envServices.map((s: EnvironmentService) => s.id))
-  return [
-    ...envServices,
-    ...globalServices.filter((s: EnvironmentService) => !ids.has(s.id)),
-  ]
-})
-
-const inheritedServiceId = computed(
-  () => props.inheritedProperties?.selectedServiceId ?? null
-)
-
-/** Resolve the prefix URL: request override > inherited service > none */
-const resolvedPrefixUrl = computed(() => {
-  const val = props.request.inheritedBaseUrl || ""
-  if (!val) {
-    // No request-level override, use inherited service
-    if (inheritedServiceId.value) {
-      const svc = environmentServices.value.find(
-        (s) => s.id === inheritedServiceId.value
-      )
-      return svc?.url ?? ""
-    }
-    return ""
-  }
-  // Check if it's a service ID
-  const svc = environmentServices.value.find((s) => s.id === val)
-  if (svc) return svc.url
-  // It's a raw URL
-  return val
-})
-
-const fullEndpoint = computed(() => {
-  const base = resolvedPrefixUrl.value
-  const endpoint = props.request.endpoint || ""
-  if (endpoint.startsWith("http")) return endpoint
-  if (!base) return endpoint
-  // Strip trailing slash from base, join with endpoint
-  const cleanBase = base.replace(/\/+$/, "")
-  return cleanBase + (endpoint.startsWith("/") ? "" : "/") + endpoint
-})
-
-/** Whether the endpoint is already a full URL (prefix URL won't apply) */
-const isEndpointFullUrl = computed(() => {
-  const endpoint = props.request.endpoint || ""
-  return /^https?:\/\//i.test(endpoint)
-})
-
-/** Currently selected service ID (from request override or inherited) */
-const currentSelectedServiceId = computed(() => {
-  const val = props.request.inheritedBaseUrl || ""
-  if (val && environmentServices.value.some((s) => s.id === val)) return val
-  // Fall back to inherited service
-  return inheritedServiceId.value ?? null
-})
-
-/** Select a specific service as prefix URL (request-level override) */
-function selectService(svcId: string) {
-  emit("update:request", { ...props.request, inheritedBaseUrl: svcId })
-}
-
-/** Inherit prefix URL from parent collection (clear override) */
-function inheritService() {
-  emit("update:request", { ...props.request, inheritedBaseUrl: "" })
-}
 
 const methodClass = computed(() => {
   switch (props.request.method) {
