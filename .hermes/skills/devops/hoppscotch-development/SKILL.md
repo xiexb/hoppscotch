@@ -1160,7 +1160,32 @@ const primaryNavigation = [
 Icons use `~icons/lucide/<name>` (unplugin-icons). Add to all 32 locale JSON files under `navigation.<key>`.
 
 ### ER Diagram feature (erd-editor)
-ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component at `/erd`. See `references/erd-editor-integration.md` in the `hoppscotch` skill for full integration details (schema format, API methods, build output).
+ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component at `/erd`. See `references/erd-editor-integration.md` for full integration details (schema format, API methods, floating toolbar pattern, build output).
+
+### v-tippy does NOT work on native `<button>` in scoped components (use title instead)
+When building floating/overlay toolbars with native `<button>` elements inside scoped Vue components, `v-tippy` directives are silently ignored — the tooltip never appears. This is because `v-tippy` (vue-tippy) relies on Vue's directive system which doesn't reliably attach to native elements inside scoped styles.
+
+**Fix:** Use the native `title` attribute instead:
+```vue
+<!-- WRONG: v-tippy silently ignored on native button -->
+<button v-tippy="{ content: t('erd.import_json') }" class="toolbar-icon-btn">
+
+<!-- CORRECT: native title attribute always works -->
+<button :title="t('erd.import_json')" class="toolbar-icon-btn">
+```
+
+`v-tippy` works fine on Hoppscotch UI components (`HoppButtonSecondary`, `HoppSmartItem`) because they handle the directive internally. Only native HTML elements are affected.
+
+### User preference: Compact icon-only toolbars over text buttons (MINIMAL UI)
+When implementing action toolbars, the user prefers **compact icon-only buttons** over labeled text buttons (like `HoppButtonSecondary` with `:label`). Icon buttons should use `title` attribute for hover tooltips. Group related actions with thin dividers. This applies to any floating/overlay toolbar (e.g., over an editor canvas).
+
+**Anti-pattern (user-corrected):** Full-width toolbar row with labeled buttons (`Import JSON | Import SQL | Export SQL | Export JSON | Clear`) — takes too much vertical space and looks cluttered.
+
+**Preferred pattern:** Floating icon toolbar positioned top-right of the content area:
+```
+[📄] [📄] | [📄⬇] [📄⬇] | [🗑]
+```
+Semi-transparent dark background with `backdrop-filter: blur()`, 28×28px buttons, danger style (red hover) on destructive actions.
 
 ## References
 

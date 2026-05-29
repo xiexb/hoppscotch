@@ -55,15 +55,39 @@
       <div
         class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
       >
-        <!-- Prefix URL indicator (🔗 icon when prefix URL is active) -->
-        <span
+        <!-- Prefix URL indicator (🔗 icon when prefix URL is active, clickable to change) -->
+        <tippy
           v-if="resolvedPrefixUrl && !isEndpointFullUrl"
-          v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-          class="flex items-center px-2 text-accent shrink-0"
-          title="前置URL已生效"
+          interactive
+          trigger="click"
+          theme="popover"
         >
-          <icon-lucide-link class="w-4 h-4" />
-        </span>
+          <span
+            v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
+            class="flex items-center px-2 text-accent shrink-0 cursor-pointer"
+          >
+            <icon-lucide-link class="w-4 h-4" />
+          </span>
+          <template #content="{ hide }">
+            <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+              <div class="text-xs text-secondaryLight px-2 py-1 font-semibold">前置URL (环境服务)</div>
+              <HoppSmartItem
+                v-for="svc in environmentServices"
+                :key="svc.id"
+                :label="svc.name || svc.url"
+                :info="svc.url"
+                :icon="currentSelectedServiceId === svc.id ? IconCheck : IconLink"
+                @click="() => { selectService(svc.id); hide() }"
+              />
+              <hr v-if="environmentServices.length" />
+              <HoppSmartItem
+                label="无前置URL"
+                :icon="IconX"
+                @click="() => { clearService(); hide() }"
+              />
+            </div>
+          </template>
+        </tippy>
         <SmartEnvInput
           ref="urlInput"
           v-model="tab.document.request.endpoint"
@@ -290,6 +314,9 @@ import IconRotateCCW from "~icons/lucide/rotate-ccw"
 import IconSave from "~icons/lucide/save"
 import IconShare2 from "~icons/lucide/share-2"
 import IconBookmarkPlus from "~icons/lucide/bookmark-plus"
+import IconCheck from "~icons/lucide/check"
+import IconLink from "~icons/lucide/link"
+import IconX from "~icons/lucide/x"
 import { useResponseBody } from "@composables/lens-actions"
 import { getStatusCodeReasonPhrase } from "~/helpers/utils/statusCodes"
 import type { HoppRESTResponseModelV23 } from "@hoppscotch/data"
@@ -431,6 +458,26 @@ const isEndpointFullUrl = computed(() => {
   const endpoint = tab.value.document.request.endpoint || ""
   return /^https?:\/\//i.test(endpoint)
 })
+
+/** Currently selected service ID from inheritedProperties */
+const currentSelectedServiceId = computed(() => {
+  return tab.value.document.inheritedProperties?.selectedServiceId ?? null
+})
+
+/** Select a service to use as prefix URL */
+const selectService = (svcId: string) => {
+  if (!tab.value.document.inheritedProperties) {
+    tab.value.document.inheritedProperties = {} as any
+  }
+  tab.value.document.inheritedProperties!.selectedServiceId = svcId
+}
+
+/** Clear the selected service (remove prefix URL) */
+const clearService = () => {
+  if (tab.value.document.inheritedProperties) {
+    tab.value.document.inheritedProperties.selectedServiceId = undefined
+  }
+}
 
 const inspectionService = useService(InspectionService)
 

@@ -52,6 +52,39 @@
       <div
         class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
       >
+        <!-- Prefix URL indicator (🔗 icon, clickable to change service) -->
+        <tippy
+          v-if="resolvedPrefixUrl && !isEndpointFullUrl"
+          interactive
+          trigger="click"
+          theme="popover"
+        >
+          <span
+            v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
+            class="flex items-center px-2 text-accent shrink-0 cursor-pointer"
+          >
+            <icon-lucide-link class="w-4 h-4" />
+          </span>
+          <template #content="{ hide }">
+            <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
+              <div class="text-xs text-secondaryLight px-2 py-1 font-semibold">前置URL (环境服务)</div>
+              <HoppSmartItem
+                v-for="svc in environmentServices"
+                :key="svc.id"
+                :label="svc.name || svc.url"
+                :info="svc.url"
+                :icon="currentSelectedServiceId === svc.id ? IconCheck : IconLink"
+                @click="() => { selectService(svc.id); hide() }"
+              />
+              <hr v-if="environmentServices.length" />
+              <HoppSmartItem
+                label="无前置URL"
+                :icon="IconX"
+                @click="() => { clearService(); hide() }"
+              />
+            </div>
+          </template>
+        </tippy>
         <SmartEnvInput
           v-model="tab.document.response.originalRequest.endpoint"
           :placeholder="`${t('request.url_placeholder')}`"
@@ -88,6 +121,7 @@
 import { useI18n } from "@composables/i18n"
 import { useVModel } from "@vueuse/core"
 import { computed, ref } from "vue"
+import { useReadonlyStream } from "@composables/stream"
 import { getDefaultRESTRequest } from "~/helpers/rest/default"
 import { useService } from "dioc/vue"
 import { InspectionService } from "~/services/inspection"
@@ -96,6 +130,14 @@ import { HoppSavedExampleDocument } from "~/helpers/rest/document"
 import { RESTTabService } from "~/services/tab/rest"
 import { getMethodLabelColor } from "~/helpers/rest/labelColoring"
 import { HoppRESTRequest } from "@hoppscotch/data"
+import type { EnvironmentService } from "@hoppscotch/data"
+import {
+  currentEnvironment$,
+  globalEnv$,
+} from "~/newstore/environments"
+import IconCheck from "~icons/lucide/check"
+import IconLink from "~icons/lucide/link"
+import IconX from "~icons/lucide/x"
 import {
   editRESTRequest,
   navigateToFolderWithIndexPath,
@@ -138,6 +180,57 @@ const emit = defineEmits(["update:modelValue"])
 const tabs = useService(RESTTabService)
 
 const tab = useVModel(props, "modelValue", emit)
+
+// --- Prefix URL resolution (environment services + inheritance) ---
+const currentEnv = useReadonlyStream(currentEnvironment$, undefined)
+const globalEnvStore = useReadonlyStream(globalEnv$, { variables: [], services: [] })
+
+const environmentServices = computed<EnvironmentService[]>(() => {
+  const envServices = (currentEnv.value as any)?.services ?? []
+  const globalServices = (globalEnvStore.value as any)?.services ?? []
+  const ids = new Set(envServices.map((s: EnvironmentService) => s.id))
+  return [
+    ...envServices,
+    ...globalServices.filter((s: EnvironmentService) => !ids.has(s.id)),
+  ]
+})
+
+/** Resolved prefix URL from inherited service */
+const resolvedPrefixUrl = computed(() => {
+  const inheritedProps = tab.value.document.inheritedProperties
+  const svcId = inheritedProps?.selectedServiceId
+  if (svcId) {
+    const svc = environmentServices.value.find((s) => s.id === svcId)
+    return svc?.url ?? ""
+  }
+  return ""
+})
+
+/** Whether the endpoint is already a full URL (prefix URL won't apply) */
+const isEndpointFullUrl = computed(() => {
+  const endpoint = tab.value.document.response.originalRequest.endpoint || ""
+  return /^https?:\/\//i.test(endpoint)
+})
+
+/** Currently selected service ID from inheritedProperties */
+const currentSelectedServiceId = computed(() => {
+  return tab.value.document.inheritedProperties?.selectedServiceId ?? null
+})
+
+/** Select a service to use as prefix URL */
+const selectService = (svcId: string) => {
+  if (!tab.value.document.inheritedProperties) {
+    tab.value.document.inheritedProperties = {} as any
+  }
+  tab.value.document.inheritedProperties!.selectedServiceId = svcId
+}
+
+/** Clear the selected service (remove prefix URL) */
+const clearService = () => {
+  if (tab.value.document.inheritedProperties) {
+    tab.value.document.inheritedProperties.selectedServiceId = undefined
+  }
+}
 
 const isSaving = ref(false)
 
