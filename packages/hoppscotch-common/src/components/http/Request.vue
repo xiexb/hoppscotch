@@ -100,12 +100,14 @@
             </div>
           </template>
         </tippy>
-        <!-- Read-only prefix URL icon (no tippy wrapper gap) -->
+        <!-- Read-only prefix URL icon (matches editable version structure) -->
         <span
           v-else-if="resolvedPrefixUrl && !isEndpointFullUrl && readonly"
           v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-          class="text-accent shrink-0 leading-none"
-        ><icon-lucide-link class="w-4 h-4 align-text-bottom" /></span>
+          class="flex items-center text-accent shrink-0"
+        >
+          <icon-lucide-link class="w-4 h-4" />
+        </span>
         <SmartEnvInput
           v-if="!readonly"
           ref="urlInput"

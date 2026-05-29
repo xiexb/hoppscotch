@@ -1,49 +1,5 @@
 <template>
   <div class="flex flex-col overflow-y-auto flex-1 bg-primary">
-    <!-- Save button group -->
-    <div class="px-4 py-3">
-      <div class="flex items-center justify-end gap-2">
-        <!-- Save button group: same style as edit mode's Request.vue -->
-        <span class="flex rounded border border-divider transition shrink-0">
-          <HoppButtonSecondary
-            :label="t('request.save')"
-            filled
-            :icon="IconSave"
-            class="flex-1 rounded rounded-r-none"
-            @click="onSave"
-          />
-          <span class="flex">
-            <tippy interactive trigger="click" theme="popover">
-              <HoppButtonSecondary
-                :title="t('app.options')"
-                :icon="IconChevronDown"
-                filled
-                class="rounded rounded-l-none"
-              />
-              <template #content="{ hide }">
-                <div
-                  class="flex flex-col focus:outline-none"
-                  tabindex="0"
-                  @keyup.escape="hide()"
-                >
-                  <HoppSmartItem
-                    :label="t('request.save_as')"
-                    :icon="IconFolderPlus"
-                    @click="
-                      () => {
-                        onSaveAs()
-                        hide()
-                      }
-                    "
-                  />
-                </div>
-              </template>
-            </tippy>
-          </span>
-        </span>
-      </div>
-    </div>
-
     <!-- Meta info row -->
     <div
       v-if="responsibility || tags.length > 0 || description"
@@ -540,14 +496,11 @@ import type { HoppInheritedProperty } from "~/helpers/types/HoppInheritedPropert
 import { useService } from "dioc/vue"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
-import IconSave from "~icons/lucide/save"
-import IconFolderPlus from "~icons/lucide/folder-plus"
 import IconLink from "~icons/lucide/link"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
 import type { ReadonlyModelResolver } from "./SchemaTreeReadonly.vue"
 import { useI18n } from "@composables/i18n"
-import { invokeAction } from "~/helpers/actions"
 import {
   generateExampleFromSchema,
   statusTabClass,
@@ -594,14 +547,6 @@ const props = withDefaults(
     inheritedProperties: undefined,
   }
 )
-
-function onSave() {
-  invokeAction("request-response.save")
-}
-
-function onSaveAs() {
-  invokeAction("request.save-as")
-}
 
 const showAuth = ref(false)
 const showResponseHeaders = ref(true)
