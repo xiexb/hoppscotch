@@ -122,7 +122,7 @@
         <!-- Read-only URL display (no SmartEnvInput wrapper) -->
         <span
           v-else
-          class="flex-1 px-2 py-2 text-sm font-mono text-secondaryDark truncate"
+          class="flex-1 px-2 py-2 text-sm font-mono text-secondaryDark truncate min-h-[38px] flex items-center"
         >{{ tab.document.request.endpoint || t('request.url_placeholder') }}</span>
       </div>
     </div>
