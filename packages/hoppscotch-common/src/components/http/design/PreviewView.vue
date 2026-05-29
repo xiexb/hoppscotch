@@ -11,7 +11,7 @@
         </span>
         <!-- URL with prefix highlight -->
         <span class="text-sm font-mono break-all flex-1 flex items-center flex-wrap">
-          <!-- Prefix URL link icon (clickable to change, shown when prefix URL is active and endpoint is not a full URL) -->
+          <!-- Prefix URL link icon + URL (clickable to change, shown when prefix URL is active and endpoint is not a full URL) -->
           <tippy
             v-if="resolvedPrefixUrl && !isEndpointFullUrl"
             interactive
@@ -20,9 +20,9 @@
           >
             <span
               v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl} (点击切换)` }"
-              class="inline-flex items-center text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
+              class="text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
             >
-              <icon-lucide-link class="w-3.5 h-3.5" />
+              <icon-lucide-link class="w-3.5 h-3.5 inline" />{{ resolvedPrefixUrl.replace(/\/+$/, '') }}
             </span>
             <template #content="{ hide }">
               <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
@@ -44,23 +44,12 @@
               </div>
             </template>
           </tippy>
-          <!-- Prefix URL icon when endpoint IS a full URL (informational only) -->
-          <span
-            v-else-if="resolvedPrefixUrl && isEndpointFullUrl"
-            v-tippy="{ theme: 'tooltip', content: `endpoint已是完整URL，前置URL不生效` }"
-            class="inline-flex items-center text-secondaryLight shrink-0"
-          >
-            <icon-lucide-link class="w-3.5 h-3.5" />
-          </span>
           <!-- Endpoint display -->
           <template v-if="request.endpoint && request.endpoint.startsWith('http')">
             <span class="text-secondary">{{ fullEndpoint }}</span>
           </template>
-          <template v-else-if="resolvedPrefixUrl">
-            <span class="text-accent">{{ resolvedPrefixUrl.replace(/\/+$/, '') }}</span><span class="text-secondary">{{ request.endpoint || '/' }}</span>
-          </template>
           <template v-else>
-            <span class="text-secondary">{{ fullEndpoint || '/' }}</span>
+            <span class="text-secondary">{{ request.endpoint || '/' }}</span>
           </template>
         </span>
         <HoppButtonPrimary
