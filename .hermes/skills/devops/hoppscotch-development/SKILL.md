@@ -1,13 +1,13 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.4.0
+version: 1.5.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
 metadata:
   hermes:
-    tags: [hoppscotch, vue3, typescript, verzod, api-client, feature-development]
+    tags: [hoppscotch, vue3, typescript, verzod, api-client, feature-development, web-component, erd-editor, custom-element]
     related_skills: [docker-web-app-selfhost]
 ---
 
@@ -1114,6 +1114,53 @@ The Save button dropdown in `Request.vue` includes a "Save as Example" option (a
 3. Both paths use `taskToPromise()` helper to convert fp-ts `TaskEither` to native `Promise`
 
 **Dirty state:** The existing deep watch on `tab.document.response` (which includes `originalRequest`) automatically sets `isDirty = true` when any request parameter changes. The Save button is disabled when `!isDirty`.
+
+### Web Component (Custom Element) integration in Vue 3
+When embedding a third-party Web Component (e.g., `<erd-editor>`) in Hoppscotch's Vue 3 app, Vue will warn "Failed to resolve component" unless you tell the compiler to skip that tag.
+
+**Fix:** Configure `isCustomElement` in `packages/hoppscotch-selfhost-web/vite.config.ts`:
+```typescript
+Vue({
+  template: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'erd-editor',
+    },
+  },
+}),
+```
+
+**Closed shadow root:** Some Web Components (like erd-editor) use `shadow: "closed"` mode. This means `element.shadowRoot` returns `null` — this is **normal, not a bug**. The element still renders and functions correctly. Use `customElements.get('erd-editor')` to verify registration.
+
+### pnpm store location mismatch (different HOME)
+When running `pnpm` from a shell with a different `$HOME` (e.g., Hermes agent profiles), pnpm may fail with `ERR_PNPM_UNEXPECTED_STORE` because it wants to use the profile-specific store.
+
+**Fix:**
+```bash
+export HOME="/home/jcwl"  # Set explicit HOME
+# OR set store-dir globally:
+pnpm config set store-dir /home/jcwl/.local/share/pnpm/store/v10 --global
+```
+
+### File-based routing (vite-plugin-pages)
+Hoppscotch uses `vite-plugin-pages` with `routeStyle: "nuxt"`. Routes are auto-generated from `.vue` files in `packages/hoppscotch-common/src/pages/`. Adding a new file (e.g., `erd.vue`) automatically registers `/erd`.
+
+**PITFALL:** The dev server must be **restarted** to detect new page files. Vite HMR does NOT pick up new route files — kill and restart the dev server after adding pages.
+
+### Sidebar navigation (Sidenav.vue)
+The left sidebar is defined in `components/app/Sidenav.vue` via a `primaryNavigation` array:
+```typescript
+const primaryNavigation = [
+  { target: "/", svg: IconLink2, title: "navigation.rest", exact: true },
+  { target: "/graphql", svg: IconGraphql, title: "navigation.graphql", exact: false },
+  { target: "/realtime", svg: IconGlobe, title: "navigation.realtime", exact: false },
+  { target: "/erd", svg: IconDatabase, title: "navigation.erd", exact: false },
+  { target: "/settings", svg: IconSettings, title: "navigation.settings", exact: false },
+]
+```
+Icons use `~icons/lucide/<name>` (unplugin-icons). Add to all 32 locale JSON files under `navigation.<key>`.
+
+### ER Diagram feature (erd-editor)
+ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component at `/erd`. See `references/erd-editor-integration.md` in the `hoppscotch` skill for full integration details (schema format, API methods, build output).
 
 ## References
 

@@ -1,46 +1,50 @@
 <template>
-  <div class="erd-page flex flex-col h-full">
-    <!-- Toolbar -->
-    <div
-      class="erd-toolbar flex items-center gap-2 px-4 py-2 border-b border-dividerLight bg-primary"
-    >
-      <HoppButtonSecondary
-        :icon="IconFileJson"
-        :label="t('erd.import_json')"
-        outline
+  <div class="erd-page relative h-full">
+    <!-- Floating icon toolbar over erd-editor -->
+    <div class="erd-icon-toolbar">
+      <button
+        :title="t('erd.import_json')"
+        class="toolbar-icon-btn"
         @click="triggerImportJSON"
-      />
-      <HoppButtonSecondary
-        :icon="IconFileCode"
-        :label="t('erd.import_sql')"
-        outline
+      >
+        <IconFileJson class="toolbar-icon" />
+      </button>
+      <button
+        :title="t('erd.import_sql')"
+        class="toolbar-icon-btn"
         @click="triggerImportSQL"
-      />
-      <HoppButtonSecondary
-        :icon="IconDownload"
-        :label="t('erd.export_sql')"
-        outline
-        @click="exportSQL"
-      />
-      <HoppButtonSecondary
-        :icon="IconDownload"
-        :label="t('erd.export_json')"
-        outline
+      >
+        <IconFileCode class="toolbar-icon" />
+      </button>
+      <div class="toolbar-divider" />
+      <button
+        :title="t('erd.export_json')"
+        class="toolbar-icon-btn"
         @click="exportJSON"
-      />
-      <div class="flex-1" />
-      <HoppButtonSecondary
-        :icon="IconTrash"
-        :label="t('erd.clear')"
-        outline
+      >
+        <IconFileJson class="toolbar-icon" />
+        <IconDownload class="toolbar-icon-badge" />
+      </button>
+      <button
+        :title="t('erd.export_sql')"
+        class="toolbar-icon-btn"
+        @click="exportSQL"
+      >
+        <IconFileCode class="toolbar-icon" />
+        <IconDownload class="toolbar-icon-badge" />
+      </button>
+      <div class="toolbar-divider" />
+      <button
+        :title="t('erd.clear')"
+        class="toolbar-icon-btn toolbar-icon-btn--danger"
         @click="clearEditor"
-      />
+      >
+        <IconTrash class="toolbar-icon" />
+      </button>
     </div>
 
-    <!-- Editor Container -->
-    <div ref="editorContainer" class="erd-editor-container flex-1 min-h-0">
-      <erd-editor ref="erdEditorRef" :system-dark-mode="isDarkMode" />
-    </div>
+    <!-- erd-editor -->
+    <erd-editor ref="erdEditorRef" :system-dark-mode="isDarkMode" />
 
     <!-- Hidden file inputs -->
     <input
@@ -78,18 +82,12 @@ const erdEditorRef = ref<HTMLElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
 const sqlFileInput = ref<HTMLInputElement | null>(null)
 
-// Detect dark mode from Hoppscotch settings
 const bgColor = useSetting("BG_COLOR")
-const isDarkMode = computed(() => {
-  return bgColor.value !== "light"
-})
+const isDarkMode = computed(() => bgColor.value !== "light")
 
 onMounted(() => {
-  // erd-editor registers itself as a custom element on import
-  // Initialize with empty schema
   if (erdEditorRef.value) {
     const editor = erdEditorRef.value as any
-    // Wait for the custom element to be defined
     customElements.whenDefined("erd-editor").then(() => {
       if (editor.setInitialValue) {
         editor.setInitialValue(
@@ -130,16 +128,9 @@ onMounted(() => {
               },
               pluginSerializationMap: {},
             },
-            table: {
-              entities: {},
-              indexes: {},
-            },
-            memo: {
-              memos: {},
-            },
-            relationship: {
-              relationships: {},
-            },
+            table: { entities: {}, indexes: {} },
+            memo: { memos: {} },
+            relationship: { relationships: {} },
           })
         )
       }
@@ -150,9 +141,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (erdEditorRef.value) {
     const editor = erdEditorRef.value as any
-    if (editor.destroy) {
-      editor.destroy()
-    }
+    if (editor.destroy) editor.destroy()
   }
 })
 
@@ -168,12 +157,9 @@ async function handleImportJSON(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-
   try {
     const text = await file.text()
-    // Validate JSON
     JSON.parse(text)
-
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
       if (editor.setInitialValue) {
@@ -184,8 +170,6 @@ async function handleImportJSON(event: Event) {
   } catch (_e) {
     toast.error(t("erd.import_error"))
   }
-
-  // Reset input
   input.value = ""
 }
 
@@ -193,20 +177,11 @@ async function handleImportSQL(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-
   try {
     const sqlText = await file.text()
-
-    // Use erd-editor's schema-sql-parser to convert SQL to schema
-    // For now, we'll use the editor's built-in import functionality if available
-    // The erd-editor has a SQL import feature via its toolbar
-    // We can also try to use the value setter with SQL format
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
-      // erd-editor can parse SQL DDL through its internal parser
-      // We'll set it as the value and let it parse
-      if (editor.value !== undefined) {
-        // Try setting SQL as value - erd-editor should handle DDL
+      if (editor.setInitialValue) {
         editor.setInitialValue(sqlText)
         toast.success(t("erd.import_success"))
       }
@@ -214,8 +189,6 @@ async function handleImportSQL(event: Event) {
   } catch (_e) {
     toast.error(t("erd.import_error"))
   }
-
-  // Reset input
   input.value = ""
 }
 
@@ -227,16 +200,19 @@ function getEditorValue(): string {
   return "{}"
 }
 
+function downloadFile(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function exportJSON() {
   try {
-    const value = getEditorValue()
-    const blob = new Blob([value], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "erd-schema.json"
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadFile(getEditorValue(), "erd-schema.json", "application/json")
     toast.success(t("erd.export_success"))
   } catch (_e) {
     toast.error(t("erd.export_error"))
@@ -246,16 +222,7 @@ function exportJSON() {
 function exportSQL() {
   try {
     const value = getEditorValue()
-    // erd-editor stores schema as JSON, SQL export is handled internally
-    // The editor has a "Generate SQL" feature in its toolbar
-    // We export the JSON and let user use the editor's SQL generation
-    const blob = new Blob([value], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "erd-schema.json"
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadFile(value, "erd-schema.json", "application/json")
     toast.success(t("erd.export_success_note"))
   } catch (_e) {
     toast.error(t("erd.export_error"))
@@ -278,15 +245,77 @@ function clearEditor() {
   height: 100%;
 }
 
-.erd-editor-container {
-  width: 100%;
-  position: relative;
-}
-
 erd-editor {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Floating toolbar: positioned over erd-editor's top-right area */
+.erd-icon-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &--danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+  }
+}
+
+.toolbar-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar-icon-badge {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  opacity: 0.6;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .hidden {
