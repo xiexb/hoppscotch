@@ -10,7 +10,7 @@
           {{ request.method }}
         </span>
         <!-- URL with prefix highlight -->
-        <span class="text-sm font-mono break-all flex-1 flex items-center gap-1 flex-wrap">
+        <span class="text-sm font-mono break-all flex-1 flex items-center flex-wrap">
           <!-- Prefix URL link icon (clickable to change, shown when prefix URL is active and endpoint is not a full URL) -->
           <tippy
             v-if="resolvedPrefixUrl && !isEndpointFullUrl"
@@ -20,7 +20,7 @@
           >
             <span
               v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl} (点击切换)` }"
-              class="flex items-center text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
+              class="inline-flex items-center text-accent shrink-0 cursor-pointer hover:text-accentDark transition-colors"
             >
               <icon-lucide-link class="w-3.5 h-3.5" />
             </span>
@@ -41,11 +41,6 @@
                   :icon="IconRotateCCW"
                   @click="() => { inheritService(); hide() }"
                 />
-                <HoppSmartItem
-                  label="无前置URL"
-                  :icon="IconX"
-                  @click="() => { clearService(); hide() }"
-                />
               </div>
             </template>
           </tippy>
@@ -53,7 +48,7 @@
           <span
             v-else-if="resolvedPrefixUrl && isEndpointFullUrl"
             v-tippy="{ theme: 'tooltip', content: `endpoint已是完整URL，前置URL不生效` }"
-            class="flex items-center text-secondaryLight shrink-0"
+            class="inline-flex items-center text-secondaryLight shrink-0"
           >
             <icon-lucide-link class="w-3.5 h-3.5" />
           </span>
@@ -620,7 +615,6 @@ import IconSave from "~icons/lucide/save"
 import IconFolderPlus from "~icons/lucide/folder-plus"
 import IconLink from "~icons/lucide/link"
 import IconCheck from "~icons/lucide/check"
-import IconX from "~icons/lucide/x"
 import IconRotateCCW from "~icons/lucide/rotate-ccw"
 import JsonExampleBlock from "./JsonExampleBlock.vue"
 import SchemaTreeReadonly from "./SchemaTreeReadonly.vue"
@@ -855,8 +849,6 @@ const inheritedServiceId = computed(
 /** Resolve the prefix URL: request override > inherited service > none */
 const resolvedPrefixUrl = computed(() => {
   const val = props.request.inheritedBaseUrl || ""
-  // __none__ means explicitly "no prefix URL" (user cleared it)
-  if (val === "__none__") return ""
   if (!val) {
     // No request-level override, use inherited service
     if (inheritedServiceId.value) {
@@ -903,14 +895,9 @@ function selectService(svcId: string) {
   emit("update:request", { ...props.request, inheritedBaseUrl: svcId })
 }
 
-/** Clear prefix URL (set to empty, will inherit from parent) */
+/** Inherit prefix URL from parent collection (clear override) */
 function inheritService() {
   emit("update:request", { ...props.request, inheritedBaseUrl: "" })
-}
-
-/** Explicitly set no prefix URL */
-function clearService() {
-  emit("update:request", { ...props.request, inheritedBaseUrl: "__none__" })
 }
 
 const methodClass = computed(() => {
