@@ -16,6 +16,13 @@
       >
         <IconFileCode class="erd-toolbar-icon" />
       </div>
+      <div
+        class="erd-toolbar-menu erd-toolbar-menu--save"
+        :title="t('erd.save')"
+        @click="manualSave"
+      >
+        <IconSave class="erd-toolbar-icon" />
+      </div>
       <div class="erd-toolbar-vertical" />
       <div
         class="erd-toolbar-menu"
@@ -82,6 +89,8 @@ import { useSetting } from "~/composables/settings"
 import IconFileJson from "~icons/lucide/file-json"
 import IconFileCode from "~icons/lucide/file-code"
 import IconDownload from "~icons/lucide/download"
+import IconSave from "~icons/lucide/save"
+import { parsePgSqlToErdJson, isPgSql } from "~/helpers/erdPgSqlParser"
 import "@dineug/erd-editor"
 
 const props = defineProps<{
@@ -108,55 +117,28 @@ const bgColor = useSetting("BG_COLOR")
 const isDarkMode = computed(() => bgColor.value !== "light")
 
 const defaultSchema = JSON.stringify({
-  canvas: {
-    version: "3.3.0",
-    width: 2000,
-    height: 2000,
-    scrollTop: 0,
-    scrollLeft: 0,
-    zoomLevel: 1,
-    show: {
-      tableProperties: false,
-      columnTypes: true,
-      columnConstraints: true,
-      columnComments: true,
-      relationshipDataType: false,
-      relationshipCardinality: true,
-      columnUnique: false,
-      columnNotNull: true,
-      columnDefault: false,
-      columnAutoIncrement: false,
-    },
-    database: "MySQL",
-    databaseName: "",
-    setting: {
-      relationshipDataTypeSync: true,
-      relationshipOptimization: false,
-      columnOrder: [
-        "columnName",
-        "columnDefault",
-        "columnNotNull",
-        "columnUnique",
-        "columnAutoIncrement",
-        "columnComment",
-        "columnType",
-      ],
-    },
-    pluginSerializationMap: {},
+  $schema: "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  version: "3.0.0",
+  settings: {
+    width: 2000, height: 2000, scrollTop: 0, scrollLeft: 0, zoomLevel: 1,
+    show: 423, database: 16, databaseName: "",
+    canvasType: "ERD", language: 1, tableNameCase: 4, columnNameCase: 2,
+    bracketType: 1, relationshipDataTypeSync: true, relationshipOptimization: false,
+    columnOrder: [1, 2, 4, 8, 16, 32, 64], maxWidthComment: -1, ignoreSaveSettings: 0,
   },
-  table: { entities: {}, indexes: {} },
-  memo: { memos: {} },
-  relationship: { relationships: {} },
+  doc: { tableIds: [], relationshipIds: [], indexIds: [], memoIds: [] },
+  collections: {
+    tableEntities: {}, tableColumnEntities: {}, relationshipEntities: {},
+    indexEntities: {}, indexColumnEntities: {}, memoEntities: {},
+  },
 })
 
 onMounted(() => {
   if (erdEditorRef.value) {
     const editor = erdEditorRef.value as any
     customElements.whenDefined("erd-editor").then(() => {
-      if (editor.setInitialValue) {
-        const schemaToLoad = tab.value.document.schema || defaultSchema
-        editor.setInitialValue(schemaToLoad)
-      }
+      const schemaToLoad = tab.value.document.schema || defaultSchema
+      editor.value = schemaToLoad
     })
 
     // Set up auto-save via input event
@@ -294,13 +276,11 @@ async function handleImportJSON(event: Event) {
     JSON.parse(text)
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
-      if (editor.setInitialValue) {
-        editor.setInitialValue(text)
-        tab.value.document.schema = text
-        tab.value.document.isDirty = true
-        saveToCollection()
-        toast.success(t("erd.import_success"))
-      }
+      editor.value = text
+      tab.value.document.schema = text
+      tab.value.document.isDirty = true
+      saveToCollection()
+      toast.success(t("erd.import_success"))
     }
   } catch (_e) {
     toast.error(t("erd.import_error"))
@@ -316,16 +296,48 @@ async function handleImportSQL(event: Event) {
     const sqlText = await file.text()
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
-      if (editor.setSchemaSQL) {
-        editor.setSchemaSQL(sqlText)
-        tab.value.document.isDirty = true
-        toast.success(t("erd.import_success"))
+
+      if (isPgSql(sqlText)) {
+        try {
+          const erdJson = parsePgSqlToErdJson(sqlText)
+          editor.value = erdJson
+          tab.value.document.schema = erdJson
+          tab.value.document.isDirty = true
+          saveToCollection()
+          toast.success(t("erd.import_success"))
+        } catch (pgErr) {
+          console.error("PG SQL parse error:", pgErr)
+          if (editor.setSchemaSQL) {
+            editor.setSchemaSQL(sqlText)
+            tab.value.document.isDirty = true
+            toast.success(t("erd.import_success"))
+          }
+        }
+      } else {
+        if (editor.setSchemaSQL) {
+          editor.setSchemaSQL(sqlText)
+          tab.value.document.isDirty = true
+          toast.success(t("erd.import_success"))
+        }
       }
     }
   } catch (_e) {
     toast.error(t("erd.import_error"))
   }
   input.value = ""
+}
+
+function manualSave() {
+  if (erdEditorRef.value) {
+    const editor = erdEditorRef.value as any
+    const val = editor.value
+    if (val) {
+      tab.value.document.schema = val
+      tab.value.document.isDirty = true
+    }
+  }
+  saveToCollection()
+  toast.success(t("erd.save_success"))
 }
 
 function getEditorValue(): string {
