@@ -21,6 +21,14 @@
             </div>
             <div class="erd-toolbar-vertical" />
             <div
+              class="erd-toolbar-menu erd-toolbar-menu--save"
+              :title="t('erd.save')"
+              @click="manualSave"
+            >
+              <IconSave class="erd-toolbar-icon" />
+            </div>
+            <div class="erd-toolbar-vertical" />
+            <div
               class="erd-toolbar-menu"
               :title="t('erd.export_json')"
               @click="exportJSON"
@@ -95,6 +103,7 @@ import IconFileJson from "~icons/lucide/file-json"
 import IconFileCode from "~icons/lucide/file-code"
 import IconDownload from "~icons/lucide/download"
 import IconTrash from "~icons/lucide/trash-2"
+import IconSave from "~icons/lucide/save"
 import IconPanelLeftClose from "~icons/lucide/panel-left-close"
 import IconPanelLeftOpen from "~icons/lucide/panel-left-open"
 import "@dineug/erd-editor"
@@ -350,6 +359,11 @@ function exportSQL() {
   } catch (_e) {
     toast.error(t("erd.export_error"))
   }
+}
+
+function manualSave() {
+  saveToStorage()
+  toast.success(t("erd.save_success"))
 }
 
 function clearEditor() {
