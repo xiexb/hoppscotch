@@ -2,7 +2,19 @@
   <div class="erd-page-wrapper">
     <AppPaneLayout layout-id="erd">
       <template #primary>
-        <div class="erd-page relative h-full">
+        <!-- Diff Mode View -->
+        <div v-if="diffMode" class="erd-page relative h-full">
+          <ErdDiffView
+            :team-id="teamId"
+            :collection-id="collectionId"
+            :from-ref="diffFrom"
+            :to-ref="diffTo"
+            @close="exitDiffMode"
+          />
+        </div>
+
+        <!-- Normal Editor View -->
+        <div v-else class="erd-page relative h-full">
           <!-- Toolbar overlay: matches erd-editor toolbar style -->
           <div class="erd-toolbar-overlay">
             <div
@@ -157,6 +169,7 @@ import IconHistory from "~icons/lucide/history"
 import IconX from "~icons/lucide/x"
 import { commitVersion } from "@helpers/erdVersionApi"
 import ErdVersionPanel from "@components/erd/ErdVersionPanel.vue"
+import ErdDiffView from "@components/erd/ErdDiffView.vue"
 // Must be imported BEFORE erd-editor to patch attachShadow
 import {
   initCollapseFeature,
@@ -496,7 +509,14 @@ function handleVersionCompare(from: string, to: string) {
   diffFrom.value = from
   diffTo.value = to
   diffMode.value = true
-  // Diff view implementation is handled by the next task
+  // Close version panel when entering diff mode
+  showVersionPanel.value = false
+}
+
+function exitDiffMode() {
+  diffMode.value = false
+  diffFrom.value = ""
+  diffTo.value = ""
 }
 
 function handleVersionSaved() {

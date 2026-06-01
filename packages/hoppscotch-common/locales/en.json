@@ -2736,6 +2736,22 @@
       "last_push": "Last push",
       "remote_configured": "Configured",
       "auto_commit_error": "Auto-save to server failed"
+    },
+    "diff": {
+      "comparing": "Comparing",
+      "exit": "Exit Diff",
+      "added": "Added",
+      "modified": "Modified",
+      "removed": "Removed",
+      "tables": "tables",
+      "columns": "columns",
+      "comment": "Comment",
+      "relationships": "Relationships",
+      "no_changes": "No differences found",
+      "load_error": "Failed to load diff data",
+      "added_short": "Added: {n}",
+      "modified_short": "Changed: {n}",
+      "removed_short": "Removed: {n}"
     }
   }
 }

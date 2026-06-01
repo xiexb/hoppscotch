@@ -2700,6 +2700,22 @@
       "last_push": "上次推送",
       "remote_configured": "已配置",
       "auto_commit_error": "自动保存到服务器失败"
+    },
+    "diff": {
+      "comparing": "对比",
+      "exit": "退出对比",
+      "added": "新增",
+      "modified": "变更",
+      "removed": "删除",
+      "tables": "表",
+      "columns": "列",
+      "comment": "注释",
+      "relationships": "关系",
+      "no_changes": "未发现差异",
+      "load_error": "加载对比数据失败",
+      "added_short": "新增: {n}",
+      "modified_short": "变更: {n}",
+      "removed_short": "删除: {n}"
     }
   }
 }
