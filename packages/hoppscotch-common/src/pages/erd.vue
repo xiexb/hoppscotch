@@ -90,6 +90,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from "vue"
 import { useI18n } from "@composables/i18n"
 import { useSetting } from "@composables/settings"
 import { useToast } from "@composables/toast"
+import { parsePgSqlToErdJson, isPgSql } from "@helpers/erdPgSqlParser"
 import IconFileJson from "~icons/lucide/file-json"
 import IconFileCode from "~icons/lucide/file-code"
 import IconDownload from "~icons/lucide/download"
@@ -219,9 +220,29 @@ async function handleImportSQL(event: Event) {
     const sqlText = await file.text()
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
-      if (editor.setSchemaSQL) {
-        editor.setSchemaSQL(sqlText)
-        toast.success(t("erd.import_success"))
+
+      // Detect PostgreSQL SQL and use our custom parser
+      if (isPgSql(sqlText)) {
+        try {
+          const erdJson = parsePgSqlToErdJson(sqlText)
+          if (editor.setInitialValue) {
+            editor.setInitialValue(erdJson)
+            toast.success(t("erd.import_success"))
+          }
+        } catch (pgErr) {
+          console.error("PG SQL parse error:", pgErr)
+          // Fallback to built-in parser
+          if (editor.setSchemaSQL) {
+            editor.setSchemaSQL(sqlText)
+            toast.success(t("erd.import_success"))
+          }
+        }
+      } else {
+        // Non-PG SQL: use built-in parser
+        if (editor.setSchemaSQL) {
+          editor.setSchemaSQL(sqlText)
+          toast.success(t("erd.import_success"))
+        }
       }
     }
   } catch (_e) {
