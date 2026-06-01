@@ -323,6 +323,43 @@ export type HoppMarkdownDocDocument = {
   docIndex: number
 }
 
+export type HoppErdDiagramDocument = {
+  /**
+   * The document type
+   */
+  type: "erd-diagram"
+
+  /**
+   * The ID of the ERD diagram in the collection's erdDiagrams array
+   */
+  docId: string
+
+  /**
+   * The display name of the diagram
+   */
+  name: string
+
+  /**
+   * The ERD schema JSON string
+   */
+  schema: string
+
+  /**
+   * Whether the document has unsaved changes
+   */
+  isDirty: boolean
+
+  /**
+   * Path to the collection/folder containing this diagram
+   */
+  collectionPath: string
+
+  /**
+   * Index in the erdDiagrams array
+   */
+  docIndex: number
+}
+
 /**
  * Defines a live 'document' (something that is open and being edited) in the app
  */
@@ -331,3 +368,4 @@ export type HoppTabDocument =
   | HoppRequestDocument
   | HoppTestRunnerDocument
   | HoppMarkdownDocDocument
+  | HoppErdDiagramDocument

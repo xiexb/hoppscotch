@@ -386,7 +386,15 @@
     "team_markdown_doc_not_supported": "团队集合暂不支持 Markdown 文档",
     "markdown_doc_added": "Markdown 文档已添加",
     "markdown_doc_deleted": "Markdown 文档已删除",
-    "markdown_doc_renamed": "Markdown 文档已重命名"
+    "markdown_doc_renamed": "Markdown 文档已重命名",
+    "erd_diagram": "ERD 图",
+    "add_erd_diagram": "添加 ERD 图",
+    "erd_diagram_name_placeholder": "输入图表名称",
+    "delete_erd_diagram_confirm": "确定要删除此 ERD 图吗？",
+    "rename_erd_diagram": "重命名 ERD 图",
+    "erd_diagram_added": "ERD 图已添加",
+    "erd_diagram_deleted": "ERD 图已删除",
+    "erd_diagram_renamed": "ERD 图已重命名"
   },
   "confirm": {
     "close_unsaved_tab": "您确定要关闭此标签页吗？",

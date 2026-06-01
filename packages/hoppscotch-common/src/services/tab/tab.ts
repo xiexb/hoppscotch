@@ -120,10 +120,6 @@ export abstract class TabService<Doc>
 
   public loadTabsFromPersistedState(data: PersistableTabState<Doc>): void {
     if (data && data.orderedDocs?.length) {
-      // Save the constructor's default tab as fallback before clearing
-      const savedTabMap = new Map(this.tabMap)
-      const savedOrdering = [...this.tabOrdering.value]
-
       // Build new valid tab list first (don't clear yet to avoid race)
       const newTabMap = new Map<string, { id: string; document: Doc }>()
       const newOrdering: string[] = []
@@ -139,6 +135,7 @@ export abstract class TabService<Doc>
           if (d.type === "example-response" && !d.response) continue
           if (d.type === "test-runner" && !d.collection) continue
           if (d.type === "markdown-doc" && d.docId === undefined) continue
+          if (d.type === "erd-diagram" && d.docId === undefined) continue
         } else {
           // GQL tabs have no `type` field, but must have `request`
           if (!d.request) continue

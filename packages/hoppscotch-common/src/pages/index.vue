@@ -66,6 +66,11 @@
               :model-value="tab"
               @update:model-value="onTabUpdate"
             />
+            <CollectionsErdDiagramTab
+              v-if="tab.document.type === 'erd-diagram'"
+              :model-value="tab"
+              @update:model-value="onTabUpdate"
+            />
             <!-- END Render TabContents -->
           </HoppSmartWindow>
           <template #actions>
@@ -324,6 +329,8 @@ const getTabName = (tab: HoppTab<HoppTabDocument>) => {
     return tab.document.response?.name ?? "Example Response"
   } else if (tab.document.type === "markdown-doc") {
     return tab.document.name ?? "Untitled Doc"
+  } else if (tab.document.type === "erd-diagram") {
+    return tab.document.name ?? "Untitled ERD"
   }
 
   return "Unnamed tab"

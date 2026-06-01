@@ -72,6 +72,8 @@ export class TestRunnerService extends Service {
       preRequestScript: collection.preRequestScript ?? "",
       testScript: collection.testScript ?? "",
       selectedServiceId: collection.selectedServiceId ?? null,
+      markdownDocs: collection.markdownDocs ?? [],
+      erdDiagrams: collection.erdDiagrams ?? [],
     }
 
     this.runTestCollection(

@@ -572,6 +572,24 @@ pnpm run preview --port 3003 --host 0.0.0.0  # background
 **PITFALL:** If you make a code fix but forget to rebuild, users will still see the
 old behavior. Always verify the build output (`dist/`) timestamp after rebuilding.
 
+### P50: Backend start via nohup requires explicit PATH in subshell
+When starting backend with `nohup node dist/src/main.js &`, the nohup subshell
+does NOT inherit the interactive shell's PATH. Even if `node` is available
+at `/home/user/.hermes/node/bin/node`, nohup spawns a fresh shell that only
+has system PATH — resulting in `nohup: failed to run command 'node': No such
+file or directory`.
+
+**Fix**: Always prepend PATH explicitly in the nohup command:
+```bash
+cd packages/hoppscotch-backend && \
+  export PATH="/home/user/.hermes/node/bin:$PATH" && \
+  set -a && source /path/to/.env && set +a && \
+  node dist/src/main.js
+```
+
+Or use `terminal(background=true)` which inherits the current process env.
+The restart script (`scripts/restart-all.sh`) already handles PATH correctly.
+
 ### P49: `.env` corruption — line-number prefixes from `read_file` output
 
 When the backend's `.env` is accidentally overwritten with `read_file` output,

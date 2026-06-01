@@ -120,6 +120,14 @@
             @click="emit('add-markdown-doc')"
           />
           <HoppButtonSecondary
+            v-if="!hasNoTeamAccess"
+            v-tippy="{ theme: 'tooltip' }"
+            :icon="IconDatabase"
+            :title="t('collection.add_erd_diagram')"
+            class="hidden group-hover:inline-flex"
+            @click="emit('add-erd-diagram')"
+          />
+          <HoppButtonSecondary
             v-tippy="{ theme: 'tooltip' }"
             :icon="IconPlaySquare"
             :title="t('collection_runner.run_collection')"
@@ -193,6 +201,18 @@
                     @click="
                       () => {
                         emit('add-markdown-doc')
+                        hide()
+                      }
+                    "
+                  />
+                  <HoppSmartItem
+                    v-if="!hasNoTeamAccess"
+                    ref="erdDiagramAction"
+                    :icon="IconDatabase"
+                    :label="t('collection.add_erd_diagram')"
+                    @click="
+                      () => {
+                        emit('add-erd-diagram')
                         hide()
                       }
                     "
@@ -362,6 +382,7 @@ import IconDownload from "~icons/lucide/download"
 import IconEdit from "~icons/lucide/edit"
 import IconFilePlus from "~icons/lucide/file-plus"
 import IconFileText from "~icons/lucide/file-text"
+import IconDatabase from "~icons/lucide/database"
 import IconFolder from "~icons/lucide/folder"
 import IconFolderOpen from "~icons/lucide/folder-open"
 import IconFolderPlus from "~icons/lucide/folder-plus"
@@ -427,6 +448,7 @@ const emit = defineEmits<{
   (event: "add-request"): void
   (event: "add-folder"): void
   (event: "add-markdown-doc"): void
+  (event: "add-erd-diagram"): void
   (event: "run-collection"): void
   (event: "edit-collection"): void
   (event: "edit-properties"): void
@@ -465,6 +487,7 @@ const runCollectionAction = ref<HTMLButtonElement | null>(null)
 const sortAction = ref<HTMLButtonElement | null>(null)
 const documentationAction = ref<HTMLButtonElement | null>(null)
 const markdownDocAction = ref<HTMLButtonElement | null>(null)
+const erdDiagramAction = ref<HTMLButtonElement | null>(null)
 
 const { isDocumentationVisible } = useDocumentationVisibility()
 

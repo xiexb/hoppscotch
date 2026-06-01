@@ -66,6 +66,7 @@
       </div>
       <div
         class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
+        :class="{ 'has-prefix-url': resolvedPrefixUrl && !isEndpointFullUrl }"
       >
         <!-- Prefix URL indicator (🔗 icon when prefix URL is active, clickable to change) -->
         <tippy
@@ -76,7 +77,7 @@
         >
           <span
             v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-            class="flex items-center text-accent shrink-0 cursor-pointer"
+            class="flex items-center justify-center w-4 h-4 text-accent shrink-0 cursor-pointer"
           >
             <icon-lucide-link class="w-4 h-4" />
           </span>
@@ -104,7 +105,7 @@
         <span
           v-else-if="resolvedPrefixUrl && !isEndpointFullUrl && readonly"
           v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-          class="flex items-center text-accent shrink-0"
+          class="flex items-center justify-center w-4 h-4 text-accent shrink-0"
         >
           <icon-lucide-link class="w-4 h-4" />
         </span>
@@ -122,7 +123,8 @@
         <!-- Read-only URL display (no SmartEnvInput wrapper) -->
         <span
           v-else
-          class="flex-1 px-2 py-2 text-sm font-mono text-secondaryDark truncate min-h-[38px] flex items-center"
+          class="flex-1 text-sm font-mono text-secondaryDark truncate min-h-[38px] flex items-center"
+          :class="resolvedPrefixUrl && !isEndpointFullUrl ? 'pl-1 py-2' : 'px-2 py-2'"
         >{{ tab.document.request.endpoint || t('request.url_placeholder') }}</span>
       </div>
     </div>
@@ -1067,3 +1069,11 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style scoped>
+/* When prefix URL icon is present, reduce the CodeMirror line padding
+   so the URI text sits right next to the 🔗 icon without extra gap */
+.has-prefix-url :deep(.cm-line) {
+  padding-left: 0.25rem !important;
+}
+</style>

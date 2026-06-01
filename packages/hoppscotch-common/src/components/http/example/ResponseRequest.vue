@@ -51,6 +51,7 @@
       </div>
       <div
         class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
+        :class="{ 'has-prefix-url': resolvedPrefixUrl && !isEndpointFullUrl }"
       >
         <!-- Prefix URL indicator (🔗 icon, clickable to change service) -->
         <tippy
@@ -61,7 +62,7 @@
         >
           <span
             v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-            class="flex items-center px-2 text-accent shrink-0 cursor-pointer"
+            class="flex items-center justify-center w-4 h-4 text-accent shrink-0 cursor-pointer"
           >
             <icon-lucide-link class="w-4 h-4" />
           </span>
@@ -403,3 +404,9 @@ const isCustomMethod = computed(() => {
 
 const tabResults = inspectionService.getResultViewFor(tabs.currentTabID.value)
 </script>
+
+<style scoped>
+.has-prefix-url :deep(.cm-line) {
+  padding-left: 0.25rem !important;
+}
+</style>

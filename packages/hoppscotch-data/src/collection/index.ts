@@ -14,10 +14,13 @@ import V11_VERSION from "./v/11"
 import V12_VERSION from "./v/12"
 import V13_VERSION from "./v/13"
 import V14_VERSION from "./v/14"
+import V15_VERSION from "./v/15"
 
 export { CollectionVariable } from "./v/10"
 export { MarkdownDocSchema } from "./v/14"
 export type { MarkdownDoc } from "./v/14"
+export { ErdDiagramSchema } from "./v/15"
+export type { ErdDiagram } from "./v/15"
 
 import { z } from "zod"
 import { translateToNewRequest } from "../rest"
@@ -29,7 +32,7 @@ const versionedObject = z.object({
 })
 
 export const HoppCollection = createVersionedEntity({
-  latestVersion: 14,
+  latestVersion: 15,
   versionMap: {
     1: V1_VERSION,
     2: V2_VERSION,
@@ -45,6 +48,7 @@ export const HoppCollection = createVersionedEntity({
     12: V12_VERSION,
     13: V13_VERSION,
     14: V14_VERSION,
+    15: V15_VERSION,
   },
   getVersion(data) {
     const versionCheck = versionedObject.safeParse(data)
@@ -64,7 +68,7 @@ export type HoppCollectionVariable = InferredEntity<
   typeof HoppCollection
 >["variables"][number]
 
-export const CollectionSchemaVersion = 14
+export const CollectionSchemaVersion = 15
 
 /**
  * Generates a Collection object. This ignores the version number object
@@ -78,6 +82,7 @@ export function makeCollection(x: Omit<HoppCollection, "v">): HoppCollection {
     _ref_id: x._ref_id ? x._ref_id : generateUniqueRefId("coll"),
     selectedServiceId: x.selectedServiceId ?? null,
     markdownDocs: x.markdownDocs ?? [],
+    erdDiagrams: x.erdDiagrams ?? [],
   }
 }
 
@@ -102,6 +107,7 @@ export function translateToNewRESTCollection(x: any): HoppCollection {
   const testScript = x.testScript ?? ""
   const selectedServiceId = x.selectedServiceId ?? null
   const markdownDocs = x.markdownDocs ?? []
+  const erdDiagrams = x.erdDiagrams ?? []
 
   const obj = makeCollection({
     name,
@@ -115,6 +121,7 @@ export function translateToNewRESTCollection(x: any): HoppCollection {
     testScript,
     selectedServiceId,
     markdownDocs,
+    erdDiagrams,
   })
 
   if (x.id) obj.id = x.id
@@ -146,6 +153,7 @@ export function translateToNewGQLCollection(x: any): HoppCollection {
   const testScript = x.testScript ?? ""
   const gqlSelectedServiceId = x.selectedServiceId ?? null
   const markdownDocs = x.markdownDocs ?? []
+  const erdDiagrams = x.erdDiagrams ?? []
 
   const obj = makeCollection({
     name,
@@ -159,6 +167,7 @@ export function translateToNewGQLCollection(x: any): HoppCollection {
     testScript,
     selectedServiceId: gqlSelectedServiceId,
     markdownDocs,
+    erdDiagrams,
   })
 
   if (x.id) obj.id = x.id

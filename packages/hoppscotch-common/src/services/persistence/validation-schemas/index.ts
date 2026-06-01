@@ -630,6 +630,15 @@ export const REST_TAB_STATE_SCHEMA = z
             collectionPath: z.string(),
             docIndex: z.number(),
           }),
+          z.object({
+            type: z.literal("erd-diagram").catch("erd-diagram"),
+            docId: z.string(),
+            name: z.string(),
+            schema: z.string(),
+            isDirty: z.boolean(),
+            collectionPath: z.string(),
+            docIndex: z.number(),
+          }),
         ]),
       }).passthrough()
     ),

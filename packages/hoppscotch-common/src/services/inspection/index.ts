@@ -166,7 +166,8 @@ export class InspectionService extends Service {
       const currentTabRequest = computed(() => {
         if (
           this.restTab.currentActiveTab.value.document.type === "test-runner" ||
-          this.restTab.currentActiveTab.value.document.type === "markdown-doc"
+          this.restTab.currentActiveTab.value.document.type === "markdown-doc" ||
+          this.restTab.currentActiveTab.value.document.type === "erd-diagram"
         )
           return null
 

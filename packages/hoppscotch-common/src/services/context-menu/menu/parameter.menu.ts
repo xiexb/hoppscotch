@@ -91,7 +91,8 @@ export class ParameterMenuService extends Service implements ContextMenu {
 
     if (
       tabService.currentActiveTab.value.document.type === "test-runner" ||
-      tabService.currentActiveTab.value.document.type === "markdown-doc"
+      tabService.currentActiveTab.value.document.type === "markdown-doc" ||
+      tabService.currentActiveTab.value.document.type === "erd-diagram"
     )
       return
 

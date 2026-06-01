@@ -105,6 +105,13 @@
                 folder: node.data.data.data,
               })
             "
+            @add-erd-diagram="
+              node.data.type === 'collections' &&
+              emit('add-erd-diagram', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
             @edit-collection="
               node.data.type === 'collections' &&
               emit('edit-collection', {
@@ -225,6 +232,13 @@
             @add-markdown-doc="
               node.data.type === 'folders' &&
               emit('add-markdown-doc', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
+            @add-erd-diagram="
+              node.data.type === 'folders' &&
+              emit('add-erd-diagram', {
                 path: node.id,
                 folder: node.data.data.data,
               })
@@ -446,6 +460,14 @@
             :collection-path="node.data.data.parentIndex"
             @delete-doc="emit('delete-markdown-doc', $event)"
             @rename-doc="emit('rename-markdown-doc', $event)"
+          />
+          <CollectionsErdDiagramNode
+            v-if="node.data.type === 'erdDiagrams'"
+            :diagram="node.data.data.data"
+            :doc-index="node.data.data.docIndex"
+            :collection-path="node.data.data.parentIndex"
+            @delete-diagram="emit('delete-erd-diagram', $event)"
+            @rename-diagram="emit('rename-erd-diagram', $event)"
           />
         </template>
         <template #emptyNode="{ node }">
@@ -819,11 +841,23 @@ const emit = defineEmits<{
     payload: { path: string; folder: TeamCollection }
   ): void
   (
+    event: "add-erd-diagram",
+    payload: { path: string; folder: TeamCollection }
+  ): void
+  (
     event: "delete-markdown-doc",
     payload: { collectionPath: string; docIndex: number }
   ): void
   (
     event: "rename-markdown-doc",
+    payload: { collectionPath: string; docIndex: number; newName: string }
+  ): void
+  (
+    event: "delete-erd-diagram",
+    payload: { collectionPath: string; docIndex: number }
+  ): void
+  (
+    event: "rename-erd-diagram",
     payload: { collectionPath: string; docIndex: number; newName: string }
   ): void
 }>()
@@ -1069,7 +1103,17 @@ type TeamMarkdownDocs = {
   }
 }
 
-type TeamCollectionNode = TeamCollections | TeamFolder | TeamRequests | TeamMarkdownDocs
+type TeamErdDiagrams = {
+  isLastItem: boolean
+  type: "erdDiagrams"
+  data: {
+    parentIndex: string
+    data: { id: string; name: string; schema: string }
+    docIndex: number
+  }
+}
+
+type TeamCollectionNode = TeamCollections | TeamFolder | TeamRequests | TeamMarkdownDocs | TeamErdDiagrams
 
 class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
   constructor(public data: Ref<TeamCollection[]>) {}
@@ -1189,6 +1233,27 @@ class TeamCollectionsAdapter implements SmartTreeAdapter<TeamCollectionNode> {
                   data: {
                     parentIndex: parsedID,
                     data: doc,
+                    docIndex: index,
+                  },
+                },
+              }))
+            } catch {
+              return []
+            }
+          })(),
+          // Parse erdDiagrams from collection data
+          ...(() => {
+            try {
+              const parsedData = items.data ? JSON.parse(items.data) : null
+              const erdDiagrams = parsedData?.erdDiagrams ?? []
+              return erdDiagrams.map((diagram: any, index: number) => ({
+                id: `${id}/erd-${index}`,
+                data: {
+                  isLastItem: index === erdDiagrams.length - 1,
+                  type: "erdDiagrams" as const,
+                  data: {
+                    parentIndex: parsedID,
+                    data: diagram,
                     docIndex: index,
                   },
                 },

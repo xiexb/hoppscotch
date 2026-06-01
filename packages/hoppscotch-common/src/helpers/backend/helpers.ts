@@ -1,5 +1,7 @@
 import {
   CollectionVariable,
+  ErdDiagram,
+  ErdDiagramSchema,
   HoppCollection,
   HoppCollectionVariable,
   HoppRESTAuth,
@@ -46,6 +48,7 @@ export type CollectionDataProps = {
   testScript: string
   selectedServiceId: string | null
   markdownDocs: MarkdownDoc[]
+  erdDiagrams: ErdDiagram[]
 }
 
 export const BACKEND_PAGE_SIZE = 10
@@ -131,6 +134,7 @@ export const parseCollectionData = (
     testScript: "",
     selectedServiceId: null,
     markdownDocs: [],
+    erdDiagrams: [],
   }
 
   if (!data) {
@@ -191,6 +195,13 @@ export const parseCollectionData = (
     defaultDataProps.markdownDocs
   )
 
+  const erdDiagrams = parseWithDefaultValue<
+    CollectionDataProps["erdDiagrams"]
+  >(
+    z.array(ErdDiagramSchema).safeParse(parsedData?.erdDiagrams),
+    defaultDataProps.erdDiagrams
+  )
+
   return {
     auth,
     headers,
@@ -200,6 +211,7 @@ export const parseCollectionData = (
     testScript,
     selectedServiceId,
     markdownDocs,
+    erdDiagrams,
   }
 }
 
@@ -215,6 +227,7 @@ export const teamCollectionJSONToHoppRESTColl = (
     preRequestScript,
     testScript,
     markdownDocs,
+    erdDiagrams,
   } = parseCollectionData(coll.data)
 
   return makeCollection({
@@ -229,6 +242,7 @@ export const teamCollectionJSONToHoppRESTColl = (
     preRequestScript,
     testScript,
     markdownDocs,
+    erdDiagrams,
   })
 }
 

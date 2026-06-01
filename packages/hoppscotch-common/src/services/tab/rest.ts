@@ -49,6 +49,13 @@ export class RESTTabService extends TabService<HoppTabDocument> {
         }
       }
 
+      if (tab.document.type === "erd-diagram") {
+        return {
+          tabID: tab.id,
+          doc: tab.document,
+        }
+      }
+
       if (tab.document.type === "test-runner") {
         return {
           tabID: tab.id,
@@ -83,6 +90,7 @@ export class RESTTabService extends TabService<HoppTabDocument> {
       // For `team-collection` request id can be considered unique
       if (tab.document.type === "test-runner") continue
       if (tab.document.type === "markdown-doc") continue
+      if (tab.document.type === "erd-diagram") continue
 
       if (ctx?.originLocation === "team-collection") {
         if (

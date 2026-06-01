@@ -79,6 +79,13 @@
                 folder: node.data.data.data,
               })
             "
+            @add-erd-diagram="
+              node.data.type === 'collections' &&
+              emit('add-erd-diagram', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
             @run-collection="
               emit('run-collection', {
                 collectionIndex: node.id,
@@ -193,6 +200,13 @@
             @add-markdown-doc="
               node.data.type === 'folders' &&
               emit('add-markdown-doc', {
+                path: node.id,
+                folder: node.data.data.data,
+              })
+            "
+            @add-erd-diagram="
+              node.data.type === 'folders' &&
+              emit('add-erd-diagram', {
                 path: node.id,
                 folder: node.data.data.data,
               })
@@ -403,6 +417,14 @@
             @delete-doc="emit('delete-markdown-doc', $event)"
             @rename-doc="emit('rename-markdown-doc', $event)"
           />
+          <CollectionsErdDiagramNode
+            v-if="node.data.type === 'erdDiagrams'"
+            :diagram="node.data.data.data"
+            :doc-index="node.data.data.docIndex"
+            :collection-path="node.data.data.parentIndex"
+            @delete-diagram="emit('delete-erd-diagram', $event)"
+            @rename-diagram="emit('rename-erd-diagram', $event)"
+          />
         </template>
         <template #emptyNode="{ node }">
           <HoppSmartPlaceholder
@@ -528,6 +550,16 @@ type MarkdownDocs = {
   data: {
     parentIndex: string
     data: { id: string; name: string; content: string }
+    docIndex: number
+  }
+}
+
+type ErdDiagrams = {
+  type: "erdDiagrams"
+  isLastItem: boolean
+  data: {
+    parentIndex: string
+    data: { id: string; name: string; schema: string }
     docIndex: number
   }
 }
@@ -759,6 +791,28 @@ const emit = defineEmits<{
   ): void
   (
     event: "rename-markdown-doc",
+    payload: {
+      collectionPath: string
+      docIndex: number
+      newName: string
+    }
+  ): void
+  (
+    event: "add-erd-diagram",
+    payload: {
+      path: string
+      folder: HoppCollection
+    }
+  ): void
+  (
+    event: "delete-erd-diagram",
+    payload: {
+      collectionPath: string
+      docIndex: number
+    }
+  ): void
+  (
+    event: "rename-erd-diagram",
     payload: {
       collectionPath: string
       docIndex: number
@@ -1001,6 +1055,7 @@ class MyCollectionsAdapter implements SmartTreeAdapter<MyCollectionNode> {
 
       if (item) {
         const mdDocs = item.markdownDocs ?? []
+        const erdDiagrams = item.erdDiagrams ?? []
         const data = [
           ...item.folders.map((folder, index) => ({
             id: `${id}/${index}`,
@@ -1038,6 +1093,18 @@ class MyCollectionsAdapter implements SmartTreeAdapter<MyCollectionNode> {
               data: {
                 parentIndex: id,
                 data: doc,
+                docIndex: index,
+              },
+            },
+          })),
+          ...erdDiagrams.map((diagram: any, index: number) => ({
+            id: `${id}/erd-${index}`,
+            data: {
+              isLastItem: index === erdDiagrams.length - 1,
+              type: "erdDiagrams",
+              data: {
+                parentIndex: id,
+                data: diagram,
                 docIndex: index,
               },
             },

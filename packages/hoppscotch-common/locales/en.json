@@ -386,7 +386,15 @@
     "team_markdown_doc_not_supported": "Team collection markdown docs are not yet supported",
     "markdown_doc_added": "Markdown document added",
     "markdown_doc_deleted": "Markdown document deleted",
-    "markdown_doc_renamed": "Markdown document renamed"
+    "markdown_doc_renamed": "Markdown document renamed",
+    "erd_diagram": "ERD Diagram",
+    "add_erd_diagram": "Add ERD Diagram",
+    "erd_diagram_name_placeholder": "Enter diagram name",
+    "delete_erd_diagram_confirm": "Are you sure you want to delete this ERD diagram?",
+    "rename_erd_diagram": "Rename ERD Diagram",
+    "erd_diagram_added": "ERD diagram added",
+    "erd_diagram_deleted": "ERD diagram deleted",
+    "erd_diagram_renamed": "ERD diagram renamed"
   },
   "confirm": {
     "close_unsaved_tab": "Are you sure you want to close this tab?",

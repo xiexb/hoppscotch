@@ -43,8 +43,11 @@
       @add-folder="addFolder"
       @add-request="addRequest"
       @add-markdown-doc="addMarkdownDoc"
+      @add-erd-diagram="addErdDiagram"
       @delete-markdown-doc="deleteMarkdownDoc"
+      @delete-erd-diagram="deleteErdDiagram"
       @rename-markdown-doc="renameMarkdownDoc"
+      @rename-erd-diagram="renameErdDiagram"
       @edit-request="editRequest"
       @edit-collection="editCollection"
       @edit-folder="editFolder"
@@ -99,8 +102,11 @@
       @add-request="addRequest"
       @add-folder="addFolder"
       @add-markdown-doc="addMarkdownDoc"
+      @add-erd-diagram="addErdDiagram"
       @delete-markdown-doc="deleteMarkdownDoc"
+      @delete-erd-diagram="deleteErdDiagram"
       @rename-markdown-doc="renameMarkdownDoc"
+      @rename-erd-diagram="renameErdDiagram"
       @collection-click="handleCollectionClick"
       @duplicate-collection="duplicateCollection"
       @duplicate-request="duplicateRequest"
@@ -191,6 +197,36 @@
             :label="t('action.save')"
             outline
             @click="onAddMarkdownDoc(newMarkdownDocName)"
+          />
+        </span>
+      </template>
+    </HoppSmartModal>
+    <HoppSmartModal
+      v-if="showAddErdDiagramModal"
+      dialog
+      :title="t('collection.add_erd_diagram')"
+      @close="showAddErdDiagramModal = false"
+    >
+      <template #body>
+        <HoppSmartInput
+          v-model="newErdDiagramName"
+          :placeholder="t('collection.erd_diagram_name_placeholder')"
+          styles="w-full"
+          @submit="onAddErdDiagram(newErdDiagramName)"
+        />
+      </template>
+      <template #footer>
+        <span class="flex space-x-2 justify-end">
+          <HoppButtonSecondary
+            :label="t('action.cancel')"
+            outline
+            filled
+            @click="showAddErdDiagramModal = false"
+          />
+          <HoppButtonPrimary
+            :label="t('action.save')"
+            outline
+            @click="onAddErdDiagram(newErdDiagramName)"
           />
         </span>
       </template>
@@ -1326,6 +1362,222 @@ const renameMarkdownDoc = (payload: {
     }
   }
   toast.success(t("collection.markdown_doc_renamed"))
+}
+
+// ERD Diagram handlers
+const editingErdDiagramPath = ref<string | null>(null)
+const editingErdDiagramFolder = ref<HoppCollection | null>(null)
+const editingErdTeamCollection = ref<TeamCollection | null>(null)
+const showAddErdDiagramModal = ref(false)
+const newErdDiagramName = ref("")
+
+const addErdDiagram = (payload: {
+  path: string
+  folder: HoppCollection | TeamCollection
+}) => {
+  const { path, folder } = payload
+
+  if (collectionsType.value.type === "team-collections") {
+    editingErdTeamCollection.value = folder as TeamCollection
+    editingErdDiagramPath.value = null
+    editingErdDiagramFolder.value = null
+  } else {
+    editingErdDiagramPath.value = path
+    editingErdDiagramFolder.value = folder as HoppCollection
+    editingErdTeamCollection.value = null
+  }
+
+  newErdDiagramName.value = ""
+  showAddErdDiagramModal.value = true
+}
+
+const defaultErdSchema = JSON.stringify({
+  canvas: { version: "3.3.0", width: 2000, height: 2000, scrollTop: 0, scrollLeft: 0, zoomLevel: 1, show: { tableProperties: false, columnTypes: true, columnConstraints: true, columnComments: true, relationshipDataType: false, relationshipCardinality: true, columnUnique: false, columnNotNull: true, columnDefault: false, columnAutoIncrement: false }, database: "MySQL", databaseName: "", setting: { relationshipDataTypeSync: true, relationshipOptimization: false, columnOrder: ["columnName", "columnDefault", "columnNotNull", "columnUnique", "columnAutoIncrement", "columnComment", "columnType"] }, pluginSerializationMap: {} },
+  table: { entities: {}, indexes: {} },
+  memo: { memos: {} },
+  relationship: { relationships: {} },
+})
+
+const onAddErdDiagram = (diagramName: string) => {
+  if (!diagramName.trim()) return
+
+  const name = diagramName.trim()
+  const diagramId = `erd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const newDiagram = { id: diagramId, name, schema: defaultErdSchema }
+
+  // Team collection branch
+  const teamColl = editingErdTeamCollection.value
+  if (teamColl) {
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      erdDiagrams: [...(existingData.erdDiagrams ?? []), newDiagram],
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.erd_diagram_added"))
+        }
+      )
+    )()
+
+    showAddErdDiagramModal.value = false
+    newErdDiagramName.value = ""
+    editingErdTeamCollection.value = null
+    return
+  }
+
+  // My collections branch
+  const path = editingErdDiagramPath.value
+  if (!path) return
+
+  const pathIndices = path.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll) return
+    const diagrams = [...(coll.erdDiagrams ?? []), newDiagram]
+    editRESTCollection(collIdx, { erdDiagrams: diagrams })
+  } else {
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder) return
+    const diagrams = [...(folder.erdDiagrams ?? []), newDiagram]
+    editRESTFolder(path, { erdDiagrams: diagrams })
+  }
+
+  showAddErdDiagramModal.value = false
+  newErdDiagramName.value = ""
+  toast.success(t("collection.erd_diagram_added"))
+}
+
+const deleteErdDiagram = (payload: {
+  collectionPath: string
+  docIndex: number
+}) => {
+  const { collectionPath, docIndex } = payload
+
+  if (collectionsType.value.type === "team-collections") {
+    const teamColl = findTeamCollectionByID(
+      teamCollections.value,
+      collectionPath
+    )
+    if (!teamColl) return
+
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const diagrams = [...(existingData.erdDiagrams ?? [])]
+    diagrams.splice(docIndex, 1)
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      erdDiagrams: diagrams,
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.erd_diagram_deleted"))
+        }
+      )
+    )()
+    return
+  }
+
+  const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll || !coll.erdDiagrams) return
+    const diagrams = [...coll.erdDiagrams]
+    diagrams.splice(docIndex, 1)
+    editRESTCollection(collIdx, { erdDiagrams: diagrams })
+  } else {
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder || !folder.erdDiagrams) return
+    const diagrams = [...folder.erdDiagrams]
+    diagrams.splice(docIndex, 1)
+    editRESTFolder(collectionPath, { erdDiagrams: diagrams })
+  }
+  toast.success(t("collection.erd_diagram_deleted"))
+}
+
+const renameErdDiagram = (payload: {
+  collectionPath: string
+  docIndex: number
+  newName: string
+}) => {
+  const { collectionPath, docIndex, newName } = payload
+
+  if (collectionsType.value.type === "team-collections") {
+    const teamColl = findTeamCollectionByID(
+      teamCollections.value,
+      collectionPath
+    )
+    if (!teamColl) return
+
+    const existingData = parseCollectionData(teamColl.data ?? null)
+    const diagrams = [...(existingData.erdDiagrams ?? [])]
+    if (diagrams[docIndex]) {
+      diagrams[docIndex] = { ...diagrams[docIndex], name: newName }
+    }
+    const updatedData: CollectionDataProps = {
+      ...existingData,
+      erdDiagrams: diagrams,
+    }
+
+    pipe(
+      updateTeamCollection(teamColl.id, updatedData),
+      TE.match(
+        (err: GQLError<string>) => {
+          toast.error(`${getErrorMessage(err)}`)
+        },
+        () => {
+          toast.success(t("collection.erd_diagram_renamed"))
+        }
+      )
+    )()
+    return
+  }
+
+  const pathIndices = collectionPath.split("/").map((x) => parseInt(x))
+
+  if (pathIndices.length === 1) {
+    const collIdx = pathIndices[0]
+    const coll = myCollections.value[collIdx]
+    if (!coll || !coll.erdDiagrams) return
+    const diagrams = [...coll.erdDiagrams]
+    if (diagrams[docIndex]) {
+      diagrams[docIndex] = { ...diagrams[docIndex], name: newName }
+      editRESTCollection(collIdx, { erdDiagrams: diagrams })
+    }
+  } else {
+    const folder = navigateToFolderWithIndexPath(
+      myCollections.value,
+      pathIndices
+    )
+    if (!folder || !folder.erdDiagrams) return
+    const diagrams = [...folder.erdDiagrams]
+    if (diagrams[docIndex]) {
+      diagrams[docIndex] = { ...diagrams[docIndex], name: newName }
+      editRESTFolder(collectionPath, { erdDiagrams: diagrams })
+    }
+  }
+  toast.success(t("collection.erd_diagram_renamed"))
 }
 
 const addFolder = (payload: {

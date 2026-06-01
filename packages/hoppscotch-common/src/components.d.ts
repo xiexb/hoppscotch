@@ -79,6 +79,8 @@ declare module 'vue' {
     CollectionsEditFolder: typeof import('./components/collections/EditFolder.vue')['default']
     CollectionsEditRequest: typeof import('./components/collections/EditRequest.vue')['default']
     CollectionsEditResponse: typeof import('./components/collections/EditResponse.vue')['default']
+    CollectionsErdDiagramNode: typeof import('./components/collections/ErdDiagramNode.vue')['default']
+    CollectionsErdDiagramTab: typeof import('./components/collections/ErdDiagramTab.vue')['default']
     CollectionsExampleResponse: typeof import('./components/collections/ExampleResponse.vue')['default']
     CollectionsGraphql: typeof import('./components/collections/graphql/index.vue')['default']
     CollectionsGraphqlAdd: typeof import('./components/collections/graphql/Add.vue')['default']
