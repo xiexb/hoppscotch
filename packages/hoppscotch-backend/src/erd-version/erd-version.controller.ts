@@ -13,6 +13,7 @@ import {
   Res,
   StreamableFile,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { spawn } from 'child_process';
@@ -25,17 +26,21 @@ import { ErdVersionService } from './erd-version.service';
 import { CommitVersionDto } from './dto/commit-version.dto';
 import { DiffQueryDto } from './dto/diff-query.dto';
 import { RemoteConfigDto } from './dto/remote-config.dto';
+import { TeamService } from '../team/team.service';
 
 /**
  * ErdVersionController — REST endpoints for ERD version management.
  *
  * Base path: /api/v1/erd-version
- * All endpoints require JWT authentication.
+ * All endpoints require JWT authentication + team membership validation.
  */
 @UseGuards(ThrottlerBehindProxyGuard)
 @Controller({ path: 'erd-version', version: '1' })
 export class ErdVersionController {
-  constructor(private readonly erdVersionService: ErdVersionService) {}
+  constructor(
+    private readonly erdVersionService: ErdVersionService,
+    private readonly teamService: TeamService,
+  ) {}
 
   // ─── Helpers ────────────────────────────────────────────────────
 
@@ -54,6 +59,7 @@ export class ErdVersionController {
 
   /**
    * Validate required query parameters teamId and collectionId.
+   * Ensures values contain only safe characters to prevent path traversal.
    */
   private validateCollectionParams(
     teamId: string | undefined,
@@ -64,7 +70,42 @@ export class ErdVersionController {
         'Query parameters teamId and collectionId are required',
       );
     }
+    // Reject path traversal attempts — only alphanumeric, hyphens, underscores allowed
+    const safeIdPattern = /^[a-zA-Z0-9_-]+$/;
+    if (!safeIdPattern.test(teamId) || !safeIdPattern.test(collectionId)) {
+      throw new BadRequestException(
+        'Invalid teamId or collectionId format',
+      );
+    }
     return { teamId, collectionId };
+  }
+
+  /**
+   * Validate a git ref parameter to prevent command injection.
+   * Only allows commit hashes (7-40 hex chars) or HEAD~N expressions.
+   */
+  private validateRef(ref: string): string {
+    if (!ref) {
+      throw new BadRequestException('Parameter ref is required');
+    }
+    // Allow: commit hashes (7-40 hex), HEAD, HEAD~N
+    if (/^[0-9a-f]{7,40}$/i.test(ref) || /^HEAD~?\d*$/.test(ref)) {
+      return ref;
+    }
+    throw new BadRequestException('Invalid git ref format');
+  }
+
+  /**
+   * Validate that the authenticated user is a member of the specified team.
+   */
+  private async validateTeamMembership(
+    userId: string,
+    teamId: string,
+  ): Promise<void> {
+    const member = await this.teamService.getTeamMember(teamId, userId);
+    if (!member) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
   }
 
   // ─── Commit ─────────────────────────────────────────────────────
@@ -76,13 +117,14 @@ export class ErdVersionController {
   @Post('commit')
   @UseGuards(JwtAuthGuard)
   async commitVersion(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Body() dto: CommitVersionDto,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const result = await this.erdVersionService.commitVersion(
       tid,
@@ -103,7 +145,7 @@ export class ErdVersionController {
   @Get('log')
   @UseGuards(JwtAuthGuard)
   async getVersionLog(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Query('limit') limit?: string,
@@ -111,6 +153,7 @@ export class ErdVersionController {
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const maxCount = limit ? parseInt(limit, 10) || 50 : 50;
 
@@ -131,13 +174,18 @@ export class ErdVersionController {
   @Get('diff')
   @UseGuards(JwtAuthGuard)
   async getDiff(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Query() query: DiffQueryDto,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
+
+    // Validate refs if provided
+    if (query.from) this.validateRef(query.from);
+    if (query.to) this.validateRef(query.to);
 
     const result = await this.erdVersionService.getDiff(
       tid,
@@ -157,17 +205,15 @@ export class ErdVersionController {
   @Get('stats/:ref')
   @UseGuards(JwtAuthGuard)
   async getVersionStats(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Param('ref') ref: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
-
-    if (!ref) {
-      throw new BadRequestException('Parameter ref is required');
-    }
+    await this.validateTeamMembership(user.uid, tid);
+    this.validateRef(ref);
 
     const result = await this.erdVersionService.getVersionStats(
       tid,
@@ -186,13 +232,14 @@ export class ErdVersionController {
   @Put('remote')
   @UseGuards(JwtAuthGuard)
   async configureRemote(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Body() dto: RemoteConfigDto,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const result = await this.erdVersionService.configureRemote(
       tid,
@@ -211,12 +258,13 @@ export class ErdVersionController {
   @Get('remote')
   @UseGuards(JwtAuthGuard)
   async getRemoteStatus(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const status = await this.erdVersionService.getRemoteStatus(tid, cid);
     return {
@@ -237,12 +285,13 @@ export class ErdVersionController {
   @Post('push')
   @UseGuards(JwtAuthGuard)
   async pushToRemote(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const result = await this.erdVersionService.pushToRemoteNow(tid, cid);
     const pushResult = this.unwrap(result);
@@ -258,13 +307,14 @@ export class ErdVersionController {
   @Get('export')
   @UseGuards(JwtAuthGuard)
   async exportRepo(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
 
     const pathResult = await this.erdVersionService.getRepoPathPublic(
       tid,
@@ -302,17 +352,15 @@ export class ErdVersionController {
   @Post('restore/:ref')
   @UseGuards(JwtAuthGuard)
   async restoreVersion(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Param('ref') ref: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
-
-    if (!ref) {
-      throw new BadRequestException('Parameter ref is required');
-    }
+    await this.validateTeamMembership(user.uid, tid);
+    this.validateRef(ref);
 
     const result = await this.erdVersionService.restoreVersion(
       tid,
@@ -332,17 +380,15 @@ export class ErdVersionController {
   @Get(':ref')
   @UseGuards(JwtAuthGuard)
   async getVersion(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Param('ref') ref: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
-
-    if (!ref) {
-      throw new BadRequestException('Parameter ref is required');
-    }
+    await this.validateTeamMembership(user.uid, tid);
+    this.validateRef(ref);
 
     // Get the ERD JSON
     const versionResult = await this.erdVersionService.getVersion(
@@ -384,17 +430,15 @@ export class ErdVersionController {
   @Delete('commit/:ref')
   @UseGuards(JwtAuthGuard)
   async revertVersion(
-    @GqlUser() _user: AuthUser,
+    @GqlUser() user: AuthUser,
     @Query('teamId') teamId: string,
     @Query('collectionId') collectionId: string,
     @Param('ref') ref: string,
   ) {
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
-
-    if (!ref) {
-      throw new BadRequestException('Parameter ref is required');
-    }
+    await this.validateTeamMembership(user.uid, tid);
+    this.validateRef(ref);
 
     const result = await this.erdVersionService.revertVersion(
       tid,

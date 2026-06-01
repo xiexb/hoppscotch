@@ -257,6 +257,7 @@ function diffColumnProperties(
     'type',
     'pk',
     'notNull',
+    'unique',
     'autoIncrement',
     'default',
     'comment',

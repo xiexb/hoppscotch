@@ -125,7 +125,11 @@ export class ErdVersionService {
    * Get the local filesystem path for a collection's git repo.
    */
   private getRepoPath(teamId: string, collectionId: string): string {
-    return path.join(this.erdVersionRoot, teamId, collectionId);
+    const resolved = path.resolve(this.erdVersionRoot, teamId, collectionId);
+    if (!resolved.startsWith(path.resolve(this.erdVersionRoot) + path.sep)) {
+      throw new Error('Invalid path: path traversal detected');
+    }
+    return resolved;
   }
 
   /**
@@ -201,7 +205,7 @@ export class ErdVersionService {
       if (this.sshKeyPath) {
         await git.addConfig(
           'core.sshCommand',
-          `ssh -i ${this.sshKeyPath} -o StrictHostKeyChecking=no`,
+          `ssh -i ${this.sshKeyPath} -o StrictHostKeyChecking=accept-new`,
         );
       }
 
@@ -781,7 +785,7 @@ export class ErdVersionService {
         if (this.sshKeyPath) {
           await git.addConfig(
             'core.sshCommand',
-            `ssh -i ${this.sshKeyPath} -o StrictHostKeyChecking=no`,
+            `ssh -i ${this.sshKeyPath} -o StrictHostKeyChecking=accept-new`,
           );
         }
 

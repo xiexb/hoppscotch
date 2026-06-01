@@ -12,6 +12,7 @@ export interface NormalizedColumn {
   type: string;
   pk: boolean;
   notNull: boolean;
+  unique: boolean;
   autoIncrement: boolean;
   default: string;
   comment: string;
@@ -42,7 +43,7 @@ export interface NormalizedErdSchema {
 // Column options bitmask (from erd-editor v3.0.0)
 const OPTION_AUTO_INCREMENT = 1;
 const OPTION_PRIMARY_KEY = 2;
-// const OPTION_UNIQUE = 4; // reserved for future use
+const OPTION_UNIQUE = 4;
 const OPTION_NOT_NULL = 8;
 
 /**
@@ -109,6 +110,7 @@ export function normalizeErdJson(erdJsonStr: string): NormalizedErdSchema {
             type: col.dataType ?? '',
             pk: (options & OPTION_PRIMARY_KEY) !== 0,
             notNull: (options & OPTION_NOT_NULL) !== 0,
+            unique: (options & OPTION_UNIQUE) !== 0,
             autoIncrement: (options & OPTION_AUTO_INCREMENT) !== 0,
             default: col.default ?? '',
             comment: col.comment ?? '',
