@@ -799,6 +799,112 @@ export class ErdVersionService {
     });
   }
 
+  // ─── Public Accessors ─────────────────────────────────────────
+
+  /**
+   * Get the repo path for a collection (public for export use).
+   */
+  async getRepoPathPublic(
+    teamId: string,
+    collectionId: string,
+  ): Promise<E.Either<string, string>> {
+    const repoPath = this.getRepoPath(teamId, collectionId);
+    if (!(await this.repoExists(repoPath))) {
+      return E.left(ERD_VERSION_REPO_NOT_FOUND);
+    }
+    return E.right(repoPath);
+  }
+
+  /**
+   * Push to remote synchronously (blocking, returns result).
+   */
+  async pushToRemoteNow(
+    teamId: string,
+    collectionId: string,
+  ): Promise<E.Either<string, { pushed: boolean }>> {
+    const mutex = this.getMutex(teamId, collectionId);
+
+    return mutex.runExclusive(async () => {
+      const repoPath = this.getRepoPath(teamId, collectionId);
+
+      if (!(await this.repoExists(repoPath))) {
+        return E.left(ERD_VERSION_REPO_NOT_FOUND);
+      }
+
+      const git = this.createGit(repoPath);
+
+      try {
+        const remotes = await git.getRemotes();
+        if (remotes.length === 0) {
+          return E.right({ pushed: false });
+        }
+
+        await git.push('origin', 'main');
+
+        const key = this.getCollectionKey(teamId, collectionId);
+        this.remoteStatuses.set(key, {
+          lastPushAt: new Date().toISOString(),
+          lastPushError: null,
+        });
+
+        this.logger.log(
+          `Manual push succeeded for ${teamId}/${collectionId}`,
+        );
+        return E.right({ pushed: true });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Manual push failed for ${teamId}/${collectionId}: ${msg}`,
+        );
+        return E.left(ERD_VERSION_REMOTE_PUSH_FAILED);
+      }
+    });
+  }
+
+  /**
+   * Get version stats: count tables, columns, relationships from normalized JSON.
+   */
+  async getVersionStats(
+    teamId: string,
+    collectionId: string,
+    ref: string,
+  ): Promise<
+    E.Either<
+      string,
+      { tables: number; columns: number; relationships: number }
+    >
+  > {
+    const repoPath = this.getRepoPath(teamId, collectionId);
+
+    if (!(await this.repoExists(repoPath))) {
+      return E.left(ERD_VERSION_REPO_NOT_FOUND);
+    }
+
+    const git = this.createGit(repoPath);
+
+    try {
+      const content = await git.show([
+        `${ref}:${ERD_DIR}/${ERD_NORMALIZED_FILE}`,
+      ]);
+      const normalized: NormalizedErdSchema = JSON.parse(content);
+
+      const tables = normalized.tables.length;
+      const columns = normalized.tables.reduce(
+        (sum, t) => sum + t.columns.length,
+        0,
+      );
+      const relationships = normalized.relationships.length;
+
+      return E.right({ tables, columns, relationships });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Stats failed for ref ${ref} in ${teamId}/${collectionId}: ${msg}`,
+      );
+      return E.left(ERD_VERSION_REF_NOT_FOUND);
+    }
+  }
+
   // ─── Utility ────────────────────────────────────────────────────
 
   /**
