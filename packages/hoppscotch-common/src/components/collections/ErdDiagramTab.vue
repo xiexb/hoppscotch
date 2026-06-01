@@ -316,8 +316,8 @@ async function handleImportSQL(event: Event) {
     const sqlText = await file.text()
     if (erdEditorRef.value) {
       const editor = erdEditorRef.value as any
-      if (editor.setInitialValue) {
-        editor.setInitialValue(sqlText)
+      if (editor.setSchemaSQL) {
+        editor.setSchemaSQL(sqlText)
         tab.value.document.isDirty = true
         toast.success(t("erd.import_success"))
       }
@@ -357,9 +357,14 @@ function exportJSON() {
 
 function exportSQL() {
   try {
-    const value = getEditorValue()
-    downloadFile(value, `${tab.value.document.name || "erd"}.json`, "application/json")
-    toast.success(t("erd.export_success_note"))
+    if (erdEditorRef.value) {
+      const editor = erdEditorRef.value as any
+      if (editor.getSchemaSQL) {
+        const sql = editor.getSchemaSQL()
+        downloadFile(sql, `${tab.value.document.name || "erd"}.sql`, "text/sql")
+        toast.success(t("erd.export_success_note"))
+      }
+    }
   } catch (_e) {
     toast.error(t("erd.export_error"))
   }
