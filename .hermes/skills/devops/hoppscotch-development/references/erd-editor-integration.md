@@ -34,11 +34,15 @@ import "@dineug/erd-editor"  // Side-effect: registers custom element
 ### Element Methods
 | Method | Description |
 |--------|-------------|
-| `setInitialValue(jsonString)` | Load schema JSON into editor |
+| `setInitialValue(jsonString)` | Load schema JSON into editor (JSON format only) |
+| `setSchemaSQL(sqlString)` | Load PostgreSQL/MySQL DDL SQL into editor |
+| `getSchemaSQL()` | Export current schema as SQL DDL string |
 | `clear()` | Clear all tables/relationships |
 | `destroy()` | Cleanup (call in `onBeforeUnmount`) |
 | `focus()` / `blur()` | Focus management |
 | `.value` (getter) | Current schema as JSON string |
+
+**CRITICAL**: `setInitialValue()` is for JSON only (SchemaV3 format). To import SQL DDL, use `setSchemaSQL()`. Mixing these up causes silent failures.
 
 ### Element Properties
 | Prop | Type | Description |

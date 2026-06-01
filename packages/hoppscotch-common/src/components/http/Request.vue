@@ -5,8 +5,8 @@
     <div
       class="min-w-[12rem] flex flex-1 whitespace-nowrap rounded border border-divider"
     >
-      <div class="relative flex">
-        <label for="method">
+      <div class="relative flex items-center">
+        <label for="method" class="flex items-center h-full">
           <tippy
             v-if="!readonly"
             interactive
@@ -65,7 +65,7 @@
         </label>
       </div>
       <div
-        class="flex flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
+        class="flex items-center flex-1 whitespace-nowrap rounded-r border-l border-divider bg-primaryLight transition"
         :class="{ 'has-prefix-url': resolvedPrefixUrl && !isEndpointFullUrl }"
       >
         <!-- Prefix URL indicator (🔗 icon when prefix URL is active, clickable to change) -->
@@ -77,9 +77,9 @@
         >
           <span
             v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-            class="flex items-center justify-center w-4 h-4 text-accent shrink-0 cursor-pointer"
+            class="flex items-center justify-center pl-2.5 pr-0.5 text-accent shrink-0 cursor-pointer"
           >
-            <icon-lucide-link class="w-4 h-4" />
+            <icon-lucide-link class="w-3.5 h-3.5" />
           </span>
           <template #content="{ hide }">
             <div class="flex flex-col focus:outline-none" tabindex="0" @keyup.escape="hide()">
@@ -105,9 +105,9 @@
         <span
           v-else-if="resolvedPrefixUrl && !isEndpointFullUrl && readonly"
           v-tippy="{ theme: 'tooltip', content: `前置URL: ${resolvedPrefixUrl}` }"
-          class="flex items-center justify-center w-4 h-4 text-accent shrink-0"
+          class="flex items-center justify-center pl-2.5 pr-0.5 text-accent shrink-0"
         >
-          <icon-lucide-link class="w-4 h-4" />
+          <icon-lucide-link class="w-3.5 h-3.5" />
         </span>
         <SmartEnvInput
           v-if="!readonly"
@@ -124,7 +124,7 @@
         <span
           v-else
           class="flex-1 text-sm font-mono text-secondaryDark truncate min-h-[38px] flex items-center"
-          :class="resolvedPrefixUrl && !isEndpointFullUrl ? 'pl-1 py-2' : 'px-2 py-2'"
+          :class="resolvedPrefixUrl && !isEndpointFullUrl ? 'pl-0.5 py-2' : 'px-4 py-2'"
         >{{ tab.document.request.endpoint || t('request.url_placeholder') }}</span>
       </div>
     </div>
@@ -1071,9 +1071,30 @@ watch(
 </script>
 
 <style scoped>
-/* When prefix URL icon is present, reduce the CodeMirror line padding
-   so the URI text sits right next to the 🔗 icon without extra gap */
+/* When prefix URL icon is present, eliminate ALL left padding/margin
+   in the CodeMirror editor chain so the URI text sits right next to the 🔗 icon */
 .has-prefix-url :deep(.cm-line) {
-  padding-left: 0.25rem !important;
+  padding-left: 0 !important;
+}
+.has-prefix-url :deep(.cm-content) {
+  padding-left: 0 !important;
+}
+.has-prefix-url :deep(.cm-editor) {
+  margin-left: 0 !important;
+}
+.has-prefix-url :deep(.autocomplete-wrapper) {
+  padding-left: 0 !important;
+}
+/* CRITICAL FIX: vue-tippy wraps trigger+popup in a <span data-v-tippy>.
+   In a flex container with flex:1 children, this span gets stretched (150px)
+   even though the icon trigger is only ~26px. The popup content (HoppSmartItem
+   list) is inside this span too, inflating its intrinsic width.
+   Fix: make the tippy span non-growing, sized only by its trigger icon. */
+.has-prefix-url :deep([data-v-tippy]) {
+  flex: none !important;
+  width: auto !important;
+  display: inline-flex !important;
+  vertical-align: middle;
+  line-height: 0;
 }
 </style>

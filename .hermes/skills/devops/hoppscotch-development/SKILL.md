@@ -1187,6 +1187,42 @@ When implementing action toolbars, the user prefers **compact icon-only buttons*
 ```
 Semi-transparent dark background with `backdrop-filter: blur()`, 28×28px buttons, danger style (red hover) on destructive actions.
 
+### vue-tippy `<span data-v-tippy>` wrapper breaks flex layouts (CRITICAL)
+The `<tippy>` component (vue-tippy) wraps its trigger element AND popup content together inside a `<span data-v-tippy>`. When placed inside a `flex` container with `flex-1` children, this span inherits `flex: 1 0 0%` and stretches to fill available space — far beyond the trigger icon's actual width.
+
+**Symptom:** A 26px icon inside a `<tippy>` stretches to 150px (or more), creating large gaps between adjacent elements. The popup content (menu items, tooltips) inflates the span's intrinsic width.
+
+**Diagnosis:** Walk the DOM with `getComputedStyle` and check the `[data-v-tippy]` span's `flex` property and computed width vs. its child icon's width.
+
+**Fix:** In scoped CSS, force the tippy wrapper to size only by its content:
+```css
+.parent-selector :deep([data-v-tippy]) {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  display: inline-flex !important;
+  vertical-align: middle;
+  line-height: 0;
+}
+```
+
+**PITFALL:** `display: inline-flex` alone is NOT sufficient — the span still has `flex: 1 0 0%` from the parent flex container. You MUST add `flex: 0 0 auto` to prevent stretching.
+
+**When this matters:** Any time `<tippy>` is used as a flex child alongside other `flex-1` elements (URL input fields, text areas, etc.). Common in URL bars where a clickable icon sits next to a text input.
+
+### CodeMirror inputTheme `.cm-line` has 1rem left padding — override at all levels
+The `inputTheme` in `helpers/editor/themes/baseTheme.ts` sets `.cm-line` with `paddingLeft: "1rem"` (16px). When you need the text content to sit flush-left against an adjacent element (e.g., a prefix URL icon), you must override padding at MULTIPLE levels:
+
+```css
+.flush-left :deep(.cm-line) { padding-left: 0 !important; }
+.flush-left :deep(.cm-content) { padding-left: 0 !important; }
+.flush-left :deep(.cm-editor) { margin-left: 0 !important; }
+.flush-left :deep(.autocomplete-wrapper) { padding-left: 0 !important; }
+```
+
+**Why multiple levels:** CodeMirror's internal structure is `autocomplete-wrapper > div.absolute > div > .cm-editor > .cm-scroller > .cm-content > .cm-line`. Each level can add its own padding/margin. The `inputTheme` styles apply to `.cm-line` but other styles may exist at `.cm-content` or wrapper levels.
+
+**PITFALL:** Only overriding `.cm-line` leaves 16px gap because `.cm-content` also has padding in some themes. Override all levels to be safe.
+
 ## References
 
 - See `references/verzod-data-model.md` for detailed verzod migration patterns

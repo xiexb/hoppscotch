@@ -536,6 +536,35 @@ User may need to clear IndexedDB `persistence.v1` store afterwards (or the `-bac
 entry). See `hoppscotch-development` skill `references/persistence-schema-validation.md`
 for the complete fix details.
 
+### P50: vue-tippy `<span data-v-tippy>` stretches in flex containers — icon gap bug
+
+vue-tippy's `<tippy>` component wraps trigger + popup content in a `<span data-v-tippy>`.
+When placed in a `display: flex` container, this span inherits flex properties from the
+parent layout. Result: a 26px icon trigger gets stretched to 150px because the popup
+content (HoppSmartItem list) inflates the span's intrinsic width.
+
+**Symptoms**: Large gap between a tippy-wrapped icon and adjacent elements in URL bars,
+toolbars, or any flex layout.
+
+**Diagnosis**: Walk the DOM with `getComputedStyle()` + `getBoundingClientRect()`.
+Look for a `[data-v-tippy]` span with width >> trigger icon width.
+
+**Fix**: Add to scoped CSS:
+```css
+.parent-selector :deep([data-v-tippy]) {
+  flex: 0 0 auto !important;  /* prevent stretching */
+  width: auto !important;
+  display: inline-flex !important;
+}
+```
+
+**Key insight**: `flex: none` alone may not work because the span's content width
+includes the hidden popup. `flex: 0 0 auto` explicitly prevents growing and shrinking.
+
+**PITFALL**: This affects ALL vue-tippy usage in flex layouts throughout Hoppscotch.
+When debugging spacing issues near icons wrapped in `<tippy>`, always check the
+`[data-v-tippy]` wrapper's computed width vs the visible trigger icon width.
+
 ### P47: Frontend runs as `vite preview` (static build) — code changes need full rebuild
 The selfhost-web frontend may be running as `vite preview` (serving from `dist/`),
 NOT `vite dev` (with HMR). Check which mode is active:
@@ -571,6 +600,83 @@ pnpm run preview --port 3003 --host 0.0.0.0  # background
 
 **PITFALL:** If you make a code fix but forget to rebuild, users will still see the
 old behavior. Always verify the build output (`dist/`) timestamp after rebuilding.
+
+### P51: URL bar component anatomy (Request.vue) — method | prefix icon | SmartEnvInput
+
+### P52: Backend `node dist/src/main.js` exits silently (exit code 0)
+The backend process periodically exits with code 0 (clean exit) even when
+started correctly. No crash logs, no error messages — just dies. This has
+been observed multiple times during active development sessions.
+
+**Symptom**: Frontend shows empty collections / "data disappeared" because
+GraphQL queries fail when backend is down (see P42 for diagnosis).
+
+**Mitigation**: When starting backend via `terminal(background=true)`,
+pair with periodic health checks:
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3170/health
+```
+If 000, restart the backend. Consider a cron job or watchdog for production.
+
+The cause is unknown — possibly related to idle connection timeouts, memory
+pressure, or NestJS graceful shutdown on SIGPIPE from closed WebSocket clients.
+
+### P51: (continued)
+The URL bar in `components/http/Request.vue` has three horizontal sections inside
+a single `rounded border border-divider` container:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [Method input] │ [🔗 icon] [SmartEnvInput (CodeMirror)]     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Component hierarchy**:
+```
+div.min-w-[12rem].flex.flex-1.rounded.border
+  ├─ div.relative.flex.items-center          ← method section
+  │   └─ label.flex.items-center.h-full      ← wraps tippy + input
+  │       └─ tippy > HoppSmartSelectWrapper > input#method
+  └─ div.flex.items-center.flex-1.rounded-r.border-l  ← URL section
+      ├─ tippy > span.pl-2.5.pr-0.5          ← prefix URL 🔗 icon (conditional)
+      │   └─ icon-lucide-link.w-3.5.h-3.5
+      ├─ SmartEnvInput                        ← CodeMirror editor (editable mode)
+      └─ span (v-else readonly)               ← plain text display (readonly mode)
+```
+
+**Key CSS for layout tuning** (scoped `<style>` in Request.vue):
+```css
+/* When prefix URL icon is present, eliminate ALL left padding/margin
+   in the CodeMirror editor chain so the URI text sits right next to the 🔗 icon */
+.has-prefix-url :deep(.cm-line) { padding-left: 0 !important; }
+.has-prefix-url :deep(.cm-content) { padding-left: 0 !important; }
+.has-prefix-url :deep(.cm-editor) { margin-left: 0 !important; }
+.has-prefix-url :deep(.autocomplete-wrapper) { padding-left: 0 !important; }
+/* vue-tippy wraps trigger in a <span>, ensure it's inline and tight */
+.has-prefix-url :deep([data-v-tippy]) {
+  display: inline-flex !important;
+  vertical-align: middle;
+  line-height: 0;
+}
+```
+
+**Root cause**: `inputTheme` in `baseTheme.ts` sets `.cm-line { paddingLeft: "1rem" }` (16px).
+This creates a visible gap between the 🔗 icon and URI text in edit/debug modes.
+Preview/readonly mode uses a plain `<span>` without CodeMirror, so it's unaffected.
+The `!important` flag is necessary to override CodeMirror's inline styles.
+
+**vue-tippy wrapper pitfall**: vue-tippy's `<tippy>` component renders a `<span>` wrapper
+around its trigger content (the `tag` prop defaults to `'span'`). In flex containers,
+this wrapper can break alignment. Override with `[data-v-tippy] { display: inline-flex }`.
+
+- Prefix icon: `pl-2.5 pr-0.5` gives 10px left breathing room, 2px gap to URI
+- URL container: `items-center` on the parent flex ensures vertical alignment
+  of method, icon, and URI text
+- Readonly URL span: `pl-0.5` when prefix present, `px-4` when not
+
+**PITFALL**: The prefix URL icon has TWO variants — editable (tippy with service
+picker dropdown) and readonly (plain span). Both must be updated together for
+consistent appearance.
 
 ### P50: Backend start via nohup requires explicit PATH in subshell
 When starting backend with `nohup node dist/src/main.js &`, the nohup subshell
@@ -797,5 +903,6 @@ These files live inside the Hoppscotch repo and are read by Claude Code automati
 - `references/vue-reactivity-pitfalls.md` — v-if slots, computed ?? [] detached array, v-model on computed items
 - `references/schema-versioning.md` — verzod migration steps
 - `references/auth-architecture.md` — full auth system map: magic link + OAuth, backend/frontend key files, Prisma models, AuthPlatformDef interface, Login.vue mode state machine, checklist for adding new auth providers
+- `references/erd-in-collections.md` — ERD diagrams as collection items: schema v15, ErdDiagramNode/Tab components, CRUD pattern following MarkdownDoc
 - `scripts/restart-all.sh` — full restart script
 - `scripts/encrypt-infraconfig.js` — standalone encrypt/decrypt for InfraConfig

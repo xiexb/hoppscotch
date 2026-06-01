@@ -1,125 +1,97 @@
 /**
- * PostgreSQL SQL to erd-editor JSON converter
+ * PostgreSQL SQL to erd-editor v3.0.0 JSON converter
  *
  * Handles PG-specific syntax that @dineug/erd-editor's built-in parser misses:
  * - COMMENT ON TABLE / COMMENT ON COLUMN statements
  * - Multi-word data types (DOUBLE PRECISION, TIMESTAMP WITH TIME ZONE, etc.)
  * - SERIAL/BIGSERIAL as auto-increment
  * - PG-style quoted identifiers ("columnName")
+ *
+ * Output format matches erd-editor v3.0.0 schema:
+ * { $schema, version, settings, doc, collections }
  */
 
-// erd-editor column options bitmask
-const ColumnOption = {
-  primaryKey: 1,
-  notNull: 2,
-  unique: 4,
-  autoIncrement: 8,
-} as const;
+// Column options bitmask (erd-editor v3.0.0)
+const OPT_AUTO_INCREMENT = 1
+const OPT_PRIMARY_KEY = 2
+const OPT_UNIQUE = 4
+const OPT_NOT_NULL = 8
+
+// Database enum (erd-editor v3.0.0)
+const DB_POSTGRESQL = 16
+
+// Show bitmask
+const SHOW_TABLE_COMMENT = 1
+const SHOW_COLUMN_COMMENT = 2
+const SHOW_COLUMN_DATA_TYPE = 4
+const SHOW_COLUMN_PRIMARY_KEY = 32
+const SHOW_COLUMN_NOT_NULL = 128
+const SHOW_RELATIONSHIP = 256
+const SHOW_ALL =
+  SHOW_TABLE_COMMENT |
+  SHOW_COLUMN_COMMENT |
+  SHOW_COLUMN_DATA_TYPE |
+  SHOW_COLUMN_PRIMARY_KEY |
+  SHOW_COLUMN_NOT_NULL |
+  SHOW_RELATIONSHIP // = 423
+
+// Column order enum values
+const COL_ORDER = [1, 2, 4, 8, 16, 32, 64]
 
 interface ParsedColumn {
-  name: string;
-  dataType: string;
-  default: string;
-  comment: string;
-  primaryKey: boolean;
-  notNull: boolean;
-  unique: boolean;
-  autoIncrement: boolean;
+  name: string
+  dataType: string
+  default: string
+  comment: string
+  primaryKey: boolean
+  notNull: boolean
+  unique: boolean
+  autoIncrement: boolean
 }
 
 interface ParsedTable {
-  name: string;
-  comment: string;
-  columns: ParsedColumn[];
-  primaryKeys: string[];
-  uniques: string[];
+  name: string
+  comment: string
+  columns: ParsedColumn[]
+  primaryKeys: string[]
+  uniques: string[]
 }
 
 interface ParsedForeignKey {
-  fromTable: string;
-  fromColumns: string[];
-  toTable: string;
-  toColumns: string[];
+  fromTable: string
+  fromColumns: string[]
+  toTable: string
+  toColumns: string[]
 }
 
-// Multi-word PG data types that the tokenizer splits incorrectly
 const MULTI_WORD_TYPES = [
-  "DOUBLE PRECISION",
-  "CHARACTER VARYING",
-  "BIT VARYING",
   "TIMESTAMP WITH TIME ZONE",
   "TIMESTAMP WITHOUT TIME ZONE",
   "TIME WITH TIME ZONE",
   "TIME WITHOUT TIME ZONE",
-];
+  "DOUBLE PRECISION",
+  "CHARACTER VARYING",
+  "BIT VARYING",
+]
 
-// SERIAL types that imply auto-increment
-const SERIAL_TYPES = [
+const SERIAL_TYPES = new Set([
   "SERIAL",
   "SERIAL2",
   "SERIAL4",
   "SERIAL8",
   "BIGSERIAL",
   "SMALLSERIAL",
-];
+])
 
-// All known PG single-word data types
 const PG_SINGLE_TYPES = new Set([
-  "BIGINT",
-  "BIGSERIAL",
-  "BIT",
-  "BOOL",
-  "BOOLEAN",
-  "BOX",
-  "BYTEA",
-  "CHAR",
-  "CHARACTER",
-  "CIDR",
-  "CIRCLE",
-  "DATE",
-  "DECIMAL",
-  "DOUBLE",
-  "FLOAT4",
-  "FLOAT8",
-  "INET",
-  "INT",
-  "INT2",
-  "INT4",
-  "INT8",
-  "INTEGER",
-  "INTERVAL",
-  "JSON",
-  "JSONB",
-  "LINE",
-  "LSEG",
-  "MACADDR",
-  "MACADDR8",
-  "MONEY",
-  "NUMERIC",
-  "PATH",
-  "PG_LSN",
-  "POINT",
-  "POLYGON",
-  "REAL",
-  "SERIAL",
-  "SERIAL2",
-  "SERIAL4",
-  "SERIAL8",
-  "SMALLINT",
-  "SMALLSERIAL",
-  "TEXT",
-  "TIME",
-  "TIMESTAMP",
-  "TIMESTAMPTZ",
-  "TIMETZ",
-  "TSQUERY",
-  "TSVECTOR",
-  "TXID_SNAPSHOT",
-  "UUID",
-  "VARBIT",
-  "VARCHAR",
-  "XML",
-]);
+  "BIGINT", "BIT", "BOOL", "BOOLEAN", "BOX", "BYTEA", "CHAR", "CHARACTER",
+  "CIDR", "CIRCLE", "DATE", "DECIMAL", "DOUBLE", "FLOAT4", "FLOAT8", "INET",
+  "INT", "INT2", "INT4", "INT8", "INTEGER", "INTERVAL", "JSON", "JSONB",
+  "LINE", "LSEG", "MACADDR", "MACADDR8", "MONEY", "NUMERIC", "PATH",
+  "PG_LSN", "POINT", "POLYGON", "REAL", "SMALLINT", "TEXT", "TIME",
+  "TIMESTAMP", "TIMESTAMPTZ", "TIMETZ", "TSQUERY", "TSVECTOR",
+  "TXID_SNAPSHOT", "UUID", "VARBIT", "VARCHAR", "XML",
+])
 
 function stripQuotes(s: string): string {
   if (
@@ -127,786 +99,468 @@ function stripQuotes(s: string): string {
     (s.startsWith("'") && s.endsWith("'")) ||
     (s.startsWith("`") && s.endsWith("`"))
   ) {
-    return s.slice(1, -1);
+    return s.slice(1, -1)
   }
-  return s;
+  return s
 }
 
 function removeComments(sql: string): string {
-  // Remove single-line comments
-  let result = sql.replace(/--[^\n]*/g, "");
-  // Remove multi-line comments
-  result = result.replace(/\/\*[\s\S]*?\*\//g, "");
-  return result;
+  let result = sql.replace(/--[^\n]*/g, "")
+  result = result.replace(/\/\*[\s\S]*?\*\//g, "")
+  return result
 }
 
-/**
- * Split SQL into statements, respecting quoted strings and parentheses.
- */
 function splitStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let parenDepth = 0;
-
+  const stmts: string[] = []
+  let cur = ""
+  let inSQ = false
+  let inDQ = false
+  let depth = 0
   for (let i = 0; i < sql.length; i++) {
-    const ch = sql[i];
-
-    if (ch === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-    } else if (ch === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-    } else if (ch === "(" && !inSingleQuote && !inDoubleQuote) {
-      parenDepth++;
-    } else if (ch === ")" && !inSingleQuote && !inDoubleQuote) {
-      parenDepth--;
-    } else if (ch === ";" && !inSingleQuote && !inDoubleQuote && parenDepth <= 0) {
-      const stmt = current.trim();
-      if (stmt) statements.push(stmt);
-      current = "";
-      continue;
+    const ch = sql[i]
+    if (ch === "'" && !inDQ) inSQ = !inSQ
+    else if (ch === '"' && !inSQ) inDQ = !inDQ
+    else if (ch === "(" && !inSQ && !inDQ) depth++
+    else if (ch === ")" && !inSQ && !inDQ) depth--
+    else if (ch === ";" && !inSQ && !inDQ && depth <= 0) {
+      const s = cur.trim()
+      if (s) stmts.push(s)
+      cur = ""
+      continue
     }
-
-    current += ch;
+    cur += ch
   }
-
-  const last = current.trim();
-  if (last) statements.push(last);
-
-  return statements;
-}
-
-/**
- * Parse a column definition from a CREATE TABLE statement.
- * Handles multi-word data types and PG-specific syntax.
- */
-function parseColumnDef(def: string): ParsedColumn {
-  const col: ParsedColumn = {
-    name: "",
-    dataType: "",
-    default: "",
-    comment: "",
-    primaryKey: false,
-    notNull: false,
-    unique: false,
-    autoIncrement: false,
-  };
-
-  // Extract column name (first token, possibly quoted)
-  const trimmed = def.trim();
-  let pos = 0;
-
-  if (trimmed[0] === '"') {
-    const endQuote = trimmed.indexOf('"', 1);
-    if (endQuote > 0) {
-      col.name = trimmed.slice(1, endQuote);
-      pos = endQuote + 1;
-    }
-  } else {
-    const spaceIdx = trimmed.search(/\s/);
-    if (spaceIdx > 0) {
-      col.name = trimmed.slice(0, spaceIdx);
-      pos = spaceIdx;
-    } else {
-      col.name = trimmed;
-      return col;
-    }
-  }
-
-  // Rest of the definition after column name
-  const rest = trimmed.slice(pos).trim();
-
-  // Try to match multi-word data types first
-  const restUpper = rest.toUpperCase();
-  let matchedType = "";
-  let typeEndPos = 0;
-
-  for (const mwt of MULTI_WORD_TYPES) {
-    if (restUpper.startsWith(mwt)) {
-      matchedType = mwt;
-      typeEndPos = mwt.length;
-      break;
-    }
-  }
-
-  if (matchedType) {
-    col.dataType = matchedType;
-    // Check for size specifier like (10)
-    const afterType = rest.slice(typeEndPos).trim();
-    if (afterType.startsWith("(")) {
-      const closeParen = afterType.indexOf(")");
-      if (closeParen > 0) {
-        col.dataType += afterType.slice(0, closeParen + 1);
-        typeEndPos = rest.length - afterType.length + closeParen + 1;
-      }
-    }
-    parseColumnConstraints(rest.slice(typeEndPos).trim(), col);
-  } else {
-    // Single-word data type
-    const tokens = tokenizeColumnRest(rest);
-    if (tokens.length > 0) {
-      let dataType = tokens[0];
-      const dataTypeUpper = dataType.toUpperCase();
-
-      // Check if it's a known PG type
-      if (PG_SINGLE_TYPES.has(dataTypeUpper)) {
-        col.dataType = dataType;
-      } else {
-        // Custom type (e.g., user-defined enum), keep it
-        col.dataType = dataType;
-      }
-
-      // Check for size specifier
-      if (tokens.length > 1 && tokens[1].startsWith("(")) {
-        // Size might be split: "VARCHAR" "(" "255" ")"
-        let sizePart = "";
-        let constraintStart = 1;
-        for (let i = 1; i < tokens.length; i++) {
-          sizePart += tokens[i];
-          constraintStart = i + 1;
-          if (tokens[i].includes(")")) break;
-        }
-        col.dataType += sizePart;
-        parseColumnConstraints(
-          tokens.slice(constraintStart).join(" "),
-          col
-        );
-      } else {
-        parseColumnConstraints(tokens.slice(1).join(" "), col);
-      }
-    }
-  }
-
-  // Check if serial type
-  if (SERIAL_TYPES.includes(col.dataType.toUpperCase().split("(")[0])) {
-    col.autoIncrement = true;
-    col.notNull = true;
-  }
-
-  return col;
-}
-
-function tokenizeColumnRest(s: string): string[] {
-  const tokens: string[] = [];
-  let current = "";
-  let inParen = 0;
-
-  for (const ch of s) {
-    if (ch === "(") {
-      inParen++;
-      current += ch;
-    } else if (ch === ")") {
-      inParen--;
-      current += ch;
-    } else if (/\s/.test(ch) && inParen === 0) {
-      if (current) {
-        tokens.push(current);
-        current = "";
-      }
-    } else {
-      current += ch;
-    }
-  }
-  if (current) tokens.push(current);
-  return tokens;
-}
-
-function parseColumnConstraints(constraintStr: string, col: ParsedColumn): void {
-  const upper = constraintStr.toUpperCase();
-
-  if (upper.includes("PRIMARY KEY")) {
-    col.primaryKey = true;
-    col.notNull = true;
-  }
-  if (upper.includes("NOT NULL")) {
-    col.notNull = true;
-  }
-  if (upper.includes("UNIQUE")) {
-    col.unique = true;
-  }
-  if (
-    upper.includes("SERIAL") ||
-    upper.includes("GENERATED") ||
-    upper.includes("AUTO_INCREMENT")
-  ) {
-    col.autoIncrement = true;
-    col.notNull = true;
-  }
-
-  // Extract DEFAULT value
-  const defaultMatch = constraintStr.match(
-    /DEFAULT\s+('(?:[^'\\]|\\.)*'|\S+(?:\([^)]*\))?)/i
-  );
-  if (defaultMatch) {
-    col.default = stripQuotes(defaultMatch[1]);
-  }
-
-  // Extract inline COMMENT (MySQL style, sometimes in PG dumps)
-  const commentMatch = constraintStr.match(/COMMENT\s+'((?:[^'\\]|\\.)*)'/i);
-  if (commentMatch) {
-    col.comment = commentMatch[1];
-  }
-}
-
-/**
- * Parse a CREATE TABLE statement.
- */
-function parseCreateTable(stmt: string): ParsedTable | null {
-  // Match: CREATE TABLE [IF NOT EXISTS] [schema.]tableName (...)
-  const match = stmt.match(
-    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?([^"(.\s]+)"?\."?)?"?([^"(\s]+)"?\s*\(/i
-  );
-  if (!match) return null;
-
-  const tableName = stripQuotes(match[2] || match[1]);
-
-  // Extract the content between the outermost parentheses
-  const openParen = stmt.indexOf("(");
-  const closeParen = findMatchingParen(stmt, openParen);
-  if (closeParen < 0) return null;
-
-  const body = stmt.slice(openParen + 1, closeParen);
-
-  // Split column definitions by comma, respecting parentheses and quotes
-  const colDefs = splitByComma(body);
-
-  const table: ParsedTable = {
-    name: tableName,
-    comment: "",
-    columns: [],
-    primaryKeys: [],
-    uniques: [],
-  };
-
-  for (const def of colDefs) {
-    const trimmedDef = def.trim();
-    const upperDef = trimmedDef.toUpperCase();
-
-    // Skip table-level constraints
-    if (
-      upperDef.startsWith("CONSTRAINT") ||
-      upperDef.startsWith("CHECK") ||
-      upperDef.startsWith("FOREIGN KEY") ||
-      upperDef.startsWith("EXCLUDE")
-    ) {
-      // But extract PRIMARY KEY columns
-      if (upperDef.includes("PRIMARY KEY")) {
-        const pkMatch = trimmedDef.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i);
-        if (pkMatch) {
-          const cols = pkMatch[1].split(",").map((c) => stripQuotes(c.trim()));
-          table.primaryKeys.push(...cols);
-        }
-      }
-      if (upperDef.includes("UNIQUE")) {
-        const uqMatch = trimmedDef.match(/UNIQUE\s*\(([^)]+)\)/i);
-        if (uqMatch) {
-          const cols = uqMatch[1].split(",").map((c) => stripQuotes(c.trim()));
-          table.uniques.push(...cols);
-        }
-      }
-      continue;
-    }
-
-    if (upperDef.startsWith("PRIMARY KEY")) {
-      const pkMatch = trimmedDef.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i);
-      if (pkMatch) {
-        const cols = pkMatch[1].split(",").map((c) => stripQuotes(c.trim()));
-        table.primaryKeys.push(...cols);
-      }
-      continue;
-    }
-
-    if (upperDef.startsWith("UNIQUE")) {
-      const uqMatch = trimmedDef.match(/UNIQUE\s*\(([^)]+)\)/i);
-      if (uqMatch) {
-        const cols = uqMatch[1].split(",").map((c) => stripQuotes(c.trim()));
-        table.uniques.push(...cols);
-      }
-      continue;
-    }
-
-    const col = parseColumnDef(trimmedDef);
-    if (col.name) {
-      table.columns.push(col);
-    }
-  }
-
-  // Apply table-level PRIMARY KEY and UNIQUE constraints
-  for (const pkCol of table.primaryKeys) {
-    const col = table.columns.find(
-      (c) => c.name.toUpperCase() === pkCol.toUpperCase()
-    );
-    if (col) {
-      col.primaryKey = true;
-      col.notNull = true;
-    }
-  }
-  for (const uqCol of table.uniques) {
-    const col = table.columns.find(
-      (c) => c.name.toUpperCase() === uqCol.toUpperCase()
-    );
-    if (col) {
-      col.unique = true;
-    }
-  }
-
-  // Extract table comment from MySQL-style: ) COMMENT 'xxx'
-  const afterClose = stmt.slice(closeParen + 1).trim();
-  const tableCommentMatch = afterClose.match(/COMMENT\s*=?\s*'((?:[^'\\]|\\.)*)'/i);
-  if (tableCommentMatch) {
-    table.comment = tableCommentMatch[1];
-  }
-
-  return table;
-}
-
-function findMatchingParen(s: string, openPos: number): number {
-  let depth = 0;
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-
-  for (let i = openPos; i < s.length; i++) {
-    const ch = s[i];
-    if (ch === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-    } else if (ch === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-    } else if (!inSingleQuote && !inDoubleQuote) {
-      if (ch === "(") depth++;
-      else if (ch === ")") {
-        depth--;
-        if (depth === 0) return i;
-      }
-    }
-  }
-  return -1;
+  const last = cur.trim()
+  if (last) stmts.push(last)
+  return stmts
 }
 
 function splitByComma(s: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-  let parenDepth = 0;
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-
-    if (ch === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-    } else if (ch === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-    } else if (ch === "(" && !inSingleQuote && !inDoubleQuote) {
-      parenDepth++;
-    } else if (ch === ")" && !inSingleQuote && !inDoubleQuote) {
-      parenDepth--;
-    } else if (ch === "," && !inSingleQuote && !inDoubleQuote && parenDepth === 0) {
-      parts.push(current.trim());
-      current = "";
-      continue;
+  const parts: string[] = []
+  let cur = ""
+  let depth = 0
+  let inSQ = false
+  let inDQ = false
+  for (const ch of s) {
+    if (ch === "'" && !inDQ) inSQ = !inSQ
+    else if (ch === '"' && !inSQ) inDQ = !inDQ
+    else if (ch === "(" && !inSQ && !inDQ) depth++
+    else if (ch === ")" && !inSQ && !inDQ) depth--
+    else if (ch === "," && !inSQ && !inDQ && depth === 0) {
+      parts.push(cur.trim())
+      cur = ""
+      continue
     }
-
-    current += ch;
+    cur += ch
   }
-
-  if (current.trim()) {
-    parts.push(current.trim());
-  }
-
-  return parts;
+  if (cur.trim()) parts.push(cur.trim())
+  return parts
 }
 
-/**
- * Parse COMMENT ON statements.
- */
-function parseCommentOn(stmt: string): {
-  type: "table" | "column";
-  tableName: string;
-  columnName?: string;
-  comment: string;
-} | null {
-  // COMMENT ON TABLE tableName IS 'xxx'
-  const tableMatch = stmt.match(
+function findMatchingParen(s: string, openPos: number): number {
+  let depth = 0
+  let inSQ = false
+  let inDQ = false
+  for (let i = openPos; i < s.length; i++) {
+    const ch = s[i]
+    if (ch === "'" && !inDQ) inSQ = !inSQ
+    else if (ch === '"' && !inSQ) inDQ = !inDQ
+    else if (!inSQ && !inDQ) {
+      if (ch === "(") depth++
+      else if (ch === ")") { depth--; if (depth === 0) return i }
+    }
+  }
+  return -1
+}
+
+function parseColumnDef(def: string): ParsedColumn {
+  const col: ParsedColumn = {
+    name: "", dataType: "", default: "", comment: "",
+    primaryKey: false, notNull: false, unique: false, autoIncrement: false,
+  }
+
+  const trimmed = def.trim()
+  let pos = 0
+
+  // Extract column name
+  if (trimmed[0] === '"') {
+    const end = trimmed.indexOf('"', 1)
+    if (end > 0) { col.name = trimmed.slice(1, end); pos = end + 1 }
+  } else {
+    const sp = trimmed.search(/\s/)
+    if (sp > 0) { col.name = trimmed.slice(0, sp); pos = sp }
+    else { col.name = trimmed; return col }
+  }
+
+  const rest = trimmed.slice(pos).trim()
+  const restUpper = rest.toUpperCase()
+
+  // Try multi-word data types
+  let matched = false
+  for (const mwt of MULTI_WORD_TYPES) {
+    if (restUpper.startsWith(mwt)) {
+      col.dataType = mwt
+      let afterPos = mwt.length
+      const after = rest.slice(afterPos).trim()
+      if (after.startsWith("(")) {
+        const cp = after.indexOf(")")
+        if (cp > 0) { col.dataType += after.slice(0, cp + 1); afterPos = rest.length - after.length + cp + 1 }
+      }
+      parseConstraints(rest.slice(afterPos).trim(), col)
+      matched = true
+      break
+    }
+  }
+
+  if (!matched) {
+    // Single-word type
+    const tokens = tokenizeRest(rest)
+    if (tokens.length > 0) {
+      const dtUpper = tokens[0].toUpperCase()
+      col.dataType = tokens[0]
+      let ci = 1
+      // Check for size: "VARCHAR" "(" "255" ")" or "VARCHAR(255)"
+      if (tokens.length > 1 && tokens[1].startsWith("(")) {
+        let sp = ""
+        for (let i = 1; i < tokens.length; i++) {
+          sp += tokens[i]; ci = i + 1
+          if (tokens[i].includes(")")) break
+        }
+        col.dataType += sp
+      } else if (tokens[0].includes("(")) {
+        // Already has size like "VARCHAR(255)"
+      }
+      parseConstraints(tokens.slice(ci).join(" "), col)
+    }
+  }
+
+  // SERIAL types → autoIncrement
+  if (SERIAL_TYPES.has(col.dataType.toUpperCase().split("(")[0])) {
+    col.autoIncrement = true
+    col.notNull = true
+  }
+
+  return col
+}
+
+function tokenizeRest(s: string): string[] {
+  const tokens: string[] = []
+  let cur = ""
+  let depth = 0
+  for (const ch of s) {
+    if (ch === "(") { depth++; cur += ch }
+    else if (ch === ")") { depth--; cur += ch }
+    else if (/\s/.test(ch) && depth === 0) {
+      if (cur) { tokens.push(cur); cur = "" }
+    } else cur += ch
+  }
+  if (cur) tokens.push(cur)
+  return tokens
+}
+
+function parseConstraints(s: string, col: ParsedColumn) {
+  const u = s.toUpperCase()
+  if (u.includes("PRIMARY KEY")) { col.primaryKey = true; col.notNull = true }
+  if (u.includes("NOT NULL")) col.notNull = true
+  if (u.includes("UNIQUE")) col.unique = true
+  if (u.includes("GENERATED") || u.includes("AUTO_INCREMENT")) {
+    col.autoIncrement = true; col.notNull = true
+  }
+  const dm = s.match(/DEFAULT\s+('(?:[^'\\]|\\.)*'|\S+(?:\([^)]*\))?)/i)
+  if (dm) col.default = stripQuotes(dm[1])
+  const cm = s.match(/COMMENT\s+'((?:[^'\\]|\\.)*)'/i)
+  if (cm) col.comment = cm[1]
+}
+
+function parseCreateTable(stmt: string): ParsedTable | null {
+  const m = stmt.match(
+    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?([^"(.\s]+)"?\."?)?"?([^"(\s]+)"?\s*\(/i
+  )
+  if (!m) return null
+  const tableName = stripQuotes(m[2] || m[1])
+  const op = stmt.indexOf("(")
+  const cp = findMatchingParen(stmt, op)
+  if (cp < 0) return null
+  const body = stmt.slice(op + 1, cp)
+  const defs = splitByComma(body)
+
+  const table: ParsedTable = {
+    name: tableName, comment: "", columns: [], primaryKeys: [], uniques: [],
+  }
+
+  for (const d of defs) {
+    const td = d.trim()
+    const ud = td.toUpperCase()
+    if (ud.startsWith("CONSTRAINT") || ud.startsWith("CHECK") ||
+        ud.startsWith("FOREIGN KEY") || ud.startsWith("EXCLUDE")) {
+      extractPKUK(td, table)
+      continue
+    }
+    if (ud.startsWith("PRIMARY KEY")) {
+      const pm = td.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i)
+      if (pm) table.primaryKeys.push(...pm[1].split(",").map(c => stripQuotes(c.trim())))
+      continue
+    }
+    if (ud.startsWith("UNIQUE")) {
+      const um = td.match(/UNIQUE\s*\(([^)]+)\)/i)
+      if (um) table.uniques.push(...um[1].split(",").map(c => stripQuotes(c.trim())))
+      continue
+    }
+    const col = parseColumnDef(td)
+    if (col.name) table.columns.push(col)
+  }
+
+  // Apply table-level PK/UK
+  for (const pk of table.primaryKeys) {
+    const c = table.columns.find(c => c.name.toUpperCase() === pk.toUpperCase())
+    if (c) { c.primaryKey = true; c.notNull = true }
+  }
+  for (const uk of table.uniques) {
+    const c = table.columns.find(c => c.name.toUpperCase() === uk.toUpperCase())
+    if (c) c.unique = true
+  }
+
+  // MySQL-style table comment
+  const after = stmt.slice(cp + 1).trim()
+  const tcm = after.match(/COMMENT\s*=?\s*'((?:[^'\\]|\\.)*)'/i)
+  if (tcm) table.comment = tcm[1]
+
+  return table
+}
+
+function extractPKUK(td: string, table: ParsedTable) {
+  const u = td.toUpperCase()
+  if (u.includes("PRIMARY KEY")) {
+    const m = td.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i)
+    if (m) table.primaryKeys.push(...m[1].split(",").map(c => stripQuotes(c.trim())))
+  }
+  if (u.includes("UNIQUE") && !u.includes("PRIMARY")) {
+    const m = td.match(/UNIQUE\s*\(([^)]+)\)/i)
+    if (m) table.uniques.push(...m[1].split(",").map(c => stripQuotes(c.trim())))
+  }
+}
+
+function parseCommentOn(stmt: string): { type: "table" | "column"; tableName: string; columnName?: string; comment: string } | null {
+  const tm = stmt.match(
     /COMMENT\s+ON\s+TABLE\s+"?([^".\s]+)"?(?:\."?([^"\s]+)"?)?\s+IS\s+'((?:[^'\\]|\\'|'')*)'/i
-  );
-  if (tableMatch) {
-    return {
-      type: "table",
-      tableName: stripQuotes(tableMatch[2] || tableMatch[1]),
-      comment: tableMatch[3].replace(/''/g, "'"),
-    };
-  }
+  )
+  if (tm) return { type: "table", tableName: stripQuotes(tm[2] || tm[1]), comment: tm[3].replace(/''/g, "'") }
 
-  // COMMENT ON COLUMN tableName.columnName IS 'xxx'
-  const colMatch = stmt.match(
+  const cm = stmt.match(
     /COMMENT\s+ON\s+COLUMN\s+"?([^".\s]+)"?(?:\."?([^".\s]+)"?)?\.\"?([^"\s]+)\"?\s+IS\s+'((?:[^'\\]|\\'|'')*)'/i
-  );
-  if (colMatch) {
-    return {
-      type: "column",
-      tableName: stripQuotes(colMatch[2] || colMatch[1]),
-      columnName: stripQuotes(colMatch[3]),
-      comment: colMatch[4].replace(/''/g, "'"),
-    };
-  }
+  )
+  if (cm) return { type: "column", tableName: stripQuotes(cm[2] || cm[1]), columnName: stripQuotes(cm[3]), comment: cm[4].replace(/''/g, "'") }
 
-  return null;
+  return null
 }
 
-/**
- * Parse ALTER TABLE ADD PRIMARY KEY
- */
-function parseAlterTablePK(
-  stmt: string
-): { tableName: string; columns: string[] } | null {
-  const match = stmt.match(
+function parseAlterPK(stmt: string): { tableName: string; columns: string[] } | null {
+  const m = stmt.match(
     /ALTER\s+TABLE\s+(?:ONLY\s+)?"?([^".\s]+)"?(?:\."?([^"\s]+)"?)?\s+ADD\s+(?:CONSTRAINT\s+\S+\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)/i
-  );
-  if (match) {
-    return {
-      tableName: stripQuotes(match[2] || match[1]),
-      columns: match[3].split(",").map((c) => stripQuotes(c.trim())),
-    };
-  }
-  return null;
+  )
+  if (m) return { tableName: stripQuotes(m[2] || m[1]), columns: m[3].split(",").map(c => stripQuotes(c.trim())) }
+  return null
 }
 
-/**
- * Parse ALTER TABLE ADD FOREIGN KEY
- */
-function parseAlterTableFK(stmt: string): ParsedForeignKey | null {
-  const match = stmt.match(
+function parseAlterFK(stmt: string): ParsedForeignKey | null {
+  const m = stmt.match(
     /ALTER\s+TABLE\s+(?:ONLY\s+)?"?([^".\s]+)"?(?:\."?([^"\s]+)"?)?\s+ADD\s+(?:CONSTRAINT\s+\S+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s+REFERENCES\s+"?([^".\s]+)"?(?:\."?([^"\s]+)"?)?\s*\(([^)]+)\)/i
-  );
-  if (match) {
-    return {
-      fromTable: stripQuotes(match[2] || match[1]),
-      fromColumns: match[3].split(",").map((c) => stripQuotes(c.trim())),
-      toTable: stripQuotes(match[5] || match[4]),
-      toColumns: match[6].split(",").map((c) => stripQuotes(c.trim())),
-    };
+  )
+  if (m) return {
+    fromTable: stripQuotes(m[2] || m[1]),
+    fromColumns: m[3].split(",").map(c => stripQuotes(c.trim())),
+    toTable: stripQuotes(m[5] || m[4]),
+    toColumns: m[6].split(",").map(c => stripQuotes(c.trim())),
   }
-  return null;
+  return null
 }
 
-// Generate a simple unique ID
-let idCounter = 0;
-function genId(): string {
-  return `pg_${Date.now()}_${++idCounter}`;
-}
-
-function now(): number {
-  return Date.now();
-}
+let _idC = 0
+function gid(): string { return `pg${Date.now().toString(36)}${(++_idC).toString(36)}` }
 
 /**
- * Convert parsed PG SQL to erd-editor JSON format.
+ * Convert PostgreSQL SQL to erd-editor v3.0.0 JSON format.
  */
 export function parsePgSqlToErdJson(sql: string): string {
-  const cleaned = removeComments(sql);
-  const statements = splitStatements(cleaned);
+  const cleaned = removeComments(sql)
+  const stmts = splitStatements(cleaned)
 
-  const tables: ParsedTable[] = [];
-  const tableMap = new Map<string, ParsedTable>();
-  const foreignKeys: ParsedForeignKey[] = [];
-  const commentTable = new Map<string, string>();
-  const commentColumn = new Map<string, string>();
+  const tables: ParsedTable[] = []
+  const tableMap = new Map<string, ParsedTable>()
+  const fks: ParsedForeignKey[] = []
+  const tblComments = new Map<string, string>()
+  const colComments = new Map<string, string>()
 
-  // First pass: parse all statements
-  for (const stmt of statements) {
-    const upper = stmt.trim().toUpperCase();
-
-    if (upper.startsWith("CREATE TABLE")) {
-      const table = parseCreateTable(stmt);
-      if (table) {
-        tables.push(table);
-        tableMap.set(table.name.toUpperCase(), table);
+  for (const s of stmts) {
+    const u = s.trim().toUpperCase()
+    if (u.startsWith("CREATE TABLE")) {
+      const t = parseCreateTable(s)
+      if (t) { tables.push(t); tableMap.set(t.name.toUpperCase(), t) }
+    } else if (u.startsWith("COMMENT ON")) {
+      const c = parseCommentOn(s)
+      if (c) {
+        if (c.type === "table") tblComments.set(c.tableName.toUpperCase(), c.comment)
+        else if (c.columnName) colComments.set(`${c.tableName.toUpperCase()}.${c.columnName.toUpperCase()}`, c.comment)
       }
-      continue;
-    }
-
-    if (upper.startsWith("COMMENT ON")) {
-      const comment = parseCommentOn(stmt);
-      if (comment) {
-        if (comment.type === "table") {
-          commentTable.set(comment.tableName.toUpperCase(), comment.comment);
-        } else if (comment.columnName) {
-          const key = `${comment.tableName.toUpperCase()}.${comment.columnName.toUpperCase()}`;
-          commentColumn.set(key, comment.comment);
-        }
-      }
-      continue;
-    }
-
-    if (upper.startsWith("ALTER TABLE")) {
-      const pk = parseAlterTablePK(stmt);
+    } else if (u.startsWith("ALTER TABLE")) {
+      const pk = parseAlterPK(s)
       if (pk) {
-        const table = tableMap.get(pk.tableName.toUpperCase());
-        if (table) {
-          for (const colName of pk.columns) {
-            const col = table.columns.find(
-              (c) => c.name.toUpperCase() === colName.toUpperCase()
-            );
-            if (col) {
-              col.primaryKey = true;
-              col.notNull = true;
-            }
-          }
+        const t = tableMap.get(pk.tableName.toUpperCase())
+        if (t) for (const cn of pk.columns) {
+          const c = t.columns.find(c => c.name.toUpperCase() === cn.toUpperCase())
+          if (c) { c.primaryKey = true; c.notNull = true }
         }
       }
-
-      const fk = parseAlterTableFK(stmt);
-      if (fk) {
-        foreignKeys.push(fk);
-      }
+      const fk = parseAlterFK(s)
+      if (fk) fks.push(fk)
     }
   }
 
   // Apply comments
-  for (const table of tables) {
-    const tc = commentTable.get(table.name.toUpperCase());
-    if (tc && !table.comment) {
-      table.comment = tc;
-    }
-    for (const col of table.columns) {
-      const key = `${table.name.toUpperCase()}.${col.name.toUpperCase()}`;
-      const cc = commentColumn.get(key);
-      if (cc && !col.comment) {
-        col.comment = cc;
-      }
+  for (const t of tables) {
+    const tc = tblComments.get(t.name.toUpperCase())
+    if (tc && !t.comment) t.comment = tc
+    for (const c of t.columns) {
+      const cc = colComments.get(`${t.name.toUpperCase()}.${c.name.toUpperCase()}`)
+      if (cc && !c.comment) c.comment = cc
     }
   }
 
-  // Build erd-editor JSON
-  const tableEntities: Record<string, any> = {};
-  const tableColumnEntities: Record<string, any> = {};
-  const relationshipEntities: Record<string, any> = {};
-  const indexEntities: Record<string, any> = {};
-  const indexColumnEntities: Record<string, any> = {};
+  // Build v3.0.0 JSON
+  const tableEntities: Record<string, any> = {}
+  const tableColumnEntities: Record<string, any> = {}
+  const relationshipEntities: Record<string, any> = {}
 
-  const tableIds: string[] = [];
-  const relationshipIds: string[] = [];
-  const indexIds: string[] = [];
+  const tableIds: string[] = []
+  const relationshipIds: string[] = []
+  const tblIdMap = new Map<string, string>()
+  const colIdMap = new Map<string, string>()
 
-  const tableIdMap = new Map<string, string>();
-  const columnIdMap = new Map<string, string>(); // tableName.colName -> columnId
+  const COLS = 4, TW = 300, TH = 250, GX = 100, GY = 80
+  const ts = Date.now()
 
-  // Layout: arrange tables in a grid
-  const COLS_PER_ROW = 4;
-  const TABLE_WIDTH = 300;
-  const TABLE_HEIGHT = 250;
-  const GAP_X = 100;
-  const GAP_Y = 80;
+  tables.forEach((table, ti) => {
+    const tid = gid()
+    tblIdMap.set(table.name.toUpperCase(), tid)
+    tableIds.push(tid)
 
-  tables.forEach((table, tableIdx) => {
-    const tableId = genId();
-    tableIdMap.set(table.name.toUpperCase(), tableId);
-    tableIds.push(tableId);
+    const colIds: string[] = []
+    let mwN = 60, mwC = 60, mwD = 60, mwDf = 60
 
-    const colIds: string[] = [];
-    const seqColIds: string[] = [];
+    for (const c of table.columns) {
+      const cid = gid()
+      colIds.push(cid)
+      colIdMap.set(`${table.name.toUpperCase()}.${c.name.toUpperCase()}`, cid)
 
-    let maxNameWidth = 60;
-    let maxCommentWidth = 60;
-    let maxDataTypeWidth = 60;
-    let maxDefaultWidth = 60;
+      let opts = 0
+      if (c.autoIncrement) opts |= OPT_AUTO_INCREMENT
+      if (c.primaryKey) opts |= OPT_PRIMARY_KEY
+      if (c.unique) opts |= OPT_UNIQUE
+      if (c.notNull) opts |= OPT_NOT_NULL
 
-    for (const col of table.columns) {
-      const colId = genId();
-      colIds.push(colId);
-      seqColIds.push(colId);
-      columnIdMap.set(
-        `${table.name.toUpperCase()}.${col.name.toUpperCase()}`,
-        colId
-      );
+      const keys = c.primaryKey ? 1 : 0
 
-      // Calculate options bitmask
-      let options = 0;
-      if (col.primaryKey) options |= ColumnOption.primaryKey;
-      if (col.notNull) options |= ColumnOption.notNull;
-      if (col.unique) options |= ColumnOption.unique;
-      if (col.autoIncrement) options |= ColumnOption.autoIncrement;
-
-      const ts = now();
-      tableColumnEntities[colId] = {
-        id: colId,
-        tableId: tableId,
-        name: col.name,
-        comment: col.comment,
-        dataType: col.dataType,
-        default: col.default,
-        options: options,
+      tableColumnEntities[cid] = {
+        id: cid, tableId: tid, name: c.name, comment: c.comment,
+        dataType: c.dataType, default: c.default, options: opts,
         ui: {
-          keys: 0,
-          widthName: Math.max(60, col.name.length * 8),
-          widthComment: Math.max(60, col.comment.length * 8),
-          widthDataType: Math.max(60, col.dataType.length * 8),
-          widthDefault: Math.max(60, col.default.length * 8),
+          keys,
+          widthName: Math.max(60, c.name.length * 8),
+          widthComment: Math.max(60, c.comment.length * 8),
+          widthDataType: Math.max(60, c.dataType.length * 8),
+          widthDefault: Math.max(60, c.default.length * 8),
         },
         meta: { updateAt: ts, createAt: ts },
-      };
-
-      maxNameWidth = Math.max(maxNameWidth, col.name.length * 8);
-      maxCommentWidth = Math.max(maxCommentWidth, col.comment.length * 8);
-      maxDataTypeWidth = Math.max(maxDataTypeWidth, col.dataType.length * 8);
-      maxDefaultWidth = Math.max(maxDefaultWidth, col.default.length * 8);
+      }
+      mwN = Math.max(mwN, c.name.length * 8)
+      mwC = Math.max(mwC, c.comment.length * 8)
+      mwD = Math.max(mwD, c.dataType.length * 8)
+      mwDf = Math.max(mwDf, c.default.length * 8)
     }
 
-    const row = Math.floor(tableIdx / COLS_PER_ROW);
-    const col = tableIdx % COLS_PER_ROW;
-
-    const ts = now();
-    tableEntities[tableId] = {
-      id: tableId,
-      name: table.name,
-      comment: table.comment,
-      columnIds: colIds,
-      seqColumnIds: seqColIds,
+    const row = Math.floor(ti / COLS), col = ti % COLS
+    tableEntities[tid] = {
+      id: tid, name: table.name, comment: table.comment,
+      columnIds: colIds, seqColumnIds: [...colIds],
       ui: {
-        x: 100 + col * (TABLE_WIDTH + GAP_X),
-        y: 100 + row * (TABLE_HEIGHT + GAP_Y),
-        zIndex: 2 + tableIdx,
-        widthName: maxNameWidth,
-        widthComment: maxCommentWidth,
-        color: "",
+        x: 100 + col * (TW + GX), y: 100 + row * (TH + GY),
+        zIndex: 2 + ti, widthName: mwN, widthComment: mwC, color: "",
       },
       meta: { updateAt: ts, createAt: ts },
-    };
-  });
-
-  // Build relationships from foreign keys
-  for (const fk of foreignKeys) {
-    const startTableId = tableIdMap.get(fk.fromTable.toUpperCase());
-    const endTableId = tableIdMap.get(fk.toTable.toUpperCase());
-    if (!startTableId || !endTableId) continue;
-
-    const startColumnIds: string[] = [];
-    const endColumnIds: string[] = [];
-
-    for (const colName of fk.fromColumns) {
-      const colId = columnIdMap.get(
-        `${fk.fromTable.toUpperCase()}.${colName.toUpperCase()}`
-      );
-      if (colId) startColumnIds.push(colId);
     }
+  })
 
-    for (const colName of fk.toColumns) {
-      const colId = columnIdMap.get(
-        `${fk.toTable.toUpperCase()}.${colName.toUpperCase()}`
-      );
-      if (colId) endColumnIds.push(colId);
-    }
-
-    if (startColumnIds.length === 0 || endColumnIds.length === 0) continue;
-
-    const relId = genId();
-    relationshipIds.push(relId);
-
-    const ts = now();
-    relationshipEntities[relId] = {
-      id: relId,
-      identification: false,
-      relationshipType: 4, // ZeroN
-      startRelationshipType: 2, // dash
-      start: {
-        tableId: startTableId,
-        columnIds: startColumnIds,
-        x: 0,
-        y: 0,
-        direction: 8, // bottom
-      },
-      end: {
-        tableId: endTableId,
-        columnIds: endColumnIds,
-        x: 0,
-        y: 0,
-        direction: 8, // bottom
-      },
+  // Relationships
+  for (const fk of fks) {
+    const stId = tblIdMap.get(fk.fromTable.toUpperCase())
+    const enId = tblIdMap.get(fk.toTable.toUpperCase())
+    if (!stId || !enId) continue
+    const sColIds = fk.fromColumns.map(n => colIdMap.get(`${fk.fromTable.toUpperCase()}.${n.toUpperCase()}`)).filter(Boolean)
+    const eColIds = fk.toColumns.map(n => colIdMap.get(`${fk.toTable.toUpperCase()}.${n.toUpperCase()}`)).filter(Boolean)
+    if (!sColIds.length || !eColIds.length) continue
+    const rid = gid()
+    relationshipIds.push(rid)
+    relationshipEntities[rid] = {
+      id: rid, identification: false, relationshipType: 4,
+      startRelationshipType: 2,
+      start: { tableId: stId, columnIds: sColIds, x: 0, y: 0, direction: 8 },
+      end: { tableId: enId, columnIds: eColIds, x: 0, y: 0, direction: 8 },
       meta: { updateAt: ts, createAt: ts },
-    };
+    }
   }
 
-  const result = {
-    $schema:
-      "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  return JSON.stringify({
+    $schema: "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
     version: "3.0.0",
-    canvas: {
-      version: "3.3.0",
-      width: 2000,
-      height: 2000,
-      scrollTop: 0,
-      scrollLeft: 0,
-      zoomLevel: 1,
-      show: {
-        tableProperties: false,
-        columnTypes: true,
-        columnConstraints: true,
-        columnComments: true,
-        relationshipDataType: false,
-        relationshipCardinality: true,
-        columnUnique: false,
-        columnNotNull: true,
-        columnDefault: false,
-        columnAutoIncrement: false,
-      },
-      database: "PostgreSQL",
+    settings: {
+      width: 2000, height: 2000, scrollTop: 0, scrollLeft: 0, zoomLevel: 1,
+      show: SHOW_ALL,
+      database: DB_POSTGRESQL,
       databaseName: "",
-      setting: {
-        relationshipDataTypeSync: true,
-        relationshipOptimization: false,
-        columnOrder: [
-          "columnName",
-          "columnDefault",
-          "columnNotNull",
-          "columnUnique",
-          "columnAutoIncrement",
-          "columnComment",
-          "columnType",
-        ],
-      },
-      pluginSerializationMap: {},
+      canvasType: "ERD",
+      language: 1,
+      tableNameCase: 4,
+      columnNameCase: 2,
+      bracketType: 1,
+      relationshipDataTypeSync: true,
+      relationshipOptimization: false,
+      columnOrder: COL_ORDER,
+      maxWidthComment: -1,
+      ignoreSaveSettings: 0,
     },
-    table: {
-      entities: tableEntities,
-      indexes: indexEntities,
-    },
-    memo: { memos: {} },
-    relationship: { relationships: relationshipEntities },
     doc: {
-      tableIds: tableIds,
-      relationshipIds: relationshipIds,
-      indexIds: indexIds,
+      tableIds,
+      relationshipIds,
+      indexIds: [],
       memoIds: [],
     },
     collections: {
-      tableEntities: tableEntities,
-      tableColumnEntities: tableColumnEntities,
-      relationshipEntities: relationshipEntities,
-      indexEntities: indexEntities,
-      indexColumnEntities: indexColumnEntities,
+      tableEntities,
+      tableColumnEntities,
+      relationshipEntities,
+      indexEntities: {},
+      indexColumnEntities: {},
       memoEntities: {},
     },
-  };
-
-  return JSON.stringify(result);
+  })
 }
 
 /**
  * Detect if SQL is PostgreSQL syntax.
  */
 export function isPgSql(sql: string): boolean {
-  const upper = sql.toUpperCase();
+  const u = sql.toUpperCase()
   return (
-    upper.includes("COMMENT ON TABLE") ||
-    upper.includes("COMMENT ON COLUMN") ||
-    upper.includes("BIGSERIAL") ||
-    upper.includes("SMALLSERIAL") ||
-    upper.includes("TIMESTAMP WITH TIME ZONE") ||
-    upper.includes("TIMESTAMP WITHOUT TIME ZONE") ||
-    upper.includes("CHARACTER VARYING") ||
-    upper.includes("DOUBLE PRECISION") ||
-    upper.includes("GENERATED ALWAYS AS IDENTITY") ||
-    upper.includes("GENERATED BY DEFAULT AS IDENTITY")
-  );
+    u.includes("COMMENT ON TABLE") ||
+    u.includes("COMMENT ON COLUMN") ||
+    u.includes("BIGSERIAL") ||
+    u.includes("SMALLSERIAL") ||
+    u.includes("TIMESTAMP WITH") ||
+    u.includes("TIMESTAMP WITHOUT") ||
+    u.includes("CHARACTER VARYING") ||
+    u.includes("DOUBLE PRECISION") ||
+    u.includes("GENERATED ALWAYS AS IDENTITY") ||
+    u.includes("GENERATED BY DEFAULT AS IDENTITY") ||
+    u.includes("SERIAL") && !u.includes("AUTO_INCREMENT")
+  )
 }

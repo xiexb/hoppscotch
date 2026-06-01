@@ -109,73 +109,146 @@ const sqlFileInput = ref<HTMLInputElement | null>(null)
 const bgColor = useSetting("BG_COLOR")
 const isDarkMode = computed(() => bgColor.value !== "light")
 
-// Sidebar visibility state with localStorage persistence
+// localStorage keys
 const ERD_SIDEBAR_KEY = "erd-sidebar-visible"
+const ERD_DATA_KEY = "erd-editor-data"
 const showSidebar = ref<boolean>(true)
 
+// Auto-save timer
+let saveTimer: ReturnType<typeof setInterval> | null = null
+
+function getEditor(): any {
+  return erdEditorRef.value as any
+}
+
+function getEditorValue(): string {
+  const editor = getEditor()
+  if (editor) return editor.value || "{}"
+  return "{}"
+}
+
+function setEditorValue(json: string) {
+  const editor = getEditor()
+  if (editor) {
+    editor.value = json
+  }
+}
+
+// Save editor state to localStorage (debounced via interval)
+function saveToStorage() {
+  try {
+    const val = getEditorValue()
+    const parsed = JSON.parse(val)
+    // Only save if there's actual content (tables exist)
+    const hasContent =
+      parsed.collections?.tableEntities &&
+      Object.keys(parsed.collections.tableEntities).length > 0
+    if (hasContent) {
+      localStorage.setItem(ERD_DATA_KEY, val)
+    }
+  } catch (_e) {
+    // ignore save errors
+  }
+}
+
+// Restore editor state from localStorage
+function restoreFromStorage(): boolean {
+  try {
+    const saved = localStorage.getItem(ERD_DATA_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      const hasContent =
+        parsed.collections?.tableEntities &&
+        Object.keys(parsed.collections.tableEntities).length > 0
+      if (hasContent) {
+        setEditorValue(saved)
+        return true
+      }
+    }
+  } catch (_e) {
+    // ignore restore errors
+  }
+  return false
+}
+
 onMounted(() => {
-  // Restore sidebar visibility from localStorage
+  // Restore sidebar visibility
   const stored = localStorage.getItem(ERD_SIDEBAR_KEY)
   if (stored !== null) {
     showSidebar.value = stored === "true"
   }
 
   if (erdEditorRef.value) {
-    const editor = erdEditorRef.value as any
     customElements.whenDefined("erd-editor").then(() => {
-      if (editor.setInitialValue) {
-        editor.setInitialValue(
-          JSON.stringify({
-            canvas: {
-              version: "3.3.0",
+      // Try to restore saved data
+      const restored = restoreFromStorage()
+
+      if (!restored) {
+        // Set empty initial state with PostgreSQL as default database
+        const editor = getEditor()
+        if (editor) {
+          editor.value = JSON.stringify({
+            $schema:
+              "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+            version: "3.0.0",
+            settings: {
               width: 2000,
               height: 2000,
               scrollTop: 0,
               scrollLeft: 0,
               zoomLevel: 1,
-              show: {
-                tableProperties: false,
-                columnTypes: true,
-                columnConstraints: true,
-                columnComments: true,
-                relationshipDataType: false,
-                relationshipCardinality: true,
-                columnUnique: false,
-                columnNotNull: true,
-                columnDefault: false,
-                columnAutoIncrement: false,
-              },
-              database: "MySQL",
+              show: 423,
+              database: 16,
               databaseName: "",
-              setting: {
-                relationshipDataTypeSync: true,
-                relationshipOptimization: false,
-                columnOrder: [
-                  "columnName",
-                  "columnDefault",
-                  "columnNotNull",
-                  "columnUnique",
-                  "columnAutoIncrement",
-                  "columnComment",
-                  "columnType",
-                ],
-              },
-              pluginSerializationMap: {},
+              canvasType: "ERD",
+              language: 1,
+              tableNameCase: 4,
+              columnNameCase: 2,
+              bracketType: 1,
+              relationshipDataTypeSync: true,
+              relationshipOptimization: false,
+              columnOrder: [1, 2, 4, 8, 16, 32, 64],
+              maxWidthComment: -1,
+              ignoreSaveSettings: 0,
             },
-            table: { entities: {}, indexes: {} },
-            memo: { memos: {} },
-            relationship: { relationships: {} },
+            doc: {
+              tableIds: [],
+              relationshipIds: [],
+              indexIds: [],
+              memoIds: [],
+            },
+            collections: {
+              tableEntities: {},
+              tableColumnEntities: {},
+              relationshipEntities: {},
+              indexEntities: {},
+              indexColumnEntities: {},
+              memoEntities: {},
+            },
           })
-        )
+        }
       }
+
+      // Auto-save every 3 seconds
+      saveTimer = setInterval(saveToStorage, 3000)
     })
   }
+
+  // Save on page unload
+  window.addEventListener("beforeunload", saveToStorage)
 })
 
 onBeforeUnmount(() => {
+  // Save before leaving
+  saveToStorage()
+  if (saveTimer) {
+    clearInterval(saveTimer)
+    saveTimer = null
+  }
+  window.removeEventListener("beforeunload", saveToStorage)
   if (erdEditorRef.value) {
-    const editor = erdEditorRef.value as any
-    if (editor.destroy) editor.destroy()
+    const editor = getEditor()
+    if (editor?.destroy) editor.destroy()
   }
 })
 
@@ -198,14 +271,11 @@ async function handleImportJSON(event: Event) {
   if (!file) return
   try {
     const text = await file.text()
-    JSON.parse(text)
-    if (erdEditorRef.value) {
-      const editor = erdEditorRef.value as any
-      if (editor.setInitialValue) {
-        editor.setInitialValue(text)
-        toast.success(t("erd.import_success"))
-      }
-    }
+    JSON.parse(text) // validate JSON
+    setEditorValue(text)
+    toast.success(t("erd.import_success"))
+    // Save after import
+    setTimeout(saveToStorage, 500)
   } catch (_e) {
     toast.error(t("erd.import_error"))
   }
@@ -218,45 +288,36 @@ async function handleImportSQL(event: Event) {
   if (!file) return
   try {
     const sqlText = await file.text()
-    if (erdEditorRef.value) {
-      const editor = erdEditorRef.value as any
+    const editor = getEditor()
 
-      // Detect PostgreSQL SQL and use our custom parser
-      if (isPgSql(sqlText)) {
-        try {
-          const erdJson = parsePgSqlToErdJson(sqlText)
-          if (editor.setInitialValue) {
-            editor.setInitialValue(erdJson)
-            toast.success(t("erd.import_success"))
-          }
-        } catch (pgErr) {
-          console.error("PG SQL parse error:", pgErr)
-          // Fallback to built-in parser
-          if (editor.setSchemaSQL) {
-            editor.setSchemaSQL(sqlText)
-            toast.success(t("erd.import_success"))
-          }
-        }
-      } else {
-        // Non-PG SQL: use built-in parser
-        if (editor.setSchemaSQL) {
+    if (isPgSql(sqlText)) {
+      // PostgreSQL: use our custom parser → set via value property
+      try {
+        const erdJson = parsePgSqlToErdJson(sqlText)
+        setEditorValue(erdJson)
+        toast.success(t("erd.import_success"))
+        setTimeout(saveToStorage, 500)
+      } catch (pgErr) {
+        console.error("PG SQL parse error:", pgErr)
+        // Fallback to built-in
+        if (editor?.setSchemaSQL) {
           editor.setSchemaSQL(sqlText)
           toast.success(t("erd.import_success"))
+          setTimeout(saveToStorage, 500)
         }
+      }
+    } else {
+      // Non-PG SQL: use built-in parser
+      if (editor?.setSchemaSQL) {
+        editor.setSchemaSQL(sqlText)
+        toast.success(t("erd.import_success"))
+        setTimeout(saveToStorage, 500)
       }
     }
   } catch (_e) {
     toast.error(t("erd.import_error"))
   }
   input.value = ""
-}
-
-function getEditorValue(): string {
-  if (erdEditorRef.value) {
-    const editor = erdEditorRef.value as any
-    return editor.value || "{}"
-  }
-  return "{}"
 }
 
 function downloadFile(content: string, filename: string, mime: string) {
@@ -280,13 +341,11 @@ function exportJSON() {
 
 function exportSQL() {
   try {
-    if (erdEditorRef.value) {
-      const editor = erdEditorRef.value as any
-      if (editor.getSchemaSQL) {
-        const sql = editor.getSchemaSQL()
-        downloadFile(sql, "erd-schema.sql", "text/sql")
-        toast.success(t("erd.export_success_note"))
-      }
+    const editor = getEditor()
+    if (editor?.getSchemaSQL) {
+      const sql = editor.getSchemaSQL()
+      downloadFile(sql, "erd-schema.sql", "text/sql")
+      toast.success(t("erd.export_success_note"))
     }
   } catch (_e) {
     toast.error(t("erd.export_error"))
@@ -294,12 +353,12 @@ function exportSQL() {
 }
 
 function clearEditor() {
-  if (erdEditorRef.value) {
-    const editor = erdEditorRef.value as any
-    if (editor.clear) {
-      editor.clear()
-      toast.success(t("erd.clear_success"))
-    }
+  const editor = getEditor()
+  if (editor?.clear) {
+    editor.clear()
+    toast.success(t("erd.clear_success"))
+    // Clear saved data too
+    localStorage.removeItem(ERD_DATA_KEY)
   }
 }
 </script>
@@ -319,14 +378,11 @@ erd-editor {
   height: 100%;
 }
 
-/* Define CSS variables at page level so both our toolbar and erd-editor use the same values */
 .erd-page {
-  /* Light theme defaults (matching erd-editor's light theme) */
   --toolbar-background: #fcfcfd;
   --foreground: #60646c;
   --active: #1c2024;
 
-  /* Dark theme override */
   :root.dark & {
     --toolbar-background: #1a1a1a;
     --foreground: #8b8b8b;
@@ -334,7 +390,6 @@ erd-editor {
   }
 }
 
-/* Toolbar overlay: matches erd-editor's built-in toolbar style */
 .erd-toolbar-overlay {
   position: absolute;
   top: 0;
@@ -358,7 +413,6 @@ erd-editor {
   cursor: pointer;
   pointer-events: auto;
   transition: fill 0.15s ease;
-
   fill: var(--foreground);
 
   &:hover {
@@ -393,7 +447,6 @@ erd-editor {
   display: none;
 }
 
-/* Sidebar toggle button (bottom-right) */
 .erd-sidebar-toggle {
   position: absolute;
   bottom: 16px;
@@ -409,7 +462,9 @@ erd-editor {
   background-color: var(--toolbar-background, #fcfcfd);
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 
   &:hover {
