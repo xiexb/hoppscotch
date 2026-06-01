@@ -1399,9 +1399,7 @@ const defaultErdSchema = JSON.stringify({
 })
 
 const onAddErdDiagram = (diagramName: string) => {
-  if (!diagramName.trim()) return
-
-  const name = diagramName.trim()
+  const name = diagramName.trim() || "Untitled ERD"
   const diagramId = `erd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const newDiagram = { id: diagramId, name, schema: defaultErdSchema }
 
