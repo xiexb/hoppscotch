@@ -16,13 +16,6 @@
       >
         <IconFileCode class="erd-toolbar-icon" />
       </div>
-      <div
-        class="erd-toolbar-menu erd-toolbar-menu--save"
-        :title="t('erd.save')"
-        @click="manualSave"
-      >
-        <IconSave class="erd-toolbar-icon" />
-      </div>
       <div class="erd-toolbar-vertical" />
       <div
         class="erd-toolbar-menu"
@@ -39,6 +32,13 @@
       >
         <IconFileCode class="erd-toolbar-icon" />
         <IconDownload class="erd-toolbar-badge" />
+      </div>
+      <div
+        class="erd-toolbar-menu erd-toolbar-menu--save"
+        :title="t('erd.save')"
+        @click="manualSave"
+      >
+        <IconSave class="erd-toolbar-icon" />
       </div>
     </div>
 
