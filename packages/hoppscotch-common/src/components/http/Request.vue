@@ -54,7 +54,7 @@
           <input
             v-else
             id="method"
-            class="flex w-26 cursor-default rounded-l bg-primaryLight px-4 py-2 font-semibold text-secondaryDark transition opacity-80"
+            class="flex w-26 cursor-default rounded-l bg-primaryLight px-4 py-2 font-semibold text-secondaryDark transition"
             :value="tab.document.request.method"
             readonly
             :placeholder="`${t('request.method')}`"
@@ -120,12 +120,14 @@
           @paste="onPasteUrl($event)"
           @enter="newSendRequest"
         />
-        <!-- Read-only URL display (no SmartEnvInput wrapper) -->
-        <span
+        <!-- Read-only URL display using SmartEnvInput in readonly mode -->
+        <SmartEnvInput
           v-else
-          class="flex-1 text-sm font-mono text-secondaryDark truncate min-h-[38px] flex items-center"
-          :class="resolvedPrefixUrl && !isEndpointFullUrl ? 'pl-0.5 py-2' : 'px-4 py-2'"
-        >{{ tab.document.request.endpoint || t('request.url_placeholder') }}</span>
+          :model-value="tab.document.request.endpoint"
+          :placeholder="`${t('request.url_placeholder')}`"
+          :readonly="true"
+          class="pointer-events-none"
+        />
       </div>
     </div>
     <div class="mt-2 flex sm:mt-0">
