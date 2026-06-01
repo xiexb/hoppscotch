@@ -135,7 +135,7 @@ export async function commitVersion(
 ): Promise<CommitResult> {
   const config = await getAxiosConfig()
   const res = await axios.post(
-    `${getBaseUrl()}/api/v1/erd-version/commit`,
+    `${getBaseUrl()}/erd-version/commit`,
     { erdJson, message, force },
     { ...config, params: buildParams(teamId, collectionId) },
   )
@@ -152,7 +152,7 @@ export async function getVersionLog(
 ): Promise<VersionLogEntry[]> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/log`,
+    `${getBaseUrl()}/erd-version/log`,
     { ...config, params: buildParams(teamId, collectionId, { limit }) },
   )
   return res.data
@@ -168,7 +168,7 @@ export async function getVersion(
 ): Promise<{ erdJson: string; commit: { hash: string; message: string; date: string } }> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/${encodeURIComponent(ref)}`,
+    `${getBaseUrl()}/erd-version/${encodeURIComponent(ref)}`,
     { ...config, params: buildParams(teamId, collectionId) },
   )
   return res.data
@@ -185,7 +185,7 @@ export async function getDiff(
 ): Promise<DiffResult> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/diff`,
+    `${getBaseUrl()}/erd-version/diff`,
     { ...config, params: buildParams(teamId, collectionId, { from, to }) },
   )
   return res.data
@@ -201,7 +201,7 @@ export async function restoreVersion(
 ): Promise<{ erdJson: string }> {
   const config = await getAxiosConfig()
   const res = await axios.post(
-    `${getBaseUrl()}/api/v1/erd-version/restore/${encodeURIComponent(ref)}`,
+    `${getBaseUrl()}/erd-version/restore/${encodeURIComponent(ref)}`,
     {},
     { ...config, params: buildParams(teamId, collectionId) },
   )
@@ -218,7 +218,7 @@ export async function deleteVersion(
 ): Promise<{ success: boolean; revertHash: string }> {
   const config = await getAxiosConfig()
   const res = await axios.delete(
-    `${getBaseUrl()}/api/v1/erd-version/commit/${encodeURIComponent(ref)}`,
+    `${getBaseUrl()}/erd-version/commit/${encodeURIComponent(ref)}`,
     { ...config, params: buildParams(teamId, collectionId) },
   )
   return res.data
@@ -234,7 +234,7 @@ export async function getVersionStats(
 ): Promise<VersionStats> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/stats/${encodeURIComponent(ref)}`,
+    `${getBaseUrl()}/erd-version/stats/${encodeURIComponent(ref)}`,
     { ...config, params: buildParams(teamId, collectionId) },
   )
   return res.data
@@ -249,7 +249,7 @@ export async function getRemote(
 ): Promise<RemoteConfig> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/remote`,
+    `${getBaseUrl()}/erd-version/remote`,
     { ...config, params: buildParams(teamId, collectionId) },
   )
   return res.data
@@ -265,7 +265,7 @@ export async function setRemote(
 ): Promise<{ success: boolean; remoteUrl: string }> {
   const config = await getAxiosConfig()
   const res = await axios.put(
-    `${getBaseUrl()}/api/v1/erd-version/remote`,
+    `${getBaseUrl()}/erd-version/remote`,
     config_,
     { ...config, params: buildParams(teamId, collectionId) },
   )
@@ -281,7 +281,7 @@ export async function pushToRemote(
 ): Promise<{ success: boolean; pushed: boolean }> {
   const config = await getAxiosConfig()
   const res = await axios.post(
-    `${getBaseUrl()}/api/v1/erd-version/push`,
+    `${getBaseUrl()}/erd-version/push`,
     {},
     { ...config, params: buildParams(teamId, collectionId) },
   )
@@ -297,7 +297,7 @@ export async function exportArchive(
 ): Promise<Blob> {
   const config = await getAxiosConfig()
   const res = await axios.get(
-    `${getBaseUrl()}/api/v1/erd-version/export`,
+    `${getBaseUrl()}/erd-version/export`,
     {
       ...config,
       params: buildParams(teamId, collectionId),
