@@ -40,6 +40,17 @@
       >
         <IconSave class="erd-toolbar-icon" />
       </div>
+      <div class="erd-toolbar-vertical" />
+      <div
+        class="erd-toolbar-menu"
+        :title="allCollapsed ? t('erd.expand_all') : t('erd.collapse_all')"
+        @click="toggleCollapseAll"
+      >
+        <component
+          :is="allCollapsed ? IconMaximize2 : IconMinimize2"
+          class="erd-toolbar-icon"
+        />
+      </div>
     </div>
 
     <!-- erd-editor -->
@@ -90,7 +101,15 @@ import IconFileJson from "~icons/lucide/file-json"
 import IconFileCode from "~icons/lucide/file-code"
 import IconDownload from "~icons/lucide/download"
 import IconSave from "~icons/lucide/save"
+import IconMinimize2 from "~icons/lucide/minimize-2"
+import IconMaximize2 from "~icons/lucide/maximize-2"
 import { parsePgSqlToErdJson, isPgSql } from "~/helpers/erdPgSqlParser"
+// Must be imported BEFORE erd-editor to patch attachShadow
+import {
+  initCollapseFeature,
+  collapseAllTables,
+  expandAllTables,
+} from "~/helpers/erdCollapse"
 import "@dineug/erd-editor"
 
 const props = defineProps<{
@@ -116,6 +135,10 @@ const sqlFileInput = ref<HTMLInputElement | null>(null)
 const bgColor = useSetting("BG_COLOR")
 const isDarkMode = computed(() => bgColor.value !== "light")
 
+// Collapse feature state
+const allCollapsed = ref(false)
+let collapseCleanup: (() => void) | null = null
+
 const defaultSchema = JSON.stringify({
   $schema: "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
   version: "3.0.0",
@@ -139,6 +162,11 @@ onMounted(() => {
     customElements.whenDefined("erd-editor").then(() => {
       const schemaToLoad = tab.value.document.schema || defaultSchema
       editor.value = schemaToLoad
+
+      // Initialize collapse feature
+      if (erdEditorRef.value) {
+        collapseCleanup = initCollapseFeature(erdEditorRef.value)
+      }
     })
 
     // Set up auto-save via input event
@@ -154,6 +182,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (collapseCleanup) {
+    collapseCleanup()
+    collapseCleanup = null
+  }
   if (erdEditorRef.value) {
     const editor = erdEditorRef.value as any
     if (editor.destroy) editor.destroy()
@@ -338,6 +370,18 @@ function manualSave() {
   }
   saveToCollection()
   toast.success(t("erd.save_success"))
+}
+
+function toggleCollapseAll() {
+  if (!erdEditorRef.value) return
+
+  if (allCollapsed.value) {
+    expandAllTables(erdEditorRef.value)
+    allCollapsed.value = false
+  } else {
+    collapseAllTables(erdEditorRef.value)
+    allCollapsed.value = true
+  }
 }
 
 function getEditorValue(): string {

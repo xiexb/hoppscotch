@@ -45,6 +45,16 @@
             </div>
             <div class="erd-toolbar-vertical" />
             <div
+              class="erd-toolbar-menu"
+              :title="allCollapsed ? t('erd.expand_all') : t('erd.collapse_all')"
+              @click="toggleCollapseAll"
+            >
+              <component
+                :is="allCollapsed ? IconMaximize2 : IconMinimize2"
+                class="erd-toolbar-icon"
+              />
+            </div>
+            <div
               class="erd-toolbar-menu erd-toolbar-menu--danger"
               :title="t('erd.clear')"
               @click="clearEditor"
@@ -105,6 +115,14 @@ import IconTrash from "~icons/lucide/trash-2"
 import IconSave from "~icons/lucide/save"
 import IconPanelLeftClose from "~icons/lucide/panel-left-close"
 import IconPanelLeftOpen from "~icons/lucide/panel-left-open"
+import IconMinimize2 from "~icons/lucide/minimize-2"
+import IconMaximize2 from "~icons/lucide/maximize-2"
+// Must be imported BEFORE erd-editor to patch attachShadow
+import {
+  initCollapseFeature,
+  collapseAllTables,
+  expandAllTables,
+} from "@helpers/erdCollapse"
 import "@dineug/erd-editor"
 
 const t = useI18n()
@@ -124,6 +142,10 @@ const showSidebar = ref<boolean>(true)
 
 // Auto-save timer
 let saveTimer: ReturnType<typeof setInterval> | null = null
+
+// Collapse feature state
+const allCollapsed = ref(false)
+let collapseCleanup: (() => void) | null = null
 
 function getEditor(): any {
   return erdEditorRef.value as any
@@ -239,6 +261,11 @@ onMounted(() => {
 
       // Auto-save every 3 seconds
       saveTimer = setInterval(saveToStorage, 3000)
+
+      // Initialize collapse feature
+      if (erdEditorRef.value) {
+        collapseCleanup = initCollapseFeature(erdEditorRef.value)
+      }
     })
   }
 
@@ -253,6 +280,10 @@ onBeforeUnmount(() => {
     clearInterval(saveTimer)
     saveTimer = null
   }
+  if (collapseCleanup) {
+    collapseCleanup()
+    collapseCleanup = null
+  }
   window.removeEventListener("beforeunload", saveToStorage)
   if (erdEditorRef.value) {
     const editor = getEditor()
@@ -263,6 +294,18 @@ onBeforeUnmount(() => {
 function toggleSidebar() {
   showSidebar.value = !showSidebar.value
   localStorage.setItem(ERD_SIDEBAR_KEY, String(showSidebar.value))
+}
+
+function toggleCollapseAll() {
+  if (!erdEditorRef.value) return
+
+  if (allCollapsed.value) {
+    expandAllTables(erdEditorRef.value)
+    allCollapsed.value = false
+  } else {
+    collapseAllTables(erdEditorRef.value)
+    allCollapsed.value = true
+  }
 }
 
 function triggerImportJSON() {

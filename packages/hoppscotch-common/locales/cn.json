@@ -2664,6 +2664,8 @@
     "save_success": "已保存到本地",
     "title": "ER 图",
     "hide_sidebar": "隐藏侧边栏",
-    "show_sidebar": "显示侧边栏"
+    "show_sidebar": "显示侧边栏",
+    "collapse_all": "收起所有表",
+    "expand_all": "展开所有表"
   }
 }

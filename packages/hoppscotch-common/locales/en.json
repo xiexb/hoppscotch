@@ -2700,6 +2700,8 @@
     "save_success": "Saved to local storage",
     "title": "ER Diagram",
     "hide_sidebar": "Hide sidebar",
-    "show_sidebar": "Show sidebar"
+    "show_sidebar": "Show sidebar",
+    "collapse_all": "Collapse all tables",
+    "expand_all": "Expand all tables"
   }
 }
