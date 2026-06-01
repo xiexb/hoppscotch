@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.5.0
+version: 1.7.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -500,6 +500,10 @@ RequestDesignPanel.vue          # Orchestrator: title bar + mode indicator + act
 
 **Principle: UI consistency across modes.** When a feature exists in both edit and preview mode (e.g., save button, URL display), use the **exact same component and styling** — not a simplified or custom version. User will correct any visual or behavioral inconsistency between modes. If edit mode uses a button group (save + dropdown), preview mode must use the same button group, not separate buttons.
 
+**Principle: Preview mode URL bar must match edit mode exactly.** The URL bar in preview mode uses the same `HttpRequest` component with `readonly` prop. Method dropdown, URL input (SmartEnvInput with readonly), send button ("手动调试"), and save button all appear identically — only the URL field is non-editable. Do NOT use a plain `<span>` for read-only URL display; use SmartEnvInput with `:readonly="true"` + `class="pointer-events-none"` to maintain visual consistency.
+
+**Principle: "手动调试" button in both design modes.** The send button label is always "手动调试" in both edit and preview modes (not just edit mode). Clicking it switches to the Debug tab in both modes.
+
 **`tab` prop pattern:** DesignPanel uses `useVModel(props, "tab", emit)` → `tabModel` for the HttpRequest v-model. Never use `v-model="tab"` directly on a prop.
 
 **StatusBadge options (6 values):** 设计中(gray) | 调试中(blue) | 测试中(yellow) | 发布(green) | 将废弃(orange) | 已废弃(red). Type: `ApiStatus = "designing" | "developing" | "testing" | "published" | "about_to_deprecate" | "deprecated"`.
@@ -528,7 +532,7 @@ The shared `MarkdownEditor.vue` has `min-h-52` (208px) hardcoded. When embedding
 `Request.vue` (the URL bar) accepts a `sendLabel` prop and `@send-action` emit to customize the primary button's behavior per context. When `sendLabel` is set, the button shows that text instead of "Send" and emits `sendAction` instead of firing the HTTP request:
 
 ```vue
-<!-- In parent (RequestTab.vue): -->
+<!-- In parent (RequestDesignPanel.vue): -->
 <HttpRequest
   v-model="tab"
   send-label="手动调试"
@@ -536,7 +540,21 @@ The shared `MarkdownEditor.vue` has `min-h-52` (208px) hardcoded. When embedding
 />
 ```
 
+**IMPORTANT:** In design mode, `sendLabel` is always `"手动调试"` for BOTH edit and preview sub-modes. Do NOT conditionally set it to `undefined` in preview mode — that would show "Send" instead.
+
 Inside Request.vue, the `onSendClick` handler checks: if `sendLabel` is set, emit `sendAction`; otherwise run normal send/cancel logic. This pattern avoids duplicating the Method+URL bar while giving each mode a context-specific action.
+
+### SmartEnvInput readonly mode for preview consistency
+When displaying a read-only URL in preview mode, do NOT use a plain `<span>`. Use `SmartEnvInput` with `:readonly="true"` and `class="pointer-events-none"` to maintain identical visual appearance:
+
+```vue
+<!-- Edit mode: editable -->
+<SmartEnvInput v-if="!readonly" v-model="endpoint" ... />
+<!-- Preview mode: read-only but same visual -->
+<SmartEnvInput v-else :model-value="endpoint" :readonly="true" class="pointer-events-none" />
+```
+
+This ensures environment variable highlights, font, and spacing match the editable version exactly.
 
 ### Tab document preference persistence
 To persist a UI preference per-tab (survives tab close/reopen):
@@ -1129,7 +1147,9 @@ Vue({
 }),
 ```
 
-**Closed shadow root:** Some Web Components (like erd-editor) use `shadow: "closed"` mode. This means `element.shadowRoot` returns `null` — this is **normal, not a bug**. The element still renders and functions correctly. Use `customElements.get('erd-editor')` to verify registration.
+**Closed shadow root:** Some Web Components (like erd-editor) use `shadow: "closed"` mode. This means `element.shadowRoot` returns `null` — this is **normal, not a bug**. The element still renders and functions correctly. Use `customElements.get('erd-editor')` to verify registration. To inject into the shadow DOM, patch `Element.prototype.attachShadow` BEFORE importing the component — see `references/erd-editor-integration.md` for the pattern.
+
+**CRITICAL PITFALL: CSS hiding vs data-model manipulation.** When extending Web Components that render SVG/canvas elements (like erd-editor's relationship lines), do NOT use CSS `display: none` to hide internal elements. The component's layout engine calculates SVG positions from its internal data model — CSS hiding leaves the model unchanged, so SVG lines point to invisible/ghost positions. **Always modify the component's data model** (e.g., `editor.value = JSON.stringify(modifiedSchema)`) so the layout engine recalculates everything correctly.
 
 ### pnpm store location mismatch (different HOME)
 When running `pnpm` from a shell with a different `$HOME` (e.g., Hermes agent profiles), pnpm may fail with `ERR_PNPM_UNEXPECTED_STORE` because it wants to use the profile-specific store.
@@ -1160,7 +1180,16 @@ const primaryNavigation = [
 Icons use `~icons/lucide/<name>` (unplugin-icons). Add to all 32 locale JSON files under `navigation.<key>`.
 
 ### ER Diagram feature (erd-editor)
-ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component at `/erd`. See `references/erd-editor-integration.md` for full integration details (schema format, API methods, floating toolbar pattern, build output).
+ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component. **Two separate components** implement ERD:
+
+| Component | Location | Context |
+|-----------|----------|---------|
+| `erd.vue` | `src/pages/erd.vue` | Standalone `/erd` route |
+| `ErdDiagramTab.vue` | `src/components/collections/ErdDiagramTab.vue` | Collections sidebar ERD tab |
+
+**CRITICAL PITFALL:** Any ERD feature (save button, PG SQL import, toolbar changes) MUST be added to BOTH components. Users typically test in the Collections sidebar, not the standalone page.
+
+See `references/erd-editor-integration.md` for: v3.0.0 JSON format, column options bitmask, PG SQL custom parser, persistence pattern, toolbar layout.
 
 ### v-tippy does NOT work on native `<button>` in scoped components (use title instead)
 When building floating/overlay toolbars with native `<button>` elements inside scoped Vue components, `v-tippy` directives are silently ignored — the tooltip never appears. This is because `v-tippy` (vue-tippy) relies on Vue's directive system which doesn't reliably attach to native elements inside scoped styles.
@@ -1234,3 +1263,4 @@ The `inputTheme` in `helpers/editor/themes/baseTheme.ts` sets `.cm-line` with `p
 - See `references/persistence-schema-validation.md` for the REST_TAB_STATE_SCHEMA `.strict()` → `.passthrough()` fix and field-addition checklist
 - See `references/markdown-docs-feature-plan.md` for the collection markdown document feature plan: md-editor-v3 integration, verzod v14 data model, 3-phase implementation, file list, i18n keys
 - See `references/md-editor-v3-theming.md` for CSS variable mapping between md-editor-v3 and Hoppscotch themes (dropdown/modal/toolbar background fix)
+- See `references/erd-version-management-plan.md` for Git-based ERD version control architecture: dual-file strategy, name-based diff algorithm, API design, visual diff rendering with ui.color

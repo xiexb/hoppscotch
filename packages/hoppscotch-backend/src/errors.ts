@@ -895,7 +895,55 @@ export const ACCESS_TOKEN_INVALID = 'TOKEN_INVALID';
  * AccessTokens is invalid
  * (AccessTokenService)
  */
-export const ACCESS_TOKENS_INVALID_DATA_ID = 'INVALID_ID';
+export const ACCESS_TOKENS_INVALID_DATA_ID='***';
+
+/**
+ * ERD version repository not found or failed to initialize
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_REPO_NOT_FOUND = 'erd_version/repo_not_found' as const;
+
+/**
+ * ERD version commit failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_COMMIT_FAILED = 'erd_version/commit_failed' as const;
+
+/**
+ * ERD version ref not found (invalid commit hash or tag)
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_REF_NOT_FOUND = 'erd_version/ref_not_found' as const;
+
+/**
+ * ERD version revert failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_REVERT_FAILED = 'erd_version/revert_failed' as const;
+
+/**
+ * ERD version diff failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_DIFF_FAILED = 'erd_version/diff_failed' as const;
+
+/**
+ * ERD version log retrieval failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_LOG_FAILED = 'erd_version/log_failed' as const;
+
+/**
+ * ERD version JSON is invalid or unsupported format
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_INVALID_JSON = 'erd_version/invalid_json' as const;
+
+/**
+ * ERD version remote push failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_REMOTE_PUSH_FAILED = 'erd_version/remote_push_failed' as const;
 
 /**
  * The provided label for the infra-token is short (less than 3 characters)
