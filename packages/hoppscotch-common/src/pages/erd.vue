@@ -19,7 +19,6 @@
             >
               <IconFileCode class="erd-toolbar-icon" />
             </div>
-            <div class="erd-toolbar-vertical" />
             <div
               class="erd-toolbar-menu erd-toolbar-menu--save"
               :title="t('erd.save')"
