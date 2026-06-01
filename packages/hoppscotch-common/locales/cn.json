@@ -2698,7 +2698,8 @@
       "export_success": "归档已导出",
       "export_error": "导出失败",
       "last_push": "上次推送",
-      "remote_configured": "已配置"
+      "remote_configured": "已配置",
+      "auto_commit_error": "自动保存到服务器失败"
     }
   }
 }

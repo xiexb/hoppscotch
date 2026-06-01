@@ -2734,7 +2734,8 @@
       "export_success": "Archive exported",
       "export_error": "Export failed",
       "last_push": "Last push",
-      "remote_configured": "Configured"
+      "remote_configured": "Configured",
+      "auto_commit_error": "Auto-save to server failed"
     }
   }
 }

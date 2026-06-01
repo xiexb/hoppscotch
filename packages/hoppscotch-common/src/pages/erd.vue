@@ -55,6 +55,15 @@
               />
             </div>
             <div
+              v-if="hasCollectionContext"
+              class="erd-toolbar-menu"
+              :class="{ 'erd-toolbar-menu--active': showVersionPanel }"
+              :title="t('erd.version.title')"
+              @click="toggleVersionPanel"
+            >
+              <IconHistory class="erd-toolbar-icon" />
+            </div>
+            <div
               class="erd-toolbar-menu erd-toolbar-menu--danger"
               :title="t('erd.clear')"
               @click="clearEditor"
@@ -82,6 +91,32 @@
             @change="handleImportSQL"
           />
 
+          <!-- Version Panel Drawer (right-side overlay) -->
+          <Transition name="slide-right">
+            <div v-if="showVersionPanel" class="erd-version-drawer">
+              <div class="erd-version-drawer-header">
+                <span class="erd-version-drawer-title">{{ t("erd.version.title") }}</span>
+                <button
+                  class="erd-version-drawer-close"
+                  :title="t('action.close')"
+                  @click="showVersionPanel = false"
+                >
+                  <IconX class="h-4 w-4" />
+                </button>
+              </div>
+              <div class="erd-version-drawer-body">
+                <ErdVersionPanel
+                  :team-id="teamId"
+                  :collection-id="collectionId"
+                  :current-erd-json="getEditorValue()"
+                  @restore="handleVersionRestore"
+                  @compare="handleVersionCompare"
+                  @saved="handleVersionSaved"
+                />
+              </div>
+            </div>
+          </Transition>
+
           <!-- Sidebar toggle button (bottom-right) -->
           <button
             class="erd-sidebar-toggle"
@@ -104,6 +139,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from "vue"
+import { useRoute } from "vue-router"
 import { useI18n } from "@composables/i18n"
 import { useSetting } from "@composables/settings"
 import { useToast } from "@composables/toast"
@@ -117,6 +153,10 @@ import IconPanelLeftClose from "~icons/lucide/panel-left-close"
 import IconPanelLeftOpen from "~icons/lucide/panel-left-open"
 import IconMinimize2 from "~icons/lucide/minimize-2"
 import IconMaximize2 from "~icons/lucide/maximize-2"
+import IconHistory from "~icons/lucide/history"
+import IconX from "~icons/lucide/x"
+import { commitVersion } from "@helpers/erdVersionApi"
+import ErdVersionPanel from "@components/erd/ErdVersionPanel.vue"
 // Must be imported BEFORE erd-editor to patch attachShadow
 import {
   initCollapseFeature,
@@ -127,6 +167,18 @@ import "@dineug/erd-editor"
 
 const t = useI18n()
 const toast = useToast()
+const route = useRoute()
+
+// Collection context from route query params
+const teamId = computed(() => (route.query.teamId as string) || "")
+const collectionId = computed(() => (route.query.collectionId as string) || "")
+const hasCollectionContext = computed(() => !!teamId.value && !!collectionId.value)
+
+// Version panel state
+const showVersionPanel = ref(false)
+const diffMode = ref(false)
+const diffFrom = ref("")
+const diffTo = ref("")
 
 const erdEditorRef = ref<HTMLElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
@@ -406,6 +458,15 @@ function exportSQL() {
 function manualSave() {
   saveToStorage()
   toast.success(t("erd.save_success"))
+
+  // Auto-commit when collection context is available
+  if (hasCollectionContext.value) {
+    const erdJson = getEditorValue()
+    commitVersion(teamId.value, collectionId.value, erdJson).catch((err: any) => {
+      console.warn("Auto-commit failed:", err)
+      toast.error(t("erd.version.auto_commit_error"))
+    })
+  }
 }
 
 function clearEditor() {
@@ -416,6 +477,30 @@ function clearEditor() {
     // Clear saved data too
     localStorage.removeItem(ERD_DATA_KEY)
   }
+}
+
+// ─── Version Panel Event Handlers ────────────────────────────────
+
+function toggleVersionPanel() {
+  showVersionPanel.value = !showVersionPanel.value
+}
+
+function handleVersionRestore(erdJson: string) {
+  setEditorValue(erdJson)
+  toast.success(t("erd.version.restore_success"))
+  // Save restored data to localStorage
+  setTimeout(saveToStorage, 500)
+}
+
+function handleVersionCompare(from: string, to: string) {
+  diffFrom.value = from
+  diffTo.value = to
+  diffMode.value = true
+  // Diff view implementation is handled by the next task
+}
+
+function handleVersionSaved() {
+  // Version list is refreshed internally by ErdVersionPanel
 }
 </script>
 
@@ -533,5 +618,79 @@ erd-editor {
   width: 18px;
   height: 18px;
   color: var(--foreground, #60646c);
+}
+
+.erd-toolbar-menu--active {
+  fill: var(--active);
+  background-color: rgba(128, 128, 128, 0.15);
+  border-radius: 3px;
+}
+
+.erd-version-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 90%;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--toolbar-background, #fcfcfd);
+  border-left: 1px solid var(--foreground, #60646c);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+}
+
+.erd-version-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--foreground, #60646c);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.erd-version-drawer-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #60646c);
+}
+
+.erd-version-drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--foreground, #60646c);
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(128, 128, 128, 0.2);
+  }
+}
+
+.erd-version-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Slide transition for the drawer */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
 }
 </style>
