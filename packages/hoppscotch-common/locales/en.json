@@ -2696,6 +2696,8 @@
     "export_success_note": "Schema exported. Use editor toolbar for SQL generation.",
     "export_error": "Failed to export schema",
     "clear_success": "Editor cleared",
-    "title": "ER Diagram"
+    "title": "ER Diagram",
+    "hide_sidebar": "Hide sidebar",
+    "show_sidebar": "Show sidebar"
   }
 }

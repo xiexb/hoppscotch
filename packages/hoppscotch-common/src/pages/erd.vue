@@ -1,66 +1,87 @@
 <template>
-  <div class="erd-page relative h-full">
-    <!-- Toolbar overlay: matches erd-editor toolbar style -->
-    <div class="erd-toolbar-overlay">
-      <div
-        class="erd-toolbar-menu"
-        :title="t('erd.import_json')"
-        @click="triggerImportJSON"
-      >
-        <IconFileJson class="erd-toolbar-icon" />
-      </div>
-      <div
-        class="erd-toolbar-menu"
-        :title="t('erd.import_sql')"
-        @click="triggerImportSQL"
-      >
-        <IconFileCode class="erd-toolbar-icon" />
-      </div>
-      <div class="erd-toolbar-vertical" />
-      <div
-        class="erd-toolbar-menu"
-        :title="t('erd.export_json')"
-        @click="exportJSON"
-      >
-        <IconFileJson class="erd-toolbar-icon" />
-        <IconDownload class="erd-toolbar-badge" />
-      </div>
-      <div
-        class="erd-toolbar-menu"
-        :title="t('erd.export_sql')"
-        @click="exportSQL"
-      >
-        <IconFileCode class="erd-toolbar-icon" />
-        <IconDownload class="erd-toolbar-badge" />
-      </div>
-      <div class="erd-toolbar-vertical" />
-      <div
-        class="erd-toolbar-menu erd-toolbar-menu--danger"
-        :title="t('erd.clear')"
-        @click="clearEditor"
-      >
-        <IconTrash class="erd-toolbar-icon" />
-      </div>
-    </div>
+  <div class="erd-page-wrapper">
+    <AppPaneLayout layout-id="erd">
+      <template #primary>
+        <div class="erd-page relative h-full">
+          <!-- Toolbar overlay: matches erd-editor toolbar style -->
+          <div class="erd-toolbar-overlay">
+            <div
+              class="erd-toolbar-menu"
+              :title="t('erd.import_json')"
+              @click="triggerImportJSON"
+            >
+              <IconFileJson class="erd-toolbar-icon" />
+            </div>
+            <div
+              class="erd-toolbar-menu"
+              :title="t('erd.import_sql')"
+              @click="triggerImportSQL"
+            >
+              <IconFileCode class="erd-toolbar-icon" />
+            </div>
+            <div class="erd-toolbar-vertical" />
+            <div
+              class="erd-toolbar-menu"
+              :title="t('erd.export_json')"
+              @click="exportJSON"
+            >
+              <IconFileJson class="erd-toolbar-icon" />
+              <IconDownload class="erd-toolbar-badge" />
+            </div>
+            <div
+              class="erd-toolbar-menu"
+              :title="t('erd.export_sql')"
+              @click="exportSQL"
+            >
+              <IconFileCode class="erd-toolbar-icon" />
+              <IconDownload class="erd-toolbar-badge" />
+            </div>
+            <div class="erd-toolbar-vertical" />
+            <div
+              class="erd-toolbar-menu erd-toolbar-menu--danger"
+              :title="t('erd.clear')"
+              @click="clearEditor"
+            >
+              <IconTrash class="erd-toolbar-icon" />
+            </div>
+          </div>
 
-    <!-- erd-editor -->
-    <erd-editor ref="erdEditorRef" :system-dark-mode="isDarkMode" />
+          <!-- erd-editor -->
+          <erd-editor ref="erdEditorRef" :system-dark-mode="isDarkMode" />
 
-    <!-- Hidden file inputs -->
-    <input
-      ref="jsonFileInput"
-      type="file"
-      accept=".json"
-      class="hidden"
-      @change="handleImportJSON"
-    />
-    <input
-      ref="sqlFileInput"
-      type="file"
-      accept=".sql,.txt"
-      class="hidden"
-      @change="handleImportSQL"
-    />
+          <!-- Hidden file inputs -->
+          <input
+            ref="jsonFileInput"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleImportJSON"
+          />
+          <input
+            ref="sqlFileInput"
+            type="file"
+            accept=".sql,.txt"
+            class="hidden"
+            @change="handleImportSQL"
+          />
+
+          <!-- Sidebar toggle button (bottom-right) -->
+          <button
+            class="erd-sidebar-toggle"
+            :title="showSidebar ? t('erd.hide_sidebar') : t('erd.show_sidebar')"
+            @click="toggleSidebar"
+          >
+            <component
+              :is="showSidebar ? IconPanelLeftClose : IconPanelLeftOpen"
+              class="erd-sidebar-toggle-icon"
+            />
+          </button>
+        </div>
+      </template>
+      <template v-if="showSidebar" #sidebar>
+        <Collections />
+      </template>
+    </AppPaneLayout>
   </div>
 </template>
 
@@ -73,6 +94,8 @@ import IconFileJson from "~icons/lucide/file-json"
 import IconFileCode from "~icons/lucide/file-code"
 import IconDownload from "~icons/lucide/download"
 import IconTrash from "~icons/lucide/trash-2"
+import IconPanelLeftClose from "~icons/lucide/panel-left-close"
+import IconPanelLeftOpen from "~icons/lucide/panel-left-open"
 import "@dineug/erd-editor"
 
 const t = useI18n()
@@ -85,7 +108,17 @@ const sqlFileInput = ref<HTMLInputElement | null>(null)
 const bgColor = useSetting("BG_COLOR")
 const isDarkMode = computed(() => bgColor.value !== "light")
 
+// Sidebar visibility state with localStorage persistence
+const ERD_SIDEBAR_KEY = "erd-sidebar-visible"
+const showSidebar = ref<boolean>(true)
+
 onMounted(() => {
+  // Restore sidebar visibility from localStorage
+  const stored = localStorage.getItem(ERD_SIDEBAR_KEY)
+  if (stored !== null) {
+    showSidebar.value = stored === "true"
+  }
+
   if (erdEditorRef.value) {
     const editor = erdEditorRef.value as any
     customElements.whenDefined("erd-editor").then(() => {
@@ -144,6 +177,11 @@ onBeforeUnmount(() => {
     if (editor.destroy) editor.destroy()
   }
 })
+
+function toggleSidebar() {
+  showSidebar.value = !showSidebar.value
+  localStorage.setItem(ERD_SIDEBAR_KEY, String(showSidebar.value))
+}
 
 function triggerImportJSON() {
   jsonFileInput.value?.click()
@@ -241,6 +279,10 @@ function clearEditor() {
 </script>
 
 <style lang="scss" scoped>
+.erd-page-wrapper {
+  height: 100%;
+}
+
 .erd-page {
   height: 100%;
 }
@@ -323,5 +365,36 @@ erd-editor {
 
 .hidden {
   display: none;
+}
+
+/* Sidebar toggle button (bottom-right) */
+.erd-sidebar-toggle {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--foreground, #60646c);
+  background-color: var(--toolbar-background, #fcfcfd);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    opacity: 1;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.erd-sidebar-toggle-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--foreground, #60646c);
 }
 </style>

@@ -2660,6 +2660,8 @@
     "export_success_note": "Schema 已导出。请使用编辑器工具栏生成 SQL。",
     "export_error": "Schema 导出失败",
     "clear_success": "编辑器已清空",
-    "title": "ER 图"
+    "title": "ER 图",
+    "hide_sidebar": "隐藏侧边栏",
+    "show_sidebar": "显示侧边栏"
   }
 }
