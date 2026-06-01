@@ -64,7 +64,7 @@
     <div class="shrink-0">
       <HttpRequest
         v-model="tabModel"
-        :send-label="subMode === 'edit' ? '手动调试' : undefined"
+        :send-label="'手动调试'"
         :readonly="subMode === 'preview'"
         @send-action="emit('switchToDebug')"
       />
