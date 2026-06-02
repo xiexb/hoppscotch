@@ -67,7 +67,7 @@ export interface RemoteStatus {
 /** Information about a single tag */
 export interface TagInfo {
   tagName: string;
-  commitHash: string;
+  ref: string;
   createdAt: string;
 }
 
@@ -981,7 +981,7 @@ export class ErdVersionService {
 
         return E.right({
           tagName,
-          commitHash: ref,
+          ref,
           createdAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -1081,7 +1081,7 @@ export class ErdVersionService {
           const tagName = parts[0];
           const commitHash = parts[1];
           const createdAt = parts.slice(2).join(' ');
-          tags.push({ tagName, commitHash, createdAt });
+          tags.push({ tagName, ref: commitHash, createdAt });
         }
       }
 
