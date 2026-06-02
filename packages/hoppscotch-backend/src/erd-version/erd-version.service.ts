@@ -703,6 +703,72 @@ export class ErdVersionService {
   }
 
   /**
+   * Push a specific tag to remote asynchronously (non-blocking).
+   * Failures are logged but do not affect the response.
+   */
+  private pushTagToRemoteAsync(
+    teamId: string,
+    collectionId: string,
+    git: SimpleGit,
+    tagName: string,
+  ): void {
+    const key = this.getCollectionKey(teamId, collectionId);
+
+    git
+      .getRemotes()
+      .then((remotes) => {
+        if (remotes.length === 0) {
+          return; // No remote configured, skip push
+        }
+
+        return git.push(['origin', tagName]).then(() => {
+          this.logger.debug(
+            `Remote tag push succeeded for ${key}: ${tagName}`,
+          );
+        });
+      })
+      .catch((error) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Remote tag push failed for ${key}: ${tagName}: ${msg}`,
+        );
+      });
+  }
+
+  /**
+   * Delete a specific tag from remote asynchronously (non-blocking).
+   * Failures are logged but do not affect the response.
+   */
+  private deleteRemoteTagAsync(
+    teamId: string,
+    collectionId: string,
+    git: SimpleGit,
+    tagName: string,
+  ): void {
+    const key = this.getCollectionKey(teamId, collectionId);
+
+    git
+      .getRemotes()
+      .then((remotes) => {
+        if (remotes.length === 0) {
+          return; // No remote configured, skip
+        }
+
+        return git.push(['origin', `:refs/tags/${tagName}`]).then(() => {
+          this.logger.debug(
+            `Remote tag deletion succeeded for ${key}: ${tagName}`,
+          );
+        });
+      })
+      .catch((error) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Remote tag deletion failed for ${key}: ${tagName}: ${msg}`,
+        );
+      });
+  }
+
+  /**
    * Get the remote push status for a collection.
    */
   async getRemoteStatus(
@@ -980,8 +1046,8 @@ export class ErdVersionService {
           `Created tag '${tagName}' at ${ref} for ${teamId}/${collectionId}`,
         );
 
-        // Push tags to remote asynchronously
-        this.pushToRemoteAsync(teamId, collectionId, git);
+        // Push the new tag to remote asynchronously
+        this.pushTagToRemoteAsync(teamId, collectionId, git, tagName);
 
         return E.right({
           tagName,
@@ -1041,8 +1107,8 @@ export class ErdVersionService {
           `Deleted tag '${tagName}' for ${teamId}/${collectionId}`,
         );
 
-        // Push tag deletion to remote asynchronously
-        this.pushToRemoteAsync(teamId, collectionId, git);
+        // Delete the remote tag asynchronously
+        this.deleteRemoteTagAsync(teamId, collectionId, git, tagName);
 
         return E.right({ success: true as const });
       } catch (error) {
@@ -1076,13 +1142,13 @@ export class ErdVersionService {
       const output = await git.raw([
         'tag',
         '-l',
-        '--format=%(refname:short) %(objectname:short) %(creatordate:iso)',
+        '--format=%(refname:short) %(objectname) %(creatordate:iso)',
       ]);
 
       const tags: TagInfo[] = [];
       const lines = output.trim().split('\n').filter(Boolean);
       for (const line of lines) {
-        // Format: "tagName abc1234 2026-06-01 12:00:00 +0800"
+        // Format: "tagName abc1234def5678... 2026-06-01 12:00:00 +0800"
         const parts = line.split(' ');
         if (parts.length >= 3) {
           const tagName = parts[0];
