@@ -721,7 +721,7 @@ export class ErdVersionService {
           return; // No remote configured, skip push
         }
 
-        return git.push(['origin', tagName]).then(() => {
+        return git.push(['origin', `refs/tags/${tagName}`]).then(() => {
           this.logger.debug(
             `Remote tag push succeeded for ${key}: ${tagName}`,
           );
