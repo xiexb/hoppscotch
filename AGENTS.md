@@ -139,6 +139,35 @@ for port in 3003 3101 3170; do
 done
 ```
 
+### ⚠️ 端口漂移检测 + Nginx 修复（必做步骤）
+
+**问题**: Vite dev server 重启后端口可能变化（3003→3004、3101→3102），但 Nginx `proxy_pass` 是写死的，导致公网 502。
+
+**每次重启服务后必须执行**：
+
+```bash
+# 一键检测 + 自动修复
+bash /home/jcwl/workspace/hoppscotch/scripts/fix-nginx-ports.sh
+```
+
+该脚本会：
+1. 用 `ss -tlnp` 检测各服务实际监听端口
+2. 与 Nginx 配置中的 `proxy_pass` 目标端口比对
+3. 不一致时自动 `sed` 修复 + `nginx -t` + `nginx -s reload`
+
+手动检查方式：
+```bash
+# 查看实际监听端口
+ss -tlnp | grep -E "3003|3004|3101|3102|3170"
+
+# 查看 Nginx 配置的端口
+grep proxy_pass /etc/nginx/sites-enabled/hoppscotch
+
+# 如果不一致，手动修复
+sudo sed -i 's|proxy_pass http://127.0.0.1:旧端口;|proxy_pass http://127.0.0.1:新端口;|' /etc/nginx/sites-enabled/hoppscotch
+sudo nginx -t && sudo nginx -s reload
+```
+
 ### Nginx 反向代理（公网访问）
 
 | 公网端口 | 内网端口 | 用途 |
