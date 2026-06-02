@@ -2749,7 +2749,7 @@
         "timeline": "Timeline"
       },
       "no_collection_context": "Please open ERD from a collection to use version control",
-      "compare_not_available": "Version compare is only available in the standalone ERD page"
+      "compare_no_context": "Cannot compare versions: team or collection context missing"
     },
     "diff": {
       "comparing": "Comparing",

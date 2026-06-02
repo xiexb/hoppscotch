@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.9.0
+version: 1.10.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -1233,11 +1233,32 @@ ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component. 
 
 **CRITICAL PITFALL:** Any ERD feature (save button, PG SQL import, toolbar changes) MUST be added to BOTH components. Users typically test in the Collections sidebar, not the standalone page.
 
-**Version management** (implemented 2026-06-01): Git-backed versioning with auto-commit on save, version diff with color-coded changes (green=new, yellow=modified, gray=deleted), restore/revert, and remote push. Only available in collection ERD context (`hasCollectionContext = !!teamId && !!collectionId`). Version panel accessible via toolbar history icon (IconHistory). See `references/erd-version-management-plan.md` for full architecture.
+**Version management** (implemented 2026-06-01): Git-backed versioning with auto-commit on save, version diff with color-coded changes (green=new, yellow=modified, gray=deleted), restore/revert, and remote push. Version panel accessible via toolbar history icon (IconHistory). See `references/erd-version-management-plan.md` for full architecture.
 
-**Version management entry point**: Toolbar icon (IconHistory) — always visible. Clicking it toggles `ErdVersionPanel` drawer on the right side. **PITFALL: Do NOT gate UI features behind `v-if="hasCollectionContext"`** (or any route-param guard). Users accessing `/erd` directly don't have `?teamId=xxx&collectionId=xxx` params, so the button is invisible. The version panel API calls will simply fail gracefully (404/empty list) when no collection context exists — that's acceptable UX. If a feature truly requires context, show a helpful message in the panel instead of hiding the entry point entirely.
+**Version management entry point**: Toolbar icon (IconHistory) — always visible in BOTH components. Clicking it toggles `ErdVersionPanel` drawer on the right side. **PITFALL: Do NOT gate UI features behind `v-if="hasCollectionContext"`** (or any route-param guard). Users accessing `/erd` directly don't have `?teamId=xxx&collectionId=xxx` params, so the button is invisible. The version panel API calls will simply fail gracefully (404/empty list) when no collection context exists — that's acceptable UX. If a feature truly requires context, show a helpful message in the panel instead of hiding the entry point entirely.
 
-**Tag management** (implemented 2026-06-02): Users can create/delete git tags on ERD versions for milestone marking. Includes horizontal timeline component (`ErdVersionTimeline.vue`) with tag node anchoring, inline tag creation UI, and quick-select-for-compare. See `references/erd-version-tag-management.md` for: API endpoints, git operations, 7 pitfalls (field name consistency, push prefix, route ordering).
+**CRITICAL: ErdDiagramTab.vue is a COMPLETELY SEPARATE implementation from erd.vue.**
+Each component has its OWN toolbar, its OWN imports, its OWN version panel drawer, its OWN CSS. Adding a feature to `erd.vue` does NOT automatically appear in the collection ERD tab. When adding ANY toolbar button, panel, or feature:
+1. Add the template HTML to BOTH `erd.vue` and `ErdDiagramTab.vue`
+2. Add the imports (icons, components) to BOTH
+3. Add the CSS (drawer styles, active states) to BOTH
+4. Add the logic (state refs, handlers) to BOTH
+
+**ErdDiagramTab.vue team/collection context**: The collection tab gets its teamId and collectionId differently from erd.vue:
+- `erd.vue`: from route query params (`route.query.teamId`, `route.query.collectionId`)
+- `ErdDiagramTab.vue`: from `team-collection.service.ts` (`getTeamID()`) and `tab.value.document.collectionPath`
+
+**PITFALL: `team-collection.service.ts` `teamID` is private.** The field `private teamID: string | null` is not accessible from components. A `public getTeamID(): string | null` method was added. Any component that needs the current team ID must call `teamCollectionService.getTeamID()`.
+
+**PITFALL: ErdVersionPanel empty-prop guard.** When `ErdVersionPanel` is embedded in a context where `teamId` or `collectionId` might be empty strings, `handleSave()` must guard against calling the API with empty params (causes 400 Bad Request). Add at the top of `handleSave()`:
+```typescript
+if (!props.teamId || !props.collectionId) {
+  toast.error(t("erd.version.no_collection_context"))
+  return
+}
+```
+
+**Tag management** (implemented 2026-06-02): Users can create/delete git tags on ERD versions for milestone marking. Includes horizontal timeline component (`ErdVersionTimeline.vue`) with tag node anchoring, inline tag creation UI, and quick-select-for-compare. See `references/erd-version-tag-management.md` for: API endpoints, git operations, 10 pitfalls (field name consistency, push prefix, route ordering, dual-component integration).
 
 See `references/erd-editor-integration.md` for: v3.0.0 JSON format, column options bitmask, PG SQL custom parser, persistence pattern, toolbar layout.
 

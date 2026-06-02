@@ -188,9 +188,13 @@ const hasCollectionContext = computed(() => !!teamId.value && !!collectionId.val
 
 // Version panel state
 const showVersionPanel = ref(false)
-const diffMode = ref(false)
-const diffFrom = ref("")
-const diffTo = ref("")
+
+// Auto-enter diff mode if query params are present
+const initialDiffFrom = (route.query.diffFrom as string) || ""
+const initialDiffTo = (route.query.diffTo as string) || ""
+const diffMode = ref(!!(initialDiffFrom && initialDiffTo))
+const diffFrom = ref(initialDiffFrom)
+const diffTo = ref(initialDiffTo)
 
 const erdEditorRef = ref<HTMLElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)

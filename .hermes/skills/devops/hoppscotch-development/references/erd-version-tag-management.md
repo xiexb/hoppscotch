@@ -126,3 +126,50 @@ The IconHistory toolbar button was originally wrapped in `v-if="hasCollectionCon
 **Fix:** Removed the `v-if` guard. The button is always visible. When no collection context exists, API calls return 404/empty gracefully, and the panel shows "No versions yet."
 
 **General rule:** See the "Feature gating behind route params" pitfall in SKILL.md.
+
+### 9. ErdDiagramTab.vue requires separate version panel integration (CRITICAL)
+
+The collection ERD tab (`ErdDiagramTab.vue`) is a completely separate component from the standalone `/erd` page (`erd.vue`). Adding version management (IconHistory button + ErdVersionPanel drawer) to `erd.vue` does NOT automatically add it to `ErdDiagramTab.vue`.
+
+**Symptoms:** User opens ERD from the collections sidebar → toolbar has no history icon → version management is invisible.
+
+**Required changes in ErdDiagramTab.vue:**
+1. Import `IconHistory`, `IconX`, `ErdVersionPanel`
+2. Add the IconHistory button to the toolbar (after collapse/expand button)
+3. Add the version panel drawer HTML (Transition + drawer + ErdVersionPanel)
+4. Add state: `showVersionPanel`, `hasCollectionContext` computed, `versionTeamId`/`versionCollectionId` computed
+5. Add handlers: `toggleVersionPanel()`, `handleVersionRestore()`, `handleVersionCompare()`, `handleVersionSaved()`
+6. Add drawer CSS styles (same as erd.vue)
+
+**Key difference from erd.vue:** In ErdDiagramTab, `teamId` comes from `teamCollectionService.getTeamID()` (not route params), and `collectionId` comes from `tab.value.document.collectionPath`.
+
+### 10. ErdVersionPanel must guard against empty teamId/collectionId props
+
+When `ErdVersionPanel` is embedded in `ErdDiagramTab.vue` for a personal (non-team) collection, or when the service hasn't initialized yet, `teamId` or `collectionId` props may be empty strings. The `handleSave()` function then calls the API with `teamId=&collectionId=`, causing a 400 Bad Request.
+
+**Fix:** Add an empty-check guard at the top of `handleSave()`:
+```typescript
+async function handleSave() {
+  if (saving.value) return
+  if (!props.teamId || !props.collectionId) {
+    toast.error(t("erd.version.no_collection_context"))
+    return
+  }
+  // ... rest of save logic
+}
+```
+
+**i18n key:** `erd.version.no_collection_context` — "Please open ERD from a collection to use version control" / "请从集合中打开 ERD 以使用版本管理功能"
+
+### 11. team-collection.service.ts teamID is private
+
+The `TeamCollectionsService` class has `private teamID: string | null = null`. Components that need the current team ID (like `ErdDiagramTab.vue` for version management) cannot access it directly.
+
+**Fix:** Add a public getter method:
+```typescript
+public getTeamID(): string | null {
+  return this.teamID
+}
+```
+
+This was added in commit `5f1d85b`. Any future component needing team context from the service should use this method.

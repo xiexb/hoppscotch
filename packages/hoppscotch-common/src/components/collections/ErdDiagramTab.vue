@@ -201,9 +201,16 @@ function handleVersionRestore(erdJson: string) {
   }
 }
 
-function handleVersionCompare(_from: string, _to: string) {
-  // Diff mode not supported in tab view — use standalone ERD page
-  toast.info(t("erd.version.compare_not_available"))
+function handleVersionCompare(from: string, to: string) {
+  // Navigate to standalone ERD page with diff params
+  const teamId = teamCollectionService.getTeamID()
+  const collectionId = tab.value.document.collectionPath
+  if (teamId && collectionId) {
+    const url = `/erd?teamId=${encodeURIComponent(teamId)}&collectionId=${encodeURIComponent(collectionId)}&diffFrom=${encodeURIComponent(from)}&diffTo=${encodeURIComponent(to)}`
+    window.open(url, '_blank')
+  } else {
+    toast.error(t("erd.version.compare_no_context"))
+  }
 }
 
 function handleVersionSaved() {
