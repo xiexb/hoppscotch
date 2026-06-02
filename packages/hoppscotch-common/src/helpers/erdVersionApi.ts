@@ -106,6 +106,12 @@ export interface RelationshipChange {
   to: string
 }
 
+export interface TagInfo {
+  tagName: string
+  ref: string
+  createdAt: string
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 const getBaseUrl = () => import.meta.env.VITE_BACKEND_API_URL
@@ -303,6 +309,57 @@ export async function exportArchive(
       params: buildParams(teamId, collectionId),
       responseType: "blob",
     },
+  )
+  return res.data
+}
+
+// ─── Tag Management ──────────────────────────────────────────────
+
+/**
+ * Create a new tag pointing to a specific version ref.
+ */
+export async function createTag(
+  teamId: string,
+  collectionId: string,
+  tagName: string,
+  ref: string,
+): Promise<TagInfo> {
+  const config = await getAxiosConfig()
+  const res = await axios.post(
+    `${getBaseUrl()}/erd-version/tag`,
+    { tagName, ref },
+    { ...config, params: buildParams(teamId, collectionId) },
+  )
+  return res.data
+}
+
+/**
+ * Delete a tag by name.
+ */
+export async function deleteTag(
+  teamId: string,
+  collectionId: string,
+  tagName: string,
+): Promise<{ success: boolean }> {
+  const config = await getAxiosConfig()
+  const res = await axios.delete(
+    `${getBaseUrl()}/erd-version/tag/${encodeURIComponent(tagName)}`,
+    { ...config, params: buildParams(teamId, collectionId) },
+  )
+  return res.data
+}
+
+/**
+ * List all tags for a collection.
+ */
+export async function listTags(
+  teamId: string,
+  collectionId: string,
+): Promise<TagInfo[]> {
+  const config = await getAxiosConfig()
+  const res = await axios.get(
+    `${getBaseUrl()}/erd-version/tags`,
+    { ...config, params: buildParams(teamId, collectionId) },
   )
   return res.data
 }

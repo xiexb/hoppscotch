@@ -2735,7 +2735,19 @@
       "export_error": "Export failed",
       "last_push": "Last push",
       "remote_configured": "Configured",
-      "auto_commit_error": "Auto-save to server failed"
+      "auto_commit_error": "Auto-save to server failed",
+      "tag": {
+        "create": "Add Tag",
+        "create_placeholder": "Tag name (e.g. v1.0)",
+        "delete": "Delete Tag",
+        "delete_confirm": "Delete tag '{name}'?",
+        "create_success": "Tag created",
+        "create_error": "Failed to create tag",
+        "delete_success": "Tag deleted",
+        "delete_error": "Failed to delete tag",
+        "select_for_compare": "Select for compare",
+        "timeline": "Timeline"
+      }
     },
     "diff": {
       "comparing": "Comparing",

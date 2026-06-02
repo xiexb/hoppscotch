@@ -1,5 +1,12 @@
 <template>
   <div class="flex flex-col h-full bg-primary text-secondary">
+    <!-- Timeline (top) -->
+    <ErdVersionTimeline
+      :entries="versions"
+      :selected-refs="selectedRefs"
+      @select="toggleCompareSelection"
+    />
+
     <!-- Save Version Form -->
     <div class="flex flex-col gap-2 p-3 border-b border-dividerLight">
       <input
@@ -38,6 +45,14 @@
               <span class="text-sm text-secondaryDark truncate">{{ entry.message }}</span>
             </div>
             <div class="flex items-center gap-1 shrink-0 ml-2">
+              <!-- Tag button -->
+              <button
+                class="p-1 rounded hover:bg-primaryDark text-secondaryLight hover:text-accent transition-colors"
+                :title="t('erd.version.tag.create')"
+                @click.stop="toggleTagInput(entry)"
+              >
+                <IconTag class="h-3.5 w-3.5" />
+              </button>
               <button
                 class="p-1 rounded hover:bg-primaryDark text-secondaryLight hover:text-secondaryDark transition-colors"
                 :title="t('erd.version.restore')"
@@ -62,15 +77,56 @@
               </button>
             </div>
           </div>
+          <!-- Tags display row -->
+          <div v-if="entry.tags.length > 0 || tagInputForHash === entry.shortHash" class="flex flex-wrap items-center gap-1 mt-1">
+            <span
+              v-for="tag in entry.tags"
+              :key="tag"
+              class="inline-flex items-center gap-0.5 bg-accent/15 text-accent rounded px-1.5 py-0.5 text-xs"
+            >
+              {{ tag }}
+              <button
+                class="hover:text-red-400 transition-colors ml-0.5"
+                :title="t('erd.version.tag.delete')"
+                @click.stop="handleDeleteTag(tag)"
+              >
+                <IconX class="h-3 w-3" />
+              </button>
+            </span>
+            <!-- Inline tag creation input -->
+            <div v-if="tagInputForHash === entry.shortHash" class="flex items-center gap-1">
+              <input
+                v-model="newTagName"
+                type="text"
+                :placeholder="t('erd.version.tag.create_placeholder')"
+                class="bg-primaryLight border border-dividerLight rounded px-2 py-0.5 text-xs text-secondaryDark outline-none focus:border-accent w-28"
+                maxlength="50"
+                @keyup.enter="handleCreateTag(entry)"
+                @keyup.escape="cancelTagInput"
+              />
+              <button
+                class="p-0.5 rounded hover:bg-accent/20 text-accent transition-colors disabled:opacity-50"
+                :disabled="!isValidTagName || creatingTag"
+                :title="t('erd.version.tag.create')"
+                @click.stop="handleCreateTag(entry)"
+              >
+                <IconCheck class="h-3.5 w-3.5" />
+              </button>
+              <button
+                class="p-0.5 rounded hover:bg-primaryDark text-secondaryLight transition-colors"
+                :title="t('action.cancel')"
+                @click.stop="cancelTagInput"
+              >
+                <IconX class="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
           <div class="flex items-center gap-3 text-xs text-secondaryLight">
             <span>{{ formatDate(entry.date) }}</span>
             <span v-if="entry.stats">
               {{ entry.stats.filesChanged }} files,
               <span class="text-green-500">+{{ entry.stats.insertions }}</span>
               <span class="text-red-400">-{{ entry.stats.deletions }}</span>
-            </span>
-            <span v-if="entry.tags.length > 0" class="text-accent">
-              {{ entry.tags.join(", ") }}
             </span>
           </div>
         </div>
@@ -173,16 +229,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useI18n } from "@composables/i18n"
 import { useToast } from "@composables/toast"
 import IconRotateCcw from "~icons/lucide/rotate-ccw"
 import IconGitCompare from "~icons/lucide/git-compare"
 import IconTrash from "~icons/lucide/trash"
+import IconTag from "~icons/lucide/tag"
+import IconX from "~icons/lucide/x"
+import IconCheck from "~icons/lucide/check"
 import IconChevronDown from "~icons/lucide/chevron-down"
 import IconChevronRight from "~icons/lucide/chevron-right"
 import IconCloud from "~icons/lucide/cloud"
 import IconDownload from "~icons/lucide/download"
+import ErdVersionTimeline from "./ErdVersionTimeline.vue"
 import {
   type VersionLogEntry,
   type RemoteConfig,
@@ -190,6 +250,8 @@ import {
   getVersionLog,
   restoreVersion,
   deleteVersion,
+  createTag,
+  deleteTag,
   getRemote,
   setRemote,
   pushToRemote,
@@ -222,6 +284,15 @@ const loading = ref(false)
 const saving = ref(false)
 const commitMessage = ref("")
 const selectedRefs = ref<string[]>([])
+
+// Tag management state
+const tagInputForHash = ref<string | null>(null)
+const newTagName = ref("")
+const creatingTag = ref(false)
+
+const isValidTagName = computed(() =>
+  /^[a-zA-Z0-9._-]{1,50}$/.test(newTagName.value),
+)
 
 const remoteExpanded = ref(false)
 const remoteUrl = ref("")
@@ -330,6 +401,55 @@ async function handleDelete(entry: VersionLogEntry) {
     toast.error(err?.response?.data?.message || t("erd.version.delete_error"))
   }
 }
+
+// ─── Tag Management ──────────────────────────────────────────────
+
+function toggleTagInput(entry: VersionLogEntry) {
+  if (tagInputForHash.value === entry.shortHash) {
+    cancelTagInput()
+  } else {
+    tagInputForHash.value = entry.shortHash
+    newTagName.value = ""
+  }
+}
+
+function cancelTagInput() {
+  tagInputForHash.value = null
+  newTagName.value = ""
+}
+
+async function handleCreateTag(entry: VersionLogEntry) {
+  if (!isValidTagName.value || creatingTag.value) return
+  creatingTag.value = true
+  try {
+    await createTag(
+      props.teamId,
+      props.collectionId,
+      newTagName.value,
+      entry.shortHash,
+    )
+    toast.success(t("erd.version.tag.create_success"))
+    cancelTagInput()
+    await fetchVersions()
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || t("erd.version.tag.create_error"))
+  } finally {
+    creatingTag.value = false
+  }
+}
+
+async function handleDeleteTag(tagName: string) {
+  if (!confirm(t("erd.version.tag.delete_confirm", { name: tagName }))) return
+  try {
+    await deleteTag(props.teamId, props.collectionId, tagName)
+    toast.success(t("erd.version.tag.delete_success"))
+    await fetchVersions()
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || t("erd.version.tag.delete_error"))
+  }
+}
+
+// ─── Remote ──────────────────────────────────────────────────────
 
 async function handleSaveRemote() {
   if (savingRemote.value || !remoteUrl.value) return

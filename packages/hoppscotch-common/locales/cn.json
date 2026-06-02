@@ -2699,7 +2699,19 @@
       "export_error": "导出失败",
       "last_push": "上次推送",
       "remote_configured": "已配置",
-      "auto_commit_error": "自动保存到服务器失败"
+      "auto_commit_error": "自动保存到服务器失败",
+      "tag": {
+        "create": "添加标签",
+        "create_placeholder": "标签名（如 v1.0）",
+        "delete": "删除标签",
+        "delete_confirm": "确定删除标签 '{name}'？",
+        "create_success": "标签创建成功",
+        "create_error": "标签创建失败",
+        "delete_success": "标签删除成功",
+        "delete_error": "标签删除失败",
+        "select_for_compare": "选择用于对比",
+        "timeline": "时间线"
+      }
     },
     "diff": {
       "comparing": "对比",
