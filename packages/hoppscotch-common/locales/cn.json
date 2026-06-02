@@ -2712,7 +2712,8 @@
         "select_for_compare": "选择用于对比",
         "timeline": "时间线"
       },
-      "no_collection_context": "请从集合中打开 ERD 以使用版本管理功能"
+      "no_collection_context": "请从集合中打开 ERD 以使用版本管理功能",
+      "compare_not_available": "版本对比仅在独立 ERD 页面可用"
     },
     "diff": {
       "comparing": "对比",

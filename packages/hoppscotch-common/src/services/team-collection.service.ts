@@ -137,6 +137,10 @@ export class TeamCollectionsService extends Service<void> {
 
   private teamID: string | null = null
 
+  public getTeamID(): string | null {
+    return this.teamID
+  }
+
   public collections = ref<TeamCollection[]>([])
   public loadingCollections = ref<string[]>([])
   public pendingTeamCollectionPath = ref<string | null>(null)

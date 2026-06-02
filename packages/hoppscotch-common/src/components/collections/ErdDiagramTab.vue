@@ -51,6 +51,15 @@
           class="erd-toolbar-icon"
         />
       </div>
+      <div
+        v-if="hasCollectionContext"
+        class="erd-toolbar-menu"
+        :class="{ 'erd-toolbar-menu--active': showVersionPanel }"
+        :title="t('erd.version.title')"
+        @click="toggleVersionPanel"
+      >
+        <IconHistory class="erd-toolbar-icon" />
+      </div>
     </div>
 
     <!-- erd-editor -->
@@ -71,6 +80,32 @@
       class="hidden"
       @change="handleImportSQL"
     />
+
+    <!-- Version Panel Drawer (right-side overlay) -->
+    <Transition name="slide-right">
+      <div v-if="showVersionPanel" class="erd-version-drawer">
+        <div class="erd-version-drawer-header">
+          <span class="erd-version-drawer-title">{{ t("erd.version.title") }}</span>
+          <button
+            class="erd-version-drawer-close"
+            :title="t('action.close')"
+            @click="showVersionPanel = false"
+          >
+            <IconX class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="erd-version-drawer-body">
+          <ErdVersionPanel
+            :team-id="versionTeamId"
+            :collection-id="versionCollectionId"
+            :current-erd-json="getEditorValue()"
+            @restore="handleVersionRestore"
+            @compare="handleVersionCompare"
+            @saved="handleVersionSaved"
+          />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -103,6 +138,9 @@ import IconDownload from "~icons/lucide/download"
 import IconSave from "~icons/lucide/save"
 import IconMinimize2 from "~icons/lucide/minimize-2"
 import IconMaximize2 from "~icons/lucide/maximize-2"
+import IconHistory from "~icons/lucide/history"
+import IconX from "~icons/lucide/x"
+import ErdVersionPanel from "~/components/erd/ErdVersionPanel.vue"
 import { parsePgSqlToErdJson, isPgSql } from "~/helpers/erdPgSqlParser"
 // Must be imported BEFORE erd-editor to patch attachShadow
 import {
@@ -138,6 +176,39 @@ const isDarkMode = computed(() => bgColor.value !== "light")
 // Collapse feature state
 const allCollapsed = ref(false)
 let collapseCleanup: (() => void) | null = null
+
+// Version panel state
+const showVersionPanel = ref(false)
+
+const isTeamPath = computed(() => isTeamCollectionPath(tab.value.document.collectionPath))
+const hasCollectionContext = computed(() => isTeamPath.value && !!teamCollectionService.getTeamID())
+
+const versionTeamId = computed(() => teamCollectionService.getTeamID() || "")
+const versionCollectionId = computed(() => tab.value.document.collectionPath || "")
+
+function toggleVersionPanel() {
+  showVersionPanel.value = !showVersionPanel.value
+}
+
+function handleVersionRestore(erdJson: string) {
+  if (erdEditorRef.value) {
+    const editor = erdEditorRef.value as any
+    editor.value = erdJson
+    tab.value.document.schema = erdJson
+    tab.value.document.isDirty = true
+    saveToCollection()
+    toast.success(t("erd.version.restore_success"))
+  }
+}
+
+function handleVersionCompare(_from: string, _to: string) {
+  // Diff mode not supported in tab view — use standalone ERD page
+  toast.info(t("erd.version.compare_not_available"))
+}
+
+function handleVersionSaved() {
+  // Version list is refreshed internally by ErdVersionPanel
+}
 
 const defaultSchema = JSON.stringify({
   $schema: "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
@@ -497,6 +568,80 @@ erd-editor {
 .erd-toolbar-vertical {
   width: 10px;
   height: 100%;
+}
+
+.erd-toolbar-menu--active {
+  fill: var(--active);
+  background-color: rgba(128, 128, 128, 0.15);
+  border-radius: 3px;
+}
+
+.erd-version-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 90%;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--toolbar-background, #fcfcfd);
+  border-left: 1px solid var(--foreground, #60646c);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+}
+
+.erd-version-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--foreground, #60646c);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.erd-version-drawer-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #60646c);
+}
+
+.erd-version-drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--foreground, #60646c);
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(128, 128, 128, 0.2);
+  }
+}
+
+.erd-version-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Slide transition for the drawer */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
 }
 
 .hidden {
