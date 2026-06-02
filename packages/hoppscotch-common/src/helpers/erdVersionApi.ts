@@ -108,7 +108,7 @@ export interface RelationshipChange {
 
 export interface TagInfo {
   tagName: string
-  ref: string
+  commitHash: string
   createdAt: string
 }
 

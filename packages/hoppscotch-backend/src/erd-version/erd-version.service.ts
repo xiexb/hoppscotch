@@ -67,7 +67,7 @@ export interface RemoteStatus {
 /** Information about a single tag */
 export interface TagInfo {
   tagName: string;
-  ref: string;
+  commitHash: string;
   createdAt: string;
 }
 
@@ -954,9 +954,10 @@ export class ErdVersionService {
 
       const git = this.createGit(repoPath);
 
+      let resolvedHash: string;
       try {
-        // Verify the ref exists
-        await git.revparse(['--verify', ref]);
+        // Verify the ref exists and resolve to actual commit hash
+        resolvedHash = await git.revparse(['--verify', ref]);
       } catch {
         return E.left(ERD_VERSION_REF_NOT_FOUND);
       }
@@ -979,9 +980,12 @@ export class ErdVersionService {
           `Created tag '${tagName}' at ${ref} for ${teamId}/${collectionId}`,
         );
 
+        // Push tags to remote asynchronously
+        this.pushToRemoteAsync(teamId, collectionId, git);
+
         return E.right({
           tagName,
-          ref,
+          commitHash: resolvedHash.trim(),
           createdAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -1037,6 +1041,9 @@ export class ErdVersionService {
           `Deleted tag '${tagName}' for ${teamId}/${collectionId}`,
         );
 
+        // Push tag deletion to remote asynchronously
+        this.pushToRemoteAsync(teamId, collectionId, git);
+
         return E.right({ success: true as const });
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -1081,7 +1088,7 @@ export class ErdVersionService {
           const tagName = parts[0];
           const commitHash = parts[1];
           const createdAt = parts.slice(2).join(' ');
-          tags.push({ tagName, ref: commitHash, createdAt });
+          tags.push({ tagName, commitHash, createdAt });
         }
       }
 

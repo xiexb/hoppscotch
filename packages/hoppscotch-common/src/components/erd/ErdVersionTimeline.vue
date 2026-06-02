@@ -23,11 +23,11 @@
         >
           <!-- Tag labels above -->
           <div
-            v-if="entry.tags.length > 0"
+            v-if="(entry.tags ?? []).length > 0"
             class="flex flex-col items-center mb-0.5"
           >
             <span
-              v-for="tag in entry.tags"
+              v-for="tag in (entry.tags ?? [])"
               :key="tag"
               class="text-accent truncate"
               :style="{ maxWidth: '32px', fontSize: '9px', lineHeight: '11px', textAlign: 'center' }"
@@ -78,7 +78,7 @@ const displayEntries = computed(() =>
 
 function dotClasses(entry: VersionLogEntry): string[] {
   const isSelected = props.selectedRefs.includes(entry.shortHash)
-  const hasTag = entry.tags.length > 0
+  const hasTag = (entry.tags ?? []).length > 0
   const classes: string[] = []
 
   if (isSelected) {

@@ -78,9 +78,9 @@
             </div>
           </div>
           <!-- Tags display row -->
-          <div v-if="entry.tags.length > 0 || tagInputForHash === entry.shortHash" class="flex flex-wrap items-center gap-1 mt-1">
+          <div v-if="(entry.tags ?? []).length > 0 || tagInputForHash === entry.shortHash" class="flex flex-wrap items-center gap-1 mt-1">
             <span
-              v-for="tag in entry.tags"
+              v-for="tag in (entry.tags ?? [])"
               :key="tag"
               class="inline-flex items-center gap-0.5 bg-accent/15 text-accent rounded px-1.5 py-0.5 text-xs"
             >

@@ -432,6 +432,11 @@ export class ErdVersionController {
     @Query('collectionId') collectionId: string,
     @Param('tagName') tagName: string,
   ) {
+    // Validate tagName format before proceeding
+    if (!/^[a-zA-Z0-9._-]{1,50}$/.test(tagName)) {
+      throw new BadRequestException('Invalid tagName format');
+    }
+
     const { teamId: tid, collectionId: cid } =
       this.validateCollectionParams(teamId, collectionId);
     await this.validateTeamMembership(user.uid, tid);
