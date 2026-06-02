@@ -67,7 +67,6 @@
               />
             </div>
             <div
-              v-if="hasCollectionContext"
               class="erd-toolbar-menu"
               :class="{ 'erd-toolbar-menu--active': showVersionPanel }"
               :title="t('erd.version.title')"
