@@ -946,6 +946,24 @@ export const ERD_VERSION_INVALID_JSON = 'erd_version/invalid_json' as const;
 export const ERD_VERSION_REMOTE_PUSH_FAILED = 'erd_version/remote_push_failed' as const;
 
 /**
+ * ERD version tag creation failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_TAG_CREATE_FAILED = 'erd_version/tag_create_failed' as const;
+
+/**
+ * ERD version tag deletion failed
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_TAG_DELETE_FAILED = 'erd_version/tag_delete_failed' as const;
+
+/**
+ * ERD version tag already exists
+ * (ErdVersionService)
+ */
+export const ERD_VERSION_TAG_EXISTS = 'erd_version/tag_exists' as const;
+
+/**
  * The provided label for the infra-token is short (less than 3 characters)
  * (InfraTokenService)
  */

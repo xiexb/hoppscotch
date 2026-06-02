@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.7.0
+version: 1.8.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -301,6 +301,24 @@ pnpm run preview --port 3003 --host 0.0.0.0  # background, serves from dist/
 ```
 
 Nginx proxies port 35051 → 3003. After rebuilding, kill the old preview process and restart.
+
+### CRITICAL: Post-Kanban Deployment Workflow
+After kanban task chains complete (builder→tester→reviewer→fix cycles), the code is committed to git but the frontend `dist/` is **NOT automatically rebuilt**. The deployed site still serves the old version — the user will not see any new features until you rebuild and redeploy.
+
+**Mandatory steps after kanban completion:**
+1. **Rebuild frontend**: `pnpm run --filter @hoppscotch/selfhost-web build` (~2 min)
+2. **Kill old preview process**: Check `ss -tlnp | grep 300` to find PID, then kill
+3. **Restart preview**: `npx vite preview --port 3004 --host 0.0.0.0` (background)
+4. **Verify Nginx port match**: `vite preview` may bind to a different port than configured (e.g., 3004 instead of 3003). Run:
+   ```bash
+   ss -tlnp | grep -E '(300|310)'          # actual ports
+   grep proxy_pass /etc/nginx/sites-enabled/hoppscotch  # nginx targets
+   ```
+   If mismatch, fix Nginx: `sudo sed -i 's|proxy_pass http://127.0.0.1:OLD;|proxy_pass http://127.0.0.1:NEW;|' /etc/nginx/sites-enabled/hoppscotch && sudo nginx -t && sudo nginx -s reload`
+5. **Verify full stack**: `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:35051/` (frontend), `:35052/health` (backend), `:35050/` (admin)
+6. **Provide user acceptance guide**: Tell the user exactly where to find the new feature in the UI
+
+**PITFALL**: `dist/index.html` timestamp tells you when the last build happened. Compare with `git log --format="%h %ai %s" -1` to detect staleness. If build time < latest commit time, you must rebuild.
 
 ## Post-Development Verification Workflow
 
@@ -1188,6 +1206,10 @@ ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component. 
 | `ErdDiagramTab.vue` | `src/components/collections/ErdDiagramTab.vue` | Collections sidebar ERD tab |
 
 **CRITICAL PITFALL:** Any ERD feature (save button, PG SQL import, toolbar changes) MUST be added to BOTH components. Users typically test in the Collections sidebar, not the standalone page.
+
+**Version management** (implemented 2026-06-01): Git-backed versioning with auto-commit on save, version diff with color-coded changes (green=new, yellow=modified, gray=deleted), restore/revert, and remote push. Only available in collection ERD context (`hasCollectionContext = !!teamId && !!collectionId`). Version panel accessible via toolbar history icon (IconHistory). See `references/erd-version-management-plan.md` for full architecture.
+
+**Version management entry point**: Toolbar icon with `v-if="hasCollectionContext"` — only visible when ERD is opened from a collection (not standalone `/erd` route). Clicking it toggles `ErdVersionPanel` drawer on the right side.
 
 See `references/erd-editor-integration.md` for: v3.0.0 JSON format, column options bitmask, PG SQL custom parser, persistence pattern, toolbar layout.
 

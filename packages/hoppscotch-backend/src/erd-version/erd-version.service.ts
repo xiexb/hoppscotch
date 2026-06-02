@@ -14,6 +14,9 @@ import {
   ERD_VERSION_LOG_FAILED,
   ERD_VERSION_INVALID_JSON,
   ERD_VERSION_REMOTE_PUSH_FAILED,
+  ERD_VERSION_TAG_CREATE_FAILED,
+  ERD_VERSION_TAG_DELETE_FAILED,
+  ERD_VERSION_TAG_EXISTS,
 } from 'src/errors';
 import {
   normalizeErdJson,
@@ -59,6 +62,13 @@ export interface RemoteStatus {
   lastPushAt: string | null;
   lastPushError: string | null;
   aheadOfRemote: number;
+}
+
+/** Information about a single tag */
+export interface TagInfo {
+  tagName: string;
+  commitHash: string;
+  createdAt: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -906,6 +916,182 @@ export class ErdVersionService {
         `Stats failed for ref ${ref} in ${teamId}/${collectionId}: ${msg}`,
       );
       return E.left(ERD_VERSION_REF_NOT_FOUND);
+    }
+  }
+
+  // ─── Tag Operations ──────────────────────────────────────────────
+
+  /**
+   * Validate a tag name to prevent injection and invalid characters.
+   */
+  private validateTagName(name: string): boolean {
+    return /^[a-zA-Z0-9._-]{1,50}$/.test(name);
+  }
+
+  /**
+   * Create a lightweight tag on a specific commit.
+   *
+   * @returns Either<error_code, TagInfo>
+   */
+  async createTag(
+    teamId: string,
+    collectionId: string,
+    tagName: string,
+    ref: string,
+  ): Promise<E.Either<string, TagInfo>> {
+    const mutex = this.getMutex(teamId, collectionId);
+
+    return mutex.runExclusive(async () => {
+      if (!this.validateTagName(tagName)) {
+        return E.left(ERD_VERSION_TAG_CREATE_FAILED);
+      }
+
+      const repoPath = this.getRepoPath(teamId, collectionId);
+
+      if (!(await this.repoExists(repoPath))) {
+        return E.left(ERD_VERSION_REPO_NOT_FOUND);
+      }
+
+      const git = this.createGit(repoPath);
+
+      try {
+        // Verify the ref exists
+        await git.revparse(['--verify', ref]);
+      } catch {
+        return E.left(ERD_VERSION_REF_NOT_FOUND);
+      }
+
+      try {
+        // Check if tag already exists
+        const existingTags = await git.raw([
+          'tag',
+          '-l',
+          tagName,
+        ]);
+        if (existingTags.trim().length > 0) {
+          return E.left(ERD_VERSION_TAG_EXISTS);
+        }
+
+        // Create lightweight tag
+        await git.raw(['tag', tagName, ref]);
+
+        this.logger.log(
+          `Created tag '${tagName}' at ${ref} for ${teamId}/${collectionId}`,
+        );
+
+        return E.right({
+          tagName,
+          commitHash: ref,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Tag creation failed for '${tagName}' in ${teamId}/${collectionId}: ${msg}`,
+        );
+        return E.left(ERD_VERSION_TAG_CREATE_FAILED);
+      }
+    });
+  }
+
+  /**
+   * Delete a tag.
+   *
+   * @returns Either<error_code, { success: true }>
+   */
+  async deleteTag(
+    teamId: string,
+    collectionId: string,
+    tagName: string,
+  ): Promise<E.Either<string, { success: true }>> {
+    const mutex = this.getMutex(teamId, collectionId);
+
+    return mutex.runExclusive(async () => {
+      if (!this.validateTagName(tagName)) {
+        return E.left(ERD_VERSION_TAG_DELETE_FAILED);
+      }
+
+      const repoPath = this.getRepoPath(teamId, collectionId);
+
+      if (!(await this.repoExists(repoPath))) {
+        return E.left(ERD_VERSION_REPO_NOT_FOUND);
+      }
+
+      const git = this.createGit(repoPath);
+
+      try {
+        // Check if tag exists
+        const existingTags = await git.raw([
+          'tag',
+          '-l',
+          tagName,
+        ]);
+        if (existingTags.trim().length === 0) {
+          return E.left(ERD_VERSION_REF_NOT_FOUND);
+        }
+
+        // Delete tag
+        await git.raw(['tag', '-d', tagName]);
+
+        this.logger.log(
+          `Deleted tag '${tagName}' for ${teamId}/${collectionId}`,
+        );
+
+        return E.right({ success: true as const });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Tag deletion failed for '${tagName}' in ${teamId}/${collectionId}: ${msg}`,
+        );
+        return E.left(ERD_VERSION_TAG_DELETE_FAILED);
+      }
+    });
+  }
+
+  /**
+   * List all tags for a collection.
+   *
+   * @returns Either<error_code, TagInfo[]>
+   */
+  async listTags(
+    teamId: string,
+    collectionId: string,
+  ): Promise<E.Either<string, TagInfo[]>> {
+    const repoPath = this.getRepoPath(teamId, collectionId);
+
+    if (!(await this.repoExists(repoPath))) {
+      return E.right([]); // No repo = no tags
+    }
+
+    const git = this.createGit(repoPath);
+
+    try {
+      const output = await git.raw([
+        'tag',
+        '-l',
+        '--format=%(refname:short) %(objectname:short) %(creatordate:iso)',
+      ]);
+
+      const tags: TagInfo[] = [];
+      const lines = output.trim().split('\n').filter(Boolean);
+      for (const line of lines) {
+        // Format: "tagName abc1234 2026-06-01 12:00:00 +0800"
+        const parts = line.split(' ');
+        if (parts.length >= 3) {
+          const tagName = parts[0];
+          const commitHash = parts[1];
+          const createdAt = parts.slice(2).join(' ');
+          tags.push({ tagName, commitHash, createdAt });
+        }
+      }
+
+      return E.right(tags);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `List tags failed for ${teamId}/${collectionId}: ${msg}`,
+      );
+      return E.left(ERD_VERSION_LOG_FAILED);
     }
   }
 

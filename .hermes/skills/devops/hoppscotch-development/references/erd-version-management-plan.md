@@ -1,5 +1,28 @@
 # ERD Version Management Architecture (Git-Based, v3)
 
+**Status: IMPLEMENTED + SECURITY PATCHED** (2026-06-01)
+All 12 kanban tasks completed (8 impl + 2 fix + 2 retest/review). Code committed (7 git commits).
+
+## Implementation Results
+
+### Test Results (17/17 scenarios PASS)
+All backend API scenarios passed: auth (401/403), commit (init/incremental/no-change), log, diff, get version, stats, restore, revert, push, export.
+
+### Security Fixes Applied (3 CRITICAL)
+1. **Path traversal** — teamId/collectionId validated with whitelist regex (`/^[a-zA-Z0-9_-]+$/`) + directory isolation (double-layer defense)
+2. **Git command injection** — ref parameter validated with whitelist regex (`/^[a-f0-9]{7,40}$|^HEAD$/`), no shell interpolation
+3. **Cross-team authorization** — TeamService integration verifies user is member of the target team before any operation
+
+### Additional Fixes
+- API path prefix: removed erroneous `/api/v1` prefix from erdVersionApi.ts (VITE_BACKEND_API_URL already includes `/v1`)
+- SSH: configured `StrictHostKeyChecking=accept-new` instead of `no`
+
+### SUGGESTION-level items (non-blocking)
+- `getVersion()` could use `git.show()` instead of scanning 100 log entries
+- `erd.vue` auto-commit should add debouncing for rapid save clicks
+
+---
+
 Plan approved 2026-06-01. Implementation started (kanban tasks t_b3e87934 → t_e6399c9e).
 
 ## Architecture Overview

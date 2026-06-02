@@ -566,7 +566,7 @@ When debugging spacing issues near icons wrapped in `<tippy>`, always check the
 `[data-v-tippy]` wrapper's computed width vs the visible trigger icon width.
 
 ### P47: Frontend runs as `vite preview` (static build) — code changes need full rebuild
-The selfhost-web frontend may be running as `vite preview` (serving from `dist/`),
+The selfhost-web frontend typically runs as `vite preview` (serving from `dist/`),
 NOT `vite dev` (with HMR). Check which mode is active:
 ```bash
 ps aux | grep vite | grep -v grep
@@ -601,7 +601,53 @@ pnpm run preview --port 3003 --host 0.0.0.0  # background
 **PITFALL:** If you make a code fix but forget to rebuild, users will still see the
 old behavior. Always verify the build output (`dist/`) timestamp after rebuilding.
 
+**CRITICAL: Post-Kanban rebuild is mandatory.** Kanban task chains (builder→tester→reviewer)
+commit code to git but do NOT rebuild the frontend. After all kanban tasks show `done`,
+the deployed `dist/` is still the pre-task version. You MUST rebuild before user acceptance
+testing. Quick staleness check:
+```bash
+dist_ts=$(stat -c %Y packages/hoppscotch-selfhost-web/dist/index.html 2>/dev/null || echo 0)
+last_commit=$(git log -1 --format=%ct)
+[ "$last_commit" -gt "$dist_ts" ] && echo "STALE: dist older than last commit — rebuild needed"
+```
+
 ### P51: URL bar component anatomy (Request.vue) — method | prefix icon | SmartEnvInput
+
+### P53: Nginx proxy_pass port drift — always verify after starting services
+
+After starting or restarting any Hoppscotch service, the actual listening port
+may differ from what Nginx's `proxy_pass` targets. This causes 502 Bad Gateway
+even though the service is running and `curl localhost:<actual_port>` works fine.
+
+**Root cause**: Vite (dev or preview mode) may bind to a different port than
+configured when the original port is occupied (see P17), or when services were
+started in a previous session with different port flags.
+
+**Diagnosis workflow** (run after EVERY service start):
+```bash
+# 1. Check actual listening ports
+ss -tlnp | grep -E '(3003|3004|3101|3102|3170)'
+
+# 2. Check Nginx proxy_pass targets
+grep -E 'proxy_pass.*127.0.0.1:(300|310)' /etc/nginx/sites-enabled/hoppscotch
+
+# 3. Verify each Nginx public port returns 200
+for port in 35051 35052 35050; do
+  echo "Port $port: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$port/)"
+done
+```
+
+**Auto-fix** (update Nginx to match actual ports):
+```bash
+# Example: frontend on 3004 but Nginx points to 3003
+sudo sed -i 's|proxy_pass http://127.0.0.1:3003;|proxy_pass http://127.0.0.1:3004;|' \
+  /etc/nginx/sites-enabled/hoppscotch
+sudo nginx -t && sudo nginx -s reload
+```
+
+**Prevention**: Kill ALL old processes before starting (see Step 5 / P17), then
+run the diagnosis workflow above. Do not assume ports match vite.config.ts —
+always verify with `ss -tlnp`.
 
 ### P52: Backend `node dist/src/main.js` exits silently (exit code 0)
 The backend process periodically exits with code 0 (clean exit) even when

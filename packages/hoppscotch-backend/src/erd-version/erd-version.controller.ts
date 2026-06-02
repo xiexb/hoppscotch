@@ -14,6 +14,8 @@ import {
   StreamableFile,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { spawn } from 'child_process';
@@ -26,6 +28,7 @@ import { ErdVersionService } from './erd-version.service';
 import { CommitVersionDto } from './dto/commit-version.dto';
 import { DiffQueryDto } from './dto/diff-query.dto';
 import { RemoteConfigDto } from './dto/remote-config.dto';
+import { CreateTagDto } from './dto/create-tag.dto';
 import { TeamService } from '../team/team.service';
 
 /**
@@ -82,14 +85,19 @@ export class ErdVersionController {
 
   /**
    * Validate a git ref parameter to prevent command injection.
-   * Only allows commit hashes (7-40 hex chars) or HEAD~N expressions.
+   * Allows: commit hashes (7-40 hex chars), HEAD~N expressions, or tag names
+   * (alphanumeric with dots, underscores, hyphens — max 50 chars).
    */
   private validateRef(ref: string): string {
     if (!ref) {
       throw new BadRequestException('Parameter ref is required');
     }
-    // Allow: commit hashes (7-40 hex), HEAD, HEAD~N
-    if (/^[0-9a-f]{7,40}$/i.test(ref) || /^HEAD~?\d*$/.test(ref)) {
+    // Allow: commit hashes (7-40 hex), HEAD, HEAD~N, tag names (alphanumeric + ._-)
+    if (
+      /^[0-9a-f]{7,40}$/i.test(ref) ||
+      /^HEAD~?\d*$/.test(ref) ||
+      /^[a-zA-Z0-9._-]{1,50}$/.test(ref)
+    ) {
       return ref;
     }
     throw new BadRequestException('Invalid git ref format');
@@ -369,6 +377,98 @@ export class ErdVersionController {
     );
     const erdJson = this.unwrap(result, HttpStatus.NOT_FOUND);
     return { erdJson };
+  }
+
+  // ─── Tags ─────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/v1/erd-version/tag
+   * Create a lightweight tag on a specific version.
+   */
+  @Post('tag')
+  @UseGuards(JwtAuthGuard)
+  async createTag(
+    @GqlUser() user: AuthUser,
+    @Query('teamId') teamId: string,
+    @Query('collectionId') collectionId: string,
+    @Body() dto: CreateTagDto,
+  ) {
+    const { teamId: tid, collectionId: cid } =
+      this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
+
+    // Validate the ref format before passing to service
+    this.validateRef(dto.ref);
+
+    const result = await this.erdVersionService.createTag(
+      tid,
+      cid,
+      dto.tagName,
+      dto.ref,
+    );
+
+    if (E.isLeft(result)) {
+      if (result.left === 'erd_version/tag_exists') {
+        throw new ConflictException('Tag already exists');
+      }
+      if (result.left === 'erd_version/ref_not_found') {
+        throw new BadRequestException('Invalid ref: ref not found');
+      }
+      throw new BadRequestException(result.left);
+    }
+
+    return result.right;
+  }
+
+  /**
+   * DELETE /api/v1/erd-version/tag/:tagName
+   * Delete a tag.
+   */
+  @Delete('tag/:tagName')
+  @UseGuards(JwtAuthGuard)
+  async deleteTag(
+    @GqlUser() user: AuthUser,
+    @Query('teamId') teamId: string,
+    @Query('collectionId') collectionId: string,
+    @Param('tagName') tagName: string,
+  ) {
+    const { teamId: tid, collectionId: cid } =
+      this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
+
+    const result = await this.erdVersionService.deleteTag(
+      tid,
+      cid,
+      tagName,
+    );
+
+    if (E.isLeft(result)) {
+      if (result.left === 'erd_version/ref_not_found') {
+        throw new NotFoundException('Tag not found');
+      }
+      throw new BadRequestException(result.left);
+    }
+
+    return result.right;
+  }
+
+  /**
+   * GET /api/v1/erd-version/tags
+   * List all tags for the collection.
+   */
+  @Get('tags')
+  @UseGuards(JwtAuthGuard)
+  async listTags(
+    @GqlUser() user: AuthUser,
+    @Query('teamId') teamId: string,
+    @Query('collectionId') collectionId: string,
+  ) {
+    const { teamId: tid, collectionId: cid } =
+      this.validateCollectionParams(teamId, collectionId);
+    await this.validateTeamMembership(user.uid, tid);
+
+    const result = await this.erdVersionService.listTags(tid, cid);
+    return this.unwrap(result);
   }
 
   // ─── Show Version ───────────────────────────────────────────────
