@@ -82,6 +82,13 @@ cd packages/hoppscotch-sh-admin && pnpm run dev
 
 Or use the restart script: `bash ~/.hermes/skills/devops/hoppscotch-selfhost/scripts/restart-all.sh /path/to/hoppscotch`
 
+**MANDATORY post-start step**: Run port drift detection + Nginx fix:
+```bash
+bash /home/jcwl/workspace/hoppscotch/scripts/fix-nginx-ports.sh
+```
+Vite may pick a different port than configured (e.g., 3004 instead of 3003),
+causing Nginx 502 on the public ports. This script auto-detects and fixes mismatches.
+
 ### 6. Complete Onboarding (critical — cannot use admin without this)
 ```bash
 curl -X POST http://localhost:3170/v1/onboarding/config \
@@ -649,6 +656,11 @@ sudo nginx -t && sudo nginx -s reload
 run the diagnosis workflow above. Do not assume ports match vite.config.ts —
 always verify with `ss -tlnp`.
 
+**Auto-fix script**: `bash scripts/fix-nginx-ports.sh` — detects actual listening
+ports via `ss -tlnp`, compares with Nginx `proxy_pass` targets, auto-fixes mismatches
+via `sed` + `nginx -t` + `nginx -s reload`, then runs a full health check on all 6
+ports (3 internal + 3 public). **Run this after EVERY service restart.**
+
 ### P52: Backend `node dist/src/main.js` exits silently (exit code 0)
 The backend process periodically exits with code 0 (clean exit) even when
 started correctly. No crash logs, no error messages — just dies. This has
@@ -951,4 +963,5 @@ These files live inside the Hoppscotch repo and are read by Claude Code automati
 - `references/auth-architecture.md` — full auth system map: magic link + OAuth, backend/frontend key files, Prisma models, AuthPlatformDef interface, Login.vue mode state machine, checklist for adding new auth providers
 - `references/erd-in-collections.md` — ERD diagrams as collection items: schema v15, ErdDiagramNode/Tab components, CRUD pattern following MarkdownDoc
 - `scripts/restart-all.sh` — full restart script
+- `scripts/fix-nginx-ports.sh` — port drift detection + Nginx auto-fix (run after every service restart)
 - `scripts/encrypt-infraconfig.js` — standalone encrypt/decrypt for InfraConfig

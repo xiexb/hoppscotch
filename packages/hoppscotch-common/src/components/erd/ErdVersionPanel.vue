@@ -338,6 +338,10 @@ async function fetchRemoteStatus() {
 
 async function handleSave() {
   if (saving.value) return
+  if (!props.teamId || !props.collectionId) {
+    toast.error(t("erd.version.no_collection_context"))
+    return
+  }
   saving.value = true
   try {
     await commitVersion(

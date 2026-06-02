@@ -1,7 +1,7 @@
 ---
 name: hoppscotch-development
 description: "Hoppscotch frontend feature development: data model extension (verzod), Vue 3 components, i18n, tab/document model patterns."
-version: 1.8.0
+version: 1.9.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos]
@@ -813,12 +813,12 @@ mode and clicking Send will corrupt the endpoint. The design mode's prefix URL (
 MetaInfoSection via `inheritedBaseUrl`) is preserved on the request object, but the
 endpoint field itself gets polluted.
 
-### Background process PATH (Hoppscotch services)
-When launching Hoppscotch services via `terminal(background=true)`, the shell PATH does NOT include `/home/jcwl/.hermes/node/bin` where `node` and `pnpm` live. Always prepend:
+### PATH required for ALL terminal calls (Hoppscotch services)
+The shell PATH does NOT include `/home/jcwl/.hermes/node/bin` where `node` and `pnpm` live. This affects ALL `terminal()` calls — foreground, background, and script execution. Always prepend:
 ```bash
 export PATH="/home/jcwl/.hermes/node/bin:$PATH" && cd <package> && pnpm run dev
 ```
-Without this, the process exits immediately with `bash: node: command not found` or `bash: pnpm: command not found`.
+Without this, the command fails with `bash: node: command not found` or `bash: pnpm: command not found`. Common triggers: `pnpm run build`, `pnpm run dev`, `node dist/src/main.js`, any pnpm/npm command.
 
 ### Frontend stuck on loading spinner — rebuild hoppscotch-data
 **Symptom:** Frontend loads (HTTP 200), shows Hoppscotch logo with spinning loader, but never renders the main UI. No JavaScript errors in console. Vue router shows `currentMatched: 0` (no route matched).
@@ -1169,6 +1169,32 @@ Vue({
 
 **CRITICAL PITFALL: CSS hiding vs data-model manipulation.** When extending Web Components that render SVG/canvas elements (like erd-editor's relationship lines), do NOT use CSS `display: none` to hide internal elements. The component's layout engine calculates SVG positions from its internal data model — CSS hiding leaves the model unchanged, so SVG lines point to invisible/ghost positions. **Always modify the component's data model** (e.g., `editor.value = JSON.stringify(modifiedSchema)`) so the layout engine recalculates everything correctly.
 
+### Feature gating behind route params — don't hide entry points (USER PREFERENCE)
+When a feature depends on context from route query params (e.g., `?teamId=xxx&collectionId=xxx`), do NOT hide the UI entry point (button, icon) with `v-if="hasContext"`. Users accessing the page directly won't have these params, making the feature invisible. Instead, always show the entry point and let the panel/content handle missing context gracefully (show helpful message, empty state, or auto-detect from route).
+
+**Anti-pattern (user-corrected):** `v-if="hasCollectionContext"` on the IconHistory toolbar button — users opening `/erd` directly never see the version management feature at all.
+
+**Correct pattern:** Show the button always. In the panel, if `!hasCollectionContext`, show "Please open ERD from a collection to use version management" or similar.
+
+### Backend-Frontend type field name consistency (CRITICAL)
+When defining API response types shared between NestJS backend and Vue frontend, the backend interface field names MUST exactly match the frontend interface field names. A mismatch (e.g., backend returns `commitHash` but frontend expects `ref`) silently produces `undefined` values — no compile error, no runtime error, just broken features.
+
+**Prevention checklist:**
+1. Define the response interface in one place (backend DTO or shared type)
+2. When creating the frontend API helper (e.g., `erdVersionApi.ts`), copy field names verbatim
+3. Use `interface` keyword (not `type`) for shared API shapes — easier to grep and compare
+4. Reviewer should verify field name parity between backend return value and frontend interface
+
+**Real example:** Backend `createTag()` returned `{ tagName, commitHash, createdAt }` but frontend `TagInfo` expected `{ tagName, ref, createdAt }`. The frontend never consumed `tagInfo.ref` (yet), so it didn't break — but would have when used.
+
+### git tag operations — common pitfalls
+1. **Push prefix required:** `git.push('origin', tagName)` is ambiguous when a branch shares the name. Use `git.raw(['push', 'origin', 'refs/tags/' + tagName])`.
+2. **`pushToRemoteAsync` doesn't push tags:** The standard commit push (`git.push('origin', 'main')`) only pushes commits. Tag create/delete needs a separate tag push method.
+3. **Save `revparse()` result:** `git.revparse([ref])` returns the resolved full hash. Don't discard it — use it in the response instead of the raw input ref.
+4. **Hash length consistency:** `%(objectname:short)` in `git tag -l --format` gives 7-char hashes; `revparse()` gives 40-char. Use `%(objectname)` (full) for consistency.
+5. **Route ordering:** `GET /tags` must be registered BEFORE `GET /:ref` in NestJS controllers, otherwise `tags` matches as a ref parameter.
+6. **DELETE path param validation:** `DELETE /tag/:tagName` path parameter needs the SAME format validation as the POST DTO body — extract to shared method.
+
 ### pnpm store location mismatch (different HOME)
 When running `pnpm` from a shell with a different `$HOME` (e.g., Hermes agent profiles), pnpm may fail with `ERR_PNPM_UNEXPECTED_STORE` because it wants to use the profile-specific store.
 
@@ -1209,7 +1235,9 @@ ER diagram editing is integrated via `@dineug/erd-editor` v3.3.0 Web Component. 
 
 **Version management** (implemented 2026-06-01): Git-backed versioning with auto-commit on save, version diff with color-coded changes (green=new, yellow=modified, gray=deleted), restore/revert, and remote push. Only available in collection ERD context (`hasCollectionContext = !!teamId && !!collectionId`). Version panel accessible via toolbar history icon (IconHistory). See `references/erd-version-management-plan.md` for full architecture.
 
-**Version management entry point**: Toolbar icon with `v-if="hasCollectionContext"` — only visible when ERD is opened from a collection (not standalone `/erd` route). Clicking it toggles `ErdVersionPanel` drawer on the right side.
+**Version management entry point**: Toolbar icon (IconHistory) — always visible. Clicking it toggles `ErdVersionPanel` drawer on the right side. **PITFALL: Do NOT gate UI features behind `v-if="hasCollectionContext"`** (or any route-param guard). Users accessing `/erd` directly don't have `?teamId=xxx&collectionId=xxx` params, so the button is invisible. The version panel API calls will simply fail gracefully (404/empty list) when no collection context exists — that's acceptable UX. If a feature truly requires context, show a helpful message in the panel instead of hiding the entry point entirely.
+
+**Tag management** (implemented 2026-06-02): Users can create/delete git tags on ERD versions for milestone marking. Includes horizontal timeline component (`ErdVersionTimeline.vue`) with tag node anchoring, inline tag creation UI, and quick-select-for-compare. See `references/erd-version-tag-management.md` for: API endpoints, git operations, 7 pitfalls (field name consistency, push prefix, route ordering).
 
 See `references/erd-editor-integration.md` for: v3.0.0 JSON format, column options bitmask, PG SQL custom parser, persistence pattern, toolbar layout.
 
@@ -1286,3 +1314,4 @@ The `inputTheme` in `helpers/editor/themes/baseTheme.ts` sets `.cm-line` with `p
 - See `references/markdown-docs-feature-plan.md` for the collection markdown document feature plan: md-editor-v3 integration, verzod v14 data model, 3-phase implementation, file list, i18n keys
 - See `references/md-editor-v3-theming.md` for CSS variable mapping between md-editor-v3 and Hoppscotch themes (dropdown/modal/toolbar background fix)
 - See `references/erd-version-management-plan.md` for Git-based ERD version control architecture: dual-file strategy, name-based diff algorithm, API design, visual diff rendering with ui.color
+- See `references/erd-version-tag-management.md` for Tag CRUD API, timeline component, git tag operations, and 7 implementation pitfalls

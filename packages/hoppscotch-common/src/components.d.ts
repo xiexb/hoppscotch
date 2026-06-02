@@ -129,6 +129,7 @@ declare module 'vue' {
     ErdErdDiffDetail: typeof import('./components/erd/ErdDiffDetail.vue')['default']
     ErdErdDiffView: typeof import('./components/erd/ErdDiffView.vue')['default']
     ErdErdVersionPanel: typeof import('./components/erd/ErdVersionPanel.vue')['default']
+    ErdErdVersionTimeline: typeof import('./components/erd/ErdVersionTimeline.vue')['default']
     FirebaseLogin: typeof import('./components/firebase/Login.vue')['default']
     FirebaseLogout: typeof import('./components/firebase/Logout.vue')['default']
     GraphqlArgument: typeof import('./components/graphql/Argument.vue')['default']

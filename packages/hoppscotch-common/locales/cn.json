@@ -2711,7 +2711,8 @@
         "delete_error": "标签删除失败",
         "select_for_compare": "选择用于对比",
         "timeline": "时间线"
-      }
+      },
+      "no_collection_context": "请从集合中打开 ERD 以使用版本管理功能"
     },
     "diff": {
       "comparing": "对比",
